@@ -1,0 +1,9 @@
+#.gitignore -- schoonovernumerics/SEM/
+
+*~
+*.tec
+*.o
+*.mod
+*.session
+*.session.gui
+visitlog*

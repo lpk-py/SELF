@@ -1,0 +1,22 @@
+&MODEL 
+ModelFormulation = 100
+GeoMetricForm = 211
+cgIterMax = 500
+cgTol = 10.0E-4
+/
+&TIME_MANAGEMENT
+dt = 10.0
+iterInit = 0
+nTimeSteps = 1
+dumpFreq = 1
+/
+&SPACE_MANAGEMENT
+polyDeg = 5
+nPlot = 10
+/
+&PHYSICAL_PARAMETERS
+g = 9.81
+f0 = 10.0E-4
+betaX = 0.0
+betaY = 0.0
+/

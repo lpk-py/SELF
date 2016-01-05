@@ -1,0 +1,37 @@
+&MODEL_FORM
+ModelFormulation = 'Skew-Symmetric',
+/
+&TIME_MANAGEMENT
+dt = 1.0,
+iterInit = 0,
+nTimeSteps = 999999,
+dumpFreq = 5000,
+/
+&SPACE_MANAGEMENT
+polyDeg = 6,
+nXElem = 25,
+nYElem = 25,
+nPlot = 10,
+xScale = 500000.0,
+yScale = 500000.0,
+/
+&PHYSICAL_PARAMETERS
+g = 10.0,
+f0 = 0.0,
+betaX = 0.0,
+betaY = 0.0,
+linearDrag = 0.0,
+/
+&DIPOLE_PARAMETERS
+eta0 = 0.0,
+x0 = 250000.0,
+y0 = 253000.0,
+x1 = 250000.0,
+y1 = 247000.0,
+R0 = 0.25,
+R1 = 0.25,
+delta = 25000.0,
+u0 = 50.0,
+u1 = 0.5,
+h0 = 100.0,
+/

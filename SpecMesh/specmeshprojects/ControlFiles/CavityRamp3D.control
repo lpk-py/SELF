@@ -1,0 +1,95 @@
+\begin{ControlInput}
+
+   \begin{Define3DMesh}
+      elementType = "HEX"
+      algorithm   = "SimpleExtrusion"
+   \end{Define3DMesh}
+
+   \begin{SimpleExtrusion}
+	  direction    = 3
+      height       = 2.0
+      subdivisions = 8
+      start surface name = "frontSurface"
+      end surface name   = "backSurface"
+   \end{SimpleExtrusion}
+
+   \begin{RunParameters}
+      mesh file name   = "MeshFiles/CavityRamp3D2.mesh"
+      plot file name   = "PlotFiles/CavityRamp3D.tec"
+      stats file name  = "Statistics/CavityRamp3D.txt"
+      mesh file format = "ISM"
+      polynomial order = 3
+   \end{RunParameters}
+
+   \begin{MeshParameters}
+      mesh type            = "conforming"
+      background grid size = [0.3,0.3,0.3]
+   \end{MeshParameters}
+
+   \begin{SpringSmoother}
+      smoothing            = "ON"
+      smoothing type       = "LinearAndCrossBarSpring"
+      spring constant      = 1.0
+      mass                 = 1.0
+      rest length          = 0.0
+      damping coefficient  = 5.0
+      number of iterations = 25
+      time step            = 0.1
+   \end{SpringSmoother}
+
+\end{ControlInput}
+
+\begin{Model}
+\begin{OuterBoundary}
+      \begin{ParametricEquationCurve}
+	 name = "B1"
+	 xEqn = "f(t) =  2.0*t"
+	 yEqn = "f(t) =  1.0"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "B2"
+	 xEqn = "f(t) =  2.0"
+	 yEqn = "f(t) =  1-t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "B3"
+	 xEqn = "f(t) =  2+t"
+	 yEqn = "f(t) =  0.0"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "B4"
+	 xEqn = "f(t) =  3.0 + t"
+	 yEqn = "f(t) =  t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "B5"
+	 xEqn = "f(t) =  4+ 3*t"
+	 yEqn = "f(t) =  1"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "B6"
+	 xEqn = "f(t) =  7"
+	 yEqn = "f(t) =  1 + t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "B7"
+	 xEqn = "f(t) =  7*(1-t)"
+	 yEqn = "f(t) =  2"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "B8"
+	 xEqn = "f(t) =  0.0"
+	 yEqn = "f(t) =  2-t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+
+\end{OuterBoundary}
+\end{Model}
+\end{File}

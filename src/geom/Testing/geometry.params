@@ -1,0 +1,7 @@
+&SPACE_MANAGEMENT
+SpecMeshFile = 'square.mesh',
+polyDeg = 4,
+nPlot = 10,
+xScale = 1.0,
+yScale = 1.0,
+/

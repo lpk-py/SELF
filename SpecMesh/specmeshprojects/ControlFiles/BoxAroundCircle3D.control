@@ -1,0 +1,75 @@
+/*
+   This control file uses a model that has only an inner boundary. The outer
+   boundary and the mesh size is given by the BackgroundGrid 
+   block. The background grid size is ignored when a BackgroundGrid block 
+   is present.
+*/
+\begin{ControlInput}
+   
+   \begin{Define3DMesh}
+      elementType = "HEX"
+      algorithm   = "SimpleExtrusion"
+   \end{Define3DMesh}
+
+   \begin{SimpleExtrusion}
+	  direction    = 2
+      height       = 4.0
+      subdivisions = 4
+      start surface name = "bottom"
+      end surface name   = "top"
+   \end{SimpleExtrusion}
+
+// add this above at some point.      rotation           = [0.0,0.0,1.0]
+
+   \begin{RunParameters}
+      mesh file name   = "MeshFiles/BoxAroundCircle3D.mesh"
+      plot file name   = "PlotFiles/BoxAroundCircle3D.tec"
+      stats file name  = "Statistics/BoxAroundCircle3D.txt"
+      mesh file format = "ISM"
+      polynomial order = 5
+   \end{RunParameters}
+
+   \begin{MeshParameters}
+      mesh type            = "conforming"
+      background grid size = [6.0,6.0,0.0]
+   \end{MeshParameters}
+   
+   \begin{BackgroundGrid}
+       x0 = [-3.0, -3.0, 0.0]
+       dx = [0.75, 0.75, 0.75]
+       N  = [8,8,0]
+   \end{BackgroundGrid}
+
+   \begin{SpringSmoother}
+      smoothing            = "ON"
+      smoothing type       = "LinearAndCrossBarSpring"
+      spring constant      = 1.0
+      mass                 = 1.0
+      rest length          = 0.0
+      damping coefficient  = 5.0
+      number of iterations = 30
+      time step            = 0.1
+   \end{SpringSmoother}
+
+\end{ControlInput}
+/*
+   The Model contains only the desired boundary curves
+*/
+\begin{Model}
+	\begin{InnerBoundaries}
+	
+	   \begin{Chain}
+	       name = "Cylinder"
+           	\begin{ParametricEquationCurve}
+			name = "InnerCylinder"
+			xEqn = "f(t) = 1.0*cos(2*pi*t)"
+			yEqn = "f(t) = 1.0*sin(2*pi*t)"
+			yEqn = "z(t) = 0.0"
+		\end{ParametricEquationCurve}
+	   \end{Chain}
+	   
+	\end{InnerBoundaries}
+
+\end{Model}
+
+\end{File}
