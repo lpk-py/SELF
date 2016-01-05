@@ -72,8 +72,8 @@ USE ShallowWaterClass
  SUBROUTINE InitialCondition( myDGSEM )
  ! S/R InitialCondition
  !
- !    This subroutine (in v2.1) constructs a dipole for a non-rotating fluid. A 1/R profile is used
- !    for each of the poles.
+ !    This subroutine (in v2.1) constructs a geostrophic dipole.
+ !
  ! ==============================================================================================  !
  ! DECLARATIONS
    TYPE( ShallowWater ), INTENT(inout) :: myDGSEM
@@ -111,22 +111,36 @@ USE ShallowWaterClass
             
                CALL myDGSEM % mesh % GetPositionAtNode( iEl, x, y, iS, iP )
                f(iS,iP) = f0         
-               R0 = (x-x0)**2 + (y-y0)**2 + delta**2 
-               R1 = (x-x1)**2 + (y-y1)**2 + delta**2 
-               B = u0*delta
-               sol(iS,iP,1) =  (HALF*B/pi)*( (y-y0)/R0 - (y-y1)/R1 )
-               sol(iS,iP,2) = -(HALF*B/pi)*( (x-x0)/R0 - (x-x1)/R1 )
-               
-               ! Use bernoulli's equation to obtain the barotropic pressure.
-               KE = ( sol(iS,iP,1)**2 + sol(iS,iP,2)**2 )*HALF
                ! Setting the dipole free surface height
-               sol(iS,iP,3) = eta0 - KE/g      
+               sol(iS,iP,3) = eta0*( exp( -HALF*((x-x0)**2 + (y-y0)**2)/R0**2 ) - &
+                                     exp( -HALF*((x-x1)**2 + (y-y1)**2)/R0**2 ) )
                
             ENDDO
          ENDDO
          
          CALL myDGSEM % SetSolution( iEl, sol )
          CALL myDGSEM % SetPlanetaryVorticity( iEl, f )
+      ENDDO
+      
+      CALL myDGSEM % GlobalTimeDerivative( ZERO )
+      
+      DO iEl = 1, nEl
+         DO iP = 0, nP
+            DO iS = 0, nS
+            
+               CALL myDGSEM % GetTendencyAtNodeWithVarID( iEl, iS, iP, 1, dpdx )
+               dpdx = -dpdx
+               CALL myDGSEM % GetTendencyAtNodeWithVarID( iEl, iS, iP, 2, dpdy )
+               dpdy = -dpdy
+                       
+               ! Setting the velocity via geostrophy
+               sol(iS,iP,1) = -dpdy/f0 ! u
+               sol(iS,iP,2) = dpdx/f0
+               
+            ENDDO
+         ENDDO
+         
+         CALL myDGSEM % SetSolution( iEl, sol )
       ENDDO
       
 
