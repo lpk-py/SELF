@@ -1372,6 +1372,8 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
    REAL(prec) :: flux(1:nSWeq)
    REAL(prec) :: inState(0:myDGSEM % nS,1:nSWeq)
    REAL(prec) :: exState(0:myDGSEM % nS,1:nSWeq)
+   REAL(prec) :: avgState(0:myDGSEM % nS,1:nSWeq)
+   REAL(prec) :: avgState2(0:myDGSEM % nS,1:nSWeq)
    REAL(prec) :: inBathy(0:myDGSEM % nS,1:3)
    REAL(prec) :: exBathy(0:myDGSEM % nS,1:3)
    REAL(prec) :: wavespeed, h, x, y 
@@ -1411,11 +1413,19 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
             ! Store the flux for the elements which share this edge
             CALL myDGSEM % SetBoundaryFluxAtBoundaryNode( e1, s1, iNode, flux )
             CALL myDGSEM % SetBoundaryFluxAtBoundaryNode( e2, s2, k, -flux )
-                           
+             
+            avgState(iNode,:) = HALF*( inState(iNode,:) + exState(k,:) )
+            avgState2(k,:)    = HALF*( inState(iNode,:) + exState(k,:) )
             k = k + inc
 
          ENDDO ! iNode, loop over the nodes
 
+         ! Set the boundary solutions to the average of the two solutions at the edge - this will 
+         ! only affect the relative vorticity calculation. If you are using V2 of CalculateRelativeVorticity,
+         ! the edge velocity is used in a weak form calculation of the relative vorticity.
+         CALL myDGSEM % SetBoundarySolutionAtBoundary( e1, s1, avgState )
+         CALL myDGSEM % SetBoundarySolutionAtBoundary( e2, s2, avgState2 )
+         
       ELSE ! this edge is a boundary edge
 
          DO iNode = 0, nS ! loop over the nodes on this edge
@@ -1898,8 +1908,9 @@ FUNCTION RiemannSolver( inState, outState, h, nHat, locParams ) RESULT( numFlux 
 !
 !
  SUBROUTINE CalculateRelativeVorticity_ShallowWater( myDGSEM, iEl ) 
- ! S/R CalculateRelativeVorticity
+ ! S/RCalculateRelativeVorticity
  ! 
+ !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
@@ -1907,34 +1918,55 @@ FUNCTION RiemannSolver( inState, outState, h, nHat, locParams ) RESULT( numFlux 
    INTEGER, INTENT(in)                :: iEl
    ! LOCAL
    REAL(prec) :: dxds, dxdp, dyds, dydp, J, normLength, normVec(1:2)
-   REAL(prec) :: plv, rev
+   REAL(prec) :: h, bathy(1:3), plv, rev
    REAL(prec) :: xF, yF
    REAL(prec) :: pContFlux(0:myDGSEM % nS)
    REAL(prec) :: sContFlux(0:myDGSEM % nS)
    REAL(prec) :: pContFluxDer(0:myDGSEM % nS)
    REAL(prec) :: sContFluxDer(0:myDGSEM % nS)
-   REAL(prec) :: u(0:myDGSEM % nS,0:myDGSEM % nP)
-   REAL(prec) :: v(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: tend(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: dMatX(0:myDGSEM % nS,0:myDGSEM % nS)
    REAL(prec) :: dMatY(0:myDGSEM % nP,0:myDGSEM % nP)
+   REAL(prec) :: qWeightX(0:myDGSEM % nS)
+   REAL(prec) :: qWeightY(0:myDGSEM % nP)
+   REAL(prec) :: lsouth(0:myDGSEM % nP)
+   REAL(prec) :: lnorth(0:myDGSEM % nP)
+   REAL(prec) :: least(0:myDGSEM % nS)
+   REAL(prec) :: lwest(0:myDGSEM % nS)
+   REAL(prec) :: usouth(0:myDGSEM % nP)
+   REAL(prec) :: unorth(0:myDGSEM % nP)
+   REAL(prec) :: ueast(0:myDGSEM % nS)
+   REAL(prec) :: uwest(0:myDGSEM % nS)
+   REAL(prec) :: vsouth(0:myDGSEM % nP)
+   REAL(prec) :: vnorth(0:myDGSEM % nP)
+   REAL(prec) :: veast(0:myDGSEM % nS)
+   REAL(prec) :: vwest(0:myDGSEM % nS)
+   REAL(prec) :: u(0:myDGSEM % nS,0:myDGSEM % nP)
+   REAL(prec) :: v(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: fL, fR
    INTEGER    :: iS, iP, nS, nP, iEq
 
      CALL myDGSEM % dgStorage % GetNumberOfNodes( nS, nP )
-     CALL myDGSEM % CGStorage % GetDerivativeMatrix( dMatX, dMatY )
-
-     CALL myDGSEM % GetVelocity( iEl, u, v )
-      
-      DO iP = 0,nP ! Loop over the y-points
+     CALL myDGSEM % dgStorage % GetDerivativeMatrix( dMatX, dMatY )
+     CALL myDGSEM % dgStorage % GetQuadratureWeights( qWeightX, qWeightY )
+     CALL myDGSEM % dgStorage % GetSouthernInterpolants( lsouth )
+     CALL myDGSEM % dgStorage % GetNorthernInterpolants( lnorth )
+     CALL myDGSEM % dgStorage % GetEasternInterpolants( least )
+     CALL myDGSEM % dgStorage % GetWesternInterpolants( lwest )
+         
+     CALL myDGSEM % GetVelocityAtBoundary( iEl, 1, uSouth, vSouth )
+     CALL myDGSEM % GetVelocityAtBoundary( iEl, 2, uEast, vEast )
+     CALL myDGSEM % GetVelocityAtBoundary( iEl, 3, uNorth, vNorth )
+     CALL myDGSEM % GetVelocityAtBoundary( iEl, 4, uWest, vWest ) 
+    CALL myDGSEM % GetVelocity( iEl, u, v )
+    
+     DO iP = 0,nP ! Loop over the y-points
 
         DO iS = 0,nS ! Loop over the x-points
 
            ! Get the metric terms to calculate the contravariant flux
            CALL myDGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
-           ! Get the depth - needed for wave speed calculation 
 
-           ! Calculate the x and y fluxes
            xF = v(iS,iP)
            yF = -u(iS,iP)
 
@@ -1943,9 +1975,21 @@ FUNCTION RiemannSolver( inState, outState, h, nHat, locParams ) RESULT( numFlux 
 
         ENDDO ! iS, Loop over the x-points
 
-         sContFluxDer(0:nS) = MATMUL( dMatX, sContFlux )
+        ! East edge
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iP, 2 ) 
+         fR = ( vEast(iP)*normVec(1) - uEast(iP)*normVec(2) )*normLength
+           
+         ! West edge
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iP, 4 ) 
+         fL = ( vWest(iP)*normVec(1) - uWest(iP)*normVec(2) )*normLength
+         
+        ! At this y-level, calculate the DG-advective derivative
+            sContFluxDer = DGSystemDerivative(  nS, dMatX, qWeightX, fL, fR, &
+                                               sContFlux, lwest, least )
+
+
          DO iS = 0, nS ! Loop over the x-points
-               tend(iS, iP) = sContFluxDer(iS)
+            tend(iS, iP) = sContFluxDer(iS)
          ENDDO ! Loop over the x-points
 
       
@@ -1959,32 +2003,43 @@ FUNCTION RiemannSolver( inState, outState, h, nHat, locParams ) RESULT( numFlux 
            ! Get the metric terms to calculate the contravariant flux
            CALL myDGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
 
-           ! Calculate the x and y fluxes
            xF = v(iS,iP)
-           yF =-u(iS,iP)
+           yF = -u(iS,iP)
 
            !And now the contravariant flux
-           pContFlux = -dyds*xF + dxds*yF
+           pContFlux(iP) = -dyds*xF + dxds*yF
 
         ENDDO ! iP, Loop over the y-points
 
-         pContFluxDer(0:nP) = MATMUL( dMatY, pContFlux ) 
+        ! North edge
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, 3 ) 
+         fR = ( vNorth(iS)*normVec(1) - uNorth(iS)*normVec(2) )*normLength
+           
+         ! South edge
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, 1 ) 
+         fL = ( vSouth(iS)*normVec(1) - uSouth(iS)*normVec(2) )*normLength
+
+        ! At this x-level, calculate the y-DG-advective derivative
+         pContFluxDer = DGSystemDerivative(  nP, dMatY, qWeightY, fL, fR, &
+                                             pContFlux, lsouth, lnorth  )
+     
+         
          DO iP = 0, nP ! Loop over the y-points
-                CALL myDGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
-                tend(iS,iP) = ( tend(iS, iP) + pContFluxDer(iP) )/J
-         ENDDO ! Loop over the y-points
+            CALL myDGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
+            tend(iS, iP) = ( tend(iS, iP)+ pContFluxDer(iP) )/J
+         ENDDO ! Loop over the x-points
 
       
-     ENDDO ! iS
-     
-      CALL myDGSEM % SetRelativeVorticity( iEl, tend )
+     ENDDO ! iP
+         
+     CALL myDGSEM % SetRelativeVorticity( iEl, tend )
 
- END SUBROUTINE CalculateRelativeVorticity_ShallowWater
+ END SUBROUTINE CalculateRelativeVorticity_ShallowWater            
 !
 !
 !
-SUBROUTINE CalculateBathymetryGradient_ShallowWater( myDGSEM, iEl ) 
- ! S/R CalculateBathymetryGradient_ShallowWater
+ SUBROUTINE CalculateBathymetryGradient_ShallowWater( myDGSEM, iEl ) 
+ ! S/R CalculateBathymetryGradient
  ! 
  !
  ! =============================================================================================== !

@@ -90,9 +90,6 @@ USE ShallowWaterClass
       y0   = myDGSEM % params % y0
       x1   = myDGSEM % params % x1
       y1   = myDGSEM % params % y1
-      delta = myDGSEM % params % delta
-      u0 = myDGSEM % params % u0
-      u1 = myDGSEM % params % u1
       R0 = myDGSEM % params % R0
       R1 = myDGSEM % params % R1
       
@@ -122,7 +119,7 @@ USE ShallowWaterClass
          CALL myDGSEM % SetPlanetaryVorticity( iEl, f )
       ENDDO
       
-      CALL myDGSEM % GlobalTimeDerivative( ZERO )
+      CALL myDGSEM % GlobalTimeDerivative( ZERO ) ! Calculate the pressure gradient
       
       DO iEl = 1, nEl
          DO iP = 0, nP
@@ -140,7 +137,7 @@ USE ShallowWaterClass
             ENDDO
          ENDDO
          
-         CALL myDGSEM % SetSolution( iEl, sol )
+         CALL myDGSEM % SetVelocity( iEl, sol(:,:,1), sol(:,:,2) )
       ENDDO
       
 

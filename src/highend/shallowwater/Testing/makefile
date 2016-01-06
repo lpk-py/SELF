@@ -13,7 +13,7 @@ INC=
 OPT=-O3 -fopenmp
 #OPT=-Og -fcheck=all 
 WFLAGS= 
-SRCDIR=/home/joe/Desktop/work/software/SEM_v2.0/src_2.1/
+SRCDIR=/home/joe/Desktop/work/software/SELF/src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
