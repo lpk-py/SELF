@@ -8,12 +8,13 @@
 SHELL=/bin/bash
 FC=gfortran
 FCUNI=gfortran
-LIB=-L/usr/local/lapack -llapack -lrefblas
+#LIB=-L/usr/local/lapack -llapack -lrefblas
+LIB=
 INC=
-#OPT=-O3 -fOPENmp
-OPT=-Og -fcheck=all 
+OPT=-O3 -fopenmp
+#OPT=-O0 -fcheck=all 
 WFLAGS= 
-SRCDIR=/home/joe/Desktop/work/software/SEM_v2.0/src_2.1/
+SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -110,6 +111,21 @@ DGSEMSolutionStorageClass_3D.o : ModelPrecision.o ConstantsDictionary.o
 #                            ~/src/geom/                                 #
 # ---------------------------------------------------------------------- #
 
+Geometry2DTest : ${geomtestobj}
+	${FC} ${OPT} ${geomtestobj} -o $@
+		
+TestMappedGeometry_2D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_2D_Class.o \
+                          NodalStorage_2D_Class.o CurveClass_2D.o GeometryParamsClass.o MappedGeometryClass_2D.o
+	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestMappedGeometry_2D.f90 -o $@
+
+
+Geometry3DTest : ${geom3dtestobj}
+	${FC} ${OPT} ${geom3dtestobj} -o $@
+		
+TestMappedGeometry_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_3D_Class.o \
+                          NodalStorage_3D_Class.o SurfaceClass_3D.o GeometryParamsClass.o MappedGeometryClass_3D.o
+	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestMappedGeometry_3D.f90 -o $@
+	
 
 # MODULE list #
 NodeClass_1D.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o LinkedListClass.o
@@ -124,11 +140,17 @@ NodeClass_3D.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o LinkedListC
 EdgeClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o
 	${FC} ${OPT} -c ${SRCDIR}geom/EdgeClass.f90 -o $@
 	
+FaceClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o
+	${FC} ${OPT} -c ${SRCDIR}geom/FaceClass.f90 -o $@
+	
 CurveClass_2D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}geom/CurveClass_2D.f90 -o $@	
 	
 CurveClass_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}geom/CurveClass_3D.f90 -o $@	
+
+SurfaceClass_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o Lagrange_2D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}geom/SurfaceClass_3D.f90 -o $@	
 
 VectorClass.o : ModelPrecision.o ConstantsDictionary.o
 	${FC} ${OPT} -c ${SRCDIR}geom/VectorClass.f90 -o $@
@@ -144,6 +166,10 @@ MappedGeometryClass_2D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o C
                            Lagrange_2D_Class.o CurveClass_2D.o VectorClass.o GeometrySupportRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}geom/MappedGeometryClass_2D.f90 -o $@
 
+MappedGeometryClass_3D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o CommonRoutines.o \
+                           Lagrange_3D_Class.o SurfaceClass_3D.o VectorClass.o
+	${FC} ${OPT} -c ${SRCDIR}geom/MappedGeometryClass_3D.f90 -o $@
+
 QuadElementClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o \
                      Lagrange_2D_Class.o CurveClass_2D.o GeometrySupportRoutines.o MappedGeometryClass_2D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/QuadElementClass.f90 -o $@	
@@ -156,7 +182,13 @@ QuadMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o LinkedList
 # ---------------------------------------------------------------------- #
 #                     ~/src/highend/shallowwater/                        #
 # ---------------------------------------------------------------------- #
+         
+initialize_sw : ${SWOBJS} ShallowWater_InitialConditions.o
+	${FC} ${OPT} ${SWOBJS} ShallowWater_InitialConditions.o -o $@
 
+integrate_sw : ${SWOBJS} ShallowWater_Driver.o
+	${FC} ${OPT} ${SWOBJS} ShallowWater_Driver.o -o $@
+         
 SWParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/SWParamsClass.f90 -o $@
 
@@ -166,8 +198,10 @@ ShallowWaterClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Common
 	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/ShallowWaterClass.f90 -o $@
 
 ShallowWater_InitialConditions.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ShallowWaterClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/ShallowWater_InitialConditions.f90 -o $@
-	
+	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/Testing/ShallowWater_InitialConditions.f90 -o $@
+
+ShallowWater_Driver.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ShallowWaterClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/ShallowWater_Driver.f90 -o $@	
 # ---------------------------------------------------------------------- #
 #                          Other directives                              #
 # ---------------------------------------------------------------------- #

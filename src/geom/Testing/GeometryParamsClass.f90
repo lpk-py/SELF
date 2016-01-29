@@ -32,6 +32,7 @@ MODULE GeometryParamsClass
        REAL(prec)    :: dxPlot
        REAL(prec)    :: xScale
        REAL(prec)    :: yScale
+       REAL(prec)    :: zScale
       
        CONTAINS
 
@@ -59,15 +60,17 @@ MODULE GeometryParamsClass
        REAL(prec)    :: dxPlot
        REAL(prec)    :: xScale
        REAL(prec)    :: yScale
+       REAL(prec)    :: zScale
 
 
-      NAMELIST / SPACE_MANAGEMENT / polyDeg, polyDegOI, geomPolyDeg, nPlot, xScale, yScale
+      NAMELIST / SPACE_MANAGEMENT / polyDeg, geomPolyDeg, nPlot, xScale, yScale, zScale
  
       polyDeg = 5
       geomPolyDeg = 5
       nPlot = 10
       xScale = ONE
       yScale = ONE 
+      zScale = ONE
      
       
 
@@ -87,7 +90,7 @@ MODULE GeometryParamsClass
       thisParam % dxPlot = 2.0_prec/REAL(nPlot,prec)
       thisParam % xScale = xScale
       thisParam % yScale = yScale
-
+      thisParam % zScale = zScale
 
  END SUBROUTINE Build_GeometryParams
 

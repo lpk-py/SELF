@@ -380,15 +380,12 @@ END FUNCTION UpperCase
 
             thisRow = thisRow + 1      
 
-            print*, 'row',row, thisRow   
-
             thisCol = 0
             do col = 1, N ! loop over the columns of A
 
                if( col /= j ) then
 
                   thisCol = thisCol + 1
-                  print*,'col', col, thisCol
 
                   M(thisRow,thisCol) = (-1.0_prec)**(i+j)*A(row, col)
 
@@ -422,6 +419,67 @@ END FUNCTION UpperCase
       Ainv(2,1) = -A(2,1)/detA
 
  END FUNCTION Invert_2x2
- 
+!
+!
+!
+ FUNCTION Invert_3x3( A ) RESULT( Ainv )
+ !
+ ! =============================================================================================== !
+   IMPLICIT NONE
+   REAL(prec) :: A(1:3,1:3)
+   REAL(prec) :: Ainv(1:3,1:3)
+   ! LOCAL
+   REAL(prec) :: detA
+   REAL(prec) :: submat(1:2,1:2)
+   REAL(prec) :: detSubmat
+   
+      detA = Determinant( A, 3 )
+      
+      ! Row 1 column 1 of inverse (use submatrix neglecting row 1 and column 1 of A)
+      submat    =  A(2:3,2:3)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(1,1) = detSubmat/detA
+      
+      ! Row 1 column 2 of inverse (use submatrix neglecting row 2 and column 1 of A)
+      submat    =  A(1:3:2,2:3)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(1,2) = -detSubmat/detA
+      
+      ! Row 1 column 3 of inverse (use submatrix neglecting row 3 and column 1 of A)
+      submat    =  A(1:2,2:3)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(1,3) = detSubmat/detA
+
+      ! Row 2 column 1 of inverse (use submatrix neglecting row 1 and column 2 of A)
+      submat    =  A(2:3,1:3:2)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(2,1) = -detSubmat/detA
+      
+      ! Row 2 column 2 of inverse (use submatrix neglecting row 2 and column 2 of A)
+      submat    =  A(1:3:2,1:3:2)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(2,2) = -detSubmat/detA
+      
+      ! Row 2 column 3 of inverse (use submatrix neglecting row 3 and column 2 of A)
+      submat    =  A(1:2,1:3:2)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(2,3) = -detSubmat/detA
+      
+      ! Row 3 column 1 of inverse (use submatrix neglecting row 1 and column 3 of A)
+      submat    =  A(2:3,1:2)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(3,1) = detSubmat/detA
+      
+      ! Row 3 column 2 of inverse (use submatrix neglecting row 2 and column 3 of A)
+      submat    =  A(1:3:2,1:2)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(3,2) = -detSubmat/detA
+      
+      ! Row 3 column 3 of inverse (use submatrix neglecting row 3 and column 3 of A)
+      submat    =  A(1:2,1:2)
+      detSubmat = Determinant( submat, 2 )
+      Ainv(3,3) = detSubmat/detA
+
+ END FUNCTION Invert_3x3 
  
 END MODULE COMMONROUTINES

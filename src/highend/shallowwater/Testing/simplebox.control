@@ -1,0 +1,49 @@
+\begin{ControlInput}
+
+   \begin{RunParameters}
+      mesh file name   = "box.mesh"
+      plot file name   = "box.tec"
+      stats file name  = "box.txt"
+      mesh file format = "ISM-v2"
+      polynomial order = 1
+   \end{RunParameters}
+
+   \begin{MeshParameters}
+      mesh type            = "conforming"
+      background grid size = [1.0 1.0,0.5]
+   \end{MeshParameters}
+
+
+\end{ControlInput}
+
+\begin{Model}
+\begin{OuterBoundary}
+      \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  t"
+	 yEqn = "f(t) =  0.0"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  1.0"
+	 yEqn = "f(t) =  t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  1.0-t"
+	 yEqn = "f(t) =  1.0"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  0.0"
+	 yEqn = "f(t) =  1.0-t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+     
+
+\end{OuterBoundary}
+\end{Model}
+\end{File}

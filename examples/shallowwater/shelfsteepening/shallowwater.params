@@ -1,0 +1,39 @@
+&MODEL_FORM
+ModelFormulation = 'Skew-Symmetric',
+/
+&TIME_MANAGEMENT
+dt = 1.0,
+iterInit = 0,
+nTimeSteps = 999
+dumpFreq = 100,
+/
+&SPACE_MANAGEMENT
+SpecMeshFile = 'box.mesh',
+polyDeg = 8,
+nXElem = 15,
+nYElem = 15,
+nPlot = 12,
+xScale = 500000.0,
+yScale = 500000.0,
+/
+&PHYSICAL_PARAMETERS
+g = 0.1,
+f0 = 1.0E-4,
+betaX = 0.0,
+betaY = 0.0,
+linearDrag = 0.0,
+/
+&JET_PARAMETERS
+maxV      = 1.0,
+jetCenter = 100000.0,
+jetWidth  = 50000.0,
+/
+&SHELF_PARAMETERS
+shelfCenter     = 100000.0,
+UpstreamWidth   = 50000.0,        
+DownstreamWidth = 50000.0,        
+shelfDepth      = 200.0,           
+offshoreDepth   = 2000.0,
+transitionScale = 500000.0,  
+yTransition     = 500000.0,
+/

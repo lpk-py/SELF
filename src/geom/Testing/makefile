@@ -13,7 +13,7 @@ INC=
 #OPT=-O3 -fOPENmp
 OPT=-Og -fcheck=all 
 WFLAGS= 
-SRCDIR=/home/joe/Desktop/work/software/SEM_v2.0/src_2.1/
+SRCDIR=/home/joe/Desktop/work/software/SELF/src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -27,7 +27,7 @@ INIDIR=${DIR}/init/
 #                           ~/src/common/                                #
 # ---------------------------------------------------------------------- #
 
-# Module list #
+# MODULE list #
 ModelPrecision.o :
 	${FC} ${OPT} -c ${SRCDIR}common/ModelPrecision.f90 -o $@
 
@@ -37,7 +37,7 @@ ModelFlags.o :
 LinkedListClass.o :
 	${FC} ${OPT} -c ${SRCDIR}common/LinkedListClass.f90 -o $@
 	
-HashTableClass.o : LinkedListClass.o
+HashTableClass.o : ConstantsDictionary.o LinkedListClass.o
 	${FC} ${OPT} -c ${SRCDIR}common/HashTableClass.f90 -o $@
 
 ConstantsDictionary.o : ModelPrecision.o
@@ -57,7 +57,7 @@ Timing.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o
 #                           ~/src/interp/                                #
 # ---------------------------------------------------------------------- #
 
-# Module list #
+# MODULE list #
 Chebyshev.o : ModelPrecision.o ConstantsDictionary.o
 	${FC} ${OPT} -c ${SRCDIR}interp/Chebyshev.f90 -o $@
 
@@ -78,7 +78,7 @@ Lagrange_3D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o La
 #                            ~/src/nodal/                                #
 # ---------------------------------------------------------------------- #
 
-# Module list #
+# MODULE list #
 NodalStorage_1D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Legendre.o \
                           Lagrange_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}nodal/NodalStorage_1D_Class.f90 -o $@
@@ -96,7 +96,7 @@ NodalStorage_3D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Le
 #                            ~/src/dgsem/                                #
 # ---------------------------------------------------------------------- #
 
-# Module list #
+# MODULE list #
 DGSEMSolutionStorageClass_1D.o : ModelPrecision.o ConstantsDictionary.o
 	${FC} ${OPT} -c ${SRCDIR}dgsem/DGSEMSolutionStorageClass_1D.f90 -o $@
 
@@ -131,6 +131,28 @@ Geometry2DTest : ${geomtestobj}
 TestMappedGeometry_2D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_2D_Class.o \
                           NodalStorage_2D_Class.o CurveClass_2D.o GeometryParamsClass.o MappedGeometryClass_2D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestMappedGeometry_2D.f90 -o $@
+
+geom3dtestobj=ModelPrecision.o \
+              ConstantsDictionary.o \
+              ModelFlags.o \
+              CommonRoutines.o \
+              Legendre.o \
+              Lagrange_1D_Class.o \
+              Lagrange_2D_Class.o \
+              Lagrange_3D_Class.o \
+              NodalStorage_3D_Class.o \
+              SurfaceClass_3D.o \
+              VectorClass.o \
+              GeometryParamsClass.o \
+              MappedGeometryClass_3D.o \
+              TestMappedGeometry_3D.o
+
+Geometry3DTest : ${geom3dtestobj}
+	${FC} ${OPT} ${geom3dtestobj} -o $@
+		
+TestMappedGeometry_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_3D_Class.o \
+                          NodalStorage_3D_Class.o SurfaceClass_3D.o GeometryParamsClass.o MappedGeometryClass_3D.o
+	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestMappedGeometry_3D.f90 -o $@
 	
 meshtestobj=ModelPrecision.o \
             ConstantsDictionary.o \
@@ -155,13 +177,8 @@ meshtestobj=ModelPrecision.o \
             TestQuadMesh.o
             
 
-QuadMeshTest : ${meshtestobj}
-	${FC} ${OPT} ${meshtestobj} -o $@
-		
-TestQuadMesh.o : ModelPrecision.o ConstantsDictionary.o NodalStorage_2D_Class.o GeometryParamsClass.o QuadMeshClass.o
-	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestQuadMesh.f90 -o $@
 
-# Module list #
+# MODULE list #
 NodeClass_1D.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o LinkedListClass.o
 	${FC} ${OPT} -c ${SRCDIR}geom/NodeClass_1D.f90 -o $@
 	
@@ -174,11 +191,17 @@ NodeClass_3D.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o LinkedListC
 EdgeClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o
 	${FC} ${OPT} -c ${SRCDIR}geom/EdgeClass.f90 -o $@
 	
+FaceClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o
+	${FC} ${OPT} -c ${SRCDIR}geom/FaceClass.f90 -o $@
+	
 CurveClass_2D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}geom/CurveClass_2D.f90 -o $@	
 	
 CurveClass_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}geom/CurveClass_3D.f90 -o $@	
+
+SurfaceClass_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o Lagrange_2D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}geom/SurfaceClass_3D.f90 -o $@	
 
 VectorClass.o : ModelPrecision.o ConstantsDictionary.o
 	${FC} ${OPT} -c ${SRCDIR}geom/VectorClass.f90 -o $@
@@ -194,6 +217,10 @@ MappedGeometryClass_2D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o C
                            Lagrange_2D_Class.o CurveClass_2D.o VectorClass.o GeometrySupportRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}geom/MappedGeometryClass_2D.f90 -o $@
 
+MappedGeometryClass_3D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o CommonRoutines.o \
+                           Lagrange_3D_Class.o SurfaceClass_3D.o VectorClass.o
+	${FC} ${OPT} -c ${SRCDIR}geom/MappedGeometryClass_3D.f90 -o $@
+
 QuadElementClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o \
                      Lagrange_2D_Class.o CurveClass_2D.o GeometrySupportRoutines.o MappedGeometryClass_2D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/QuadElementClass.f90 -o $@	
@@ -203,6 +230,21 @@ QuadMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o LinkedList
                   QuadElementClass.o EdgeClass.o NodeClass_2D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/QuadMeshClass.f90 -o $@	
 
+# ---------------------------------------------------------------------- #
+#                     ~/src/highend/shallowwater/                        #
+# ---------------------------------------------------------------------- #
+
+SWParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
+	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/SWParamsClass.f90 -o $@
+
+ShallowWaterClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                      Lagrange_2D_Class.o NodalStorage_2D_Class.o DGSEMSolutionStorageClass_2D.o \
+                      EdgeClass.o QuadElementClass.o QuadMeshClass.o SWParamsClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/ShallowWaterClass.f90 -o $@
+
+ShallowWater_InitialConditions.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ShallowWaterClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/ShallowWater_InitialConditions.f90 -o $@
+	
 # ---------------------------------------------------------------------- #
 #                          Other directives                              #
 # ---------------------------------------------------------------------- #

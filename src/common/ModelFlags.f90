@@ -1,6 +1,22 @@
 MODULE ModelFlags
 
-
+  !*************************************************************!
+  ! ------------------- Edge/Face Numbering --------------------!
+  ! ************************************************************!
+  ! This block of flags pertains to the integer associates with !
+  ! assigning boundary edge and face ordering of an element     !
+  !                                                             !
+  ! ------------------------------------------------------------!
+    INTEGER, PARAMETER :: south  = 1
+    INTEGER, PARAMETER :: east   = 2
+    INTEGER, PARAMETER :: north  = 3
+    INTEGER, PARAMETER :: west   = 4
+    INTEGER, PARAMETER :: bottom = 5
+    INTEGER, PARAMETER :: top    = 6
+    
+    INTEGER, PARAMETER :: nHexFaces  = 6
+    INTEGER, PARAMETER :: nHexNodes  = 8
+    INTEGER, PARAMETER :: nQuadEdges = 4
 
   !*************************************************************!
   ! ----------------- BOUNDARY CONDITION FLAGS -----------------!
@@ -41,13 +57,13 @@ MODULE ModelFlags
   !==============================================!
   ! ---------- Continuous Galerkin ------------- !
   !==============================================!
-   INTEGER, PARAMETER :: DIRICHLET = -100
-   INTEGER, PARAMETER :: HOMOGENEOUS_NEUMANN = -101
-   INTEGER, PARAMETER :: ROBIN = -102
-   INTEGER, PARAMETER :: ROBIN_FORCED = -104
-   INTEGER, PARAMETER :: INHOMOGENEOUS_NEUMANN = -103
-   INTEGER, PARAMETER :: NEUMANN = -105
-   INTEGER, PARAMETER :: NEUMANN_WALL = -106
+   INTEGER, PARAMETER :: DIRICHLET = -200
+   INTEGER, PARAMETER :: HOMOGENEOUS_NEUMANN = -201
+   INTEGER, PARAMETER :: ROBIN = -202
+   INTEGER, PARAMETER :: ROBIN_FORCED = -204
+   INTEGER, PARAMETER :: INHOMOGENEOUS_NEUMANN = -203
+   INTEGER, PARAMETER :: NEUMANN = -205
+   INTEGER, PARAMETER :: NEUMANN_WALL = -206
   !
   !==============================================!
   !

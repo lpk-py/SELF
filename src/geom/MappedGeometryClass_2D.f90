@@ -76,7 +76,7 @@ IMPLICIT NONE
    END TYPE MappedGeometry_2D
 
 
-
+ INTEGER, PRIVATE :: nDims = 2
  CONTAINS
 !
 !
@@ -93,7 +93,7 @@ IMPLICIT NONE
   IMPLICIT NONE
   CLASS(MappedGeometry_2D), INTENT(out) :: myGeom
   TYPE(Lagrange_2D), INTENT(in)         :: interp
-  TYPE(Curve_2D), INTENT(in)            :: myCurves(1:4)
+  TYPE(Curve_2D), INTENT(in)            :: myCurves(1:nQuadEdges)
   !LOCAL
   INTEGER :: nS, nP, i
    
@@ -106,16 +106,16 @@ IMPLICIT NONE
       ALLOCATE( myGeom % dyds(0:nS,0:nP), myGeom % dydp(0:nS,0:nP) )
       ALLOCATE( myGeom % J(0:nS,0:nP) )
       ALLOCATE( myGeom % x(0:nS,0:nP), myGeom % y(0:nS,0:nP) )
-      ALLOCATE( myGeom % xBound(0:max(nS,nP),1:4) )
-      ALLOCATE( myGeom % yBound(0:max(nS,nP),1:4) )
-      ALLOCATE( myGeom % nHat(0:max(nS,nP),1:4) )
+      ALLOCATE( myGeom % xBound(0:max(nS,nP),1:nQuadEdges) )
+      ALLOCATE( myGeom % yBound(0:max(nS,nP),1:nQuadEdges) )
+      ALLOCATE( myGeom % nHat(0:max(nS,nP),1:nQuadEdges) )
      
       DO i = 0,max(nS,nP)
 
-         CALL myGeom % nHat(i,1) % Build( 2 ) ! Allocate space for the south nHats
-         CALL myGeom % nHat(i,2) % Build( 2 ) ! Allocate space for the east nHats
-         CALL myGeom % nHat(i,3) % Build( 2 ) ! Allocate space for the north nHats
-         CALL myGeom % nHat(i,4) % Build( 2 ) ! Allocate space for the west nHats
+         CALL myGeom % nHat(i,south) % Build( nDims ) ! Allocate space for the south nHats
+         CALL myGeom % nHat(i,east)  % Build( nDims ) ! Allocate space for the east nHats
+         CALL myGeom % nHat(i,north) % Build( nDims ) ! Allocate space for the north nHats
+         CALL myGeom % nHat(i,west)  % Build( nDims ) ! Allocate space for the west nHats
 
       ENDDO
       
@@ -140,15 +140,15 @@ IMPLICIT NONE
 
       DEALLOCATE( myGeom % dxds, myGeom % dxdp )
       DEALLOCATE( myGeom % dyds, myGeom % dydp)
-      DEALLOCATE( myGeom % J, myGeom % x )
+      DEALLOCATE( myGeom % J, myGeom % x, myGeom % y )
       DEALLOCATE( myGeom % xBound, myGeom % yBound )
      
       DO i = 0, myGeom % nMax
 
-         CALL myGeom % nHat(i,1) % Trash()
-         CALL myGeom % nHat(i,2) % Trash()
-         CALL myGeom % nHat(i,3) % Trash()
-         CALL myGeom % nHat(i,4) % Trash()
+         CALL myGeom % nHat(i,south) % Trash( )
+         CALL myGeom % nHat(i,east)  % Trash( )
+         CALL myGeom % nHat(i,north) % Trash( )
+         CALL myGeom % nHat(i,west)  % Trash( )
 
       ENDDO
 
@@ -643,8 +643,8 @@ IMPLICIT NONE
          signJ = abs(J)/J                    
 
          ! Setting southern boundary normal                 -dyds    ,    dxds
-         CALL myGeom % SetBoundaryNormalAtNode( -signJ*(/ -covT(2,1), covT(1,1) /), iS, 1 )
-         CALL myGeom % nHat(iS, 1) % Normalize( )
+         CALL myGeom % SetBoundaryNormalAtNode( -signJ*(/ -covT(2,1), covT(1,1) /), iS, south )
+         CALL myGeom % nHat(iS, south) % Normalize( )
           
          p = ONE  ! north boundary
          
@@ -655,8 +655,8 @@ IMPLICIT NONE
          signJ = abs(J)/J                    
 
          ! Setting northern boundary normal                -dyds    ,    dxds
-         CALL myGeom % SetBoundaryNormalAtNode( signJ*(/ -covT(2,1), covT(1,1) /), iS, 3 )
-         CALL myGeom % nHat(iS, 3) % Normalize( )
+         CALL myGeom % SetBoundaryNormalAtNode( signJ*(/ -covT(2,1), covT(1,1) /), iS, north )
+         CALL myGeom % nHat(iS, north) % Normalize( )
          
       ENDDO
       
@@ -673,8 +673,8 @@ IMPLICIT NONE
          signJ = abs(J)/J                    
 
          ! Setting western boundary normal                  dydp   ,   -dxdp
-         CALL myGeom % SetBoundaryNormalAtNode( -signJ*(/ covT(2,2), -covT(1,2) /), iP, 4 )
-         CALL myGeom % nHat(iP, 4) % Normalize( )
+         CALL myGeom % SetBoundaryNormalAtNode( -signJ*(/ covT(2,2), -covT(1,2) /), iP, west )
+         CALL myGeom % nHat(iP, west) % Normalize( )
          
          s = ONE  ! east boundary
          
@@ -685,8 +685,8 @@ IMPLICIT NONE
          signJ = abs(J)/J                    
 
          ! Setting eastern boundary normal                  dydp   ,   -dxdp
-         CALL myGeom % SetBoundaryNormalAtNode( signJ*(/ covT(2,2), -covT(1,2) /), iP, 2 )
-         CALL myGeom % nHat(iP, 2) % Normalize( )
+         CALL myGeom % SetBoundaryNormalAtNode( signJ*(/ covT(2,2), -covT(1,2) /), iP, east )
+         CALL myGeom % nHat(iP, east) % Normalize( )
       
       ENDDO
 
@@ -721,8 +721,8 @@ IMPLICIT NONE
          signJ = abs(J)/J                    
 
          ! Setting southern boundary normal                 -dyds    ,    dxds
-         CALL myGeom % SetBoundaryNormalAtNode( -signJ*(/ -covT(2,1), covT(1,1) /), iS, 1 )
-         CALL myGeom % nHat(iS, 1) % Normalize( )
+         CALL myGeom % SetBoundaryNormalAtNode( -signJ*(/ -covT(2,1), covT(1,1) /), iS, south )
+         CALL myGeom % nHat(iS, south) % Normalize( )
           
          p = ONE  ! north boundary
          
@@ -733,8 +733,8 @@ IMPLICIT NONE
          signJ = abs(J)/J                    
 
          ! Setting northern boundary normal                -dyds    ,    dxds
-         CALL myGeom % SetBoundaryNormalAtNode( signJ*(/ -covT(2,1), covT(1,1) /), iS, 3 )
-         CALL myGeom % nHat(iS, 3) % Normalize( )
+         CALL myGeom % SetBoundaryNormalAtNode( signJ*(/ -covT(2,1), covT(1,1) /), iS, north )
+         CALL myGeom % nHat(iS, north) % Normalize( )
          
       ENDDO
       
@@ -751,8 +751,8 @@ IMPLICIT NONE
          signJ = abs(J)/J                    
 
          ! Setting western boundary normal                  dydp   ,   -dxdp
-         CALL myGeom % SetBoundaryNormalAtNode( -signJ*(/ covT(2,2), -covT(1,2) /), iP, 4 )
-         CALL myGeom % nHat(iP, 4) % Normalize( )
+         CALL myGeom % SetBoundaryNormalAtNode( -signJ*(/ covT(2,2), -covT(1,2) /), iP, west )
+         CALL myGeom % nHat(iP, west) % Normalize( )
          
          s = ONE  ! east boundary
          
@@ -763,8 +763,8 @@ IMPLICIT NONE
          signJ = abs(J)/J                    
 
          ! Setting eastern boundary normal                  dydp   ,   -dxdp
-         CALL myGeom % SetBoundaryNormalAtNode( signJ*(/ covT(2,2), -covT(1,2) /), iP, 2 )
-         CALL myGeom % nHat(iP, 2) % Normalize( )
+         CALL myGeom % SetBoundaryNormalAtNode( signJ*(/ covT(2,2), -covT(1,2) /), iP, east )
+         CALL myGeom % nHat(iP, east) % Normalize( )
       
       ENDDO
 

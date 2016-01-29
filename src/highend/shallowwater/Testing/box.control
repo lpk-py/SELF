@@ -1,0 +1,88 @@
+\begin{ControlInput}
+
+   \begin{RunParameters}
+      mesh file name   = "box-step.mesh"
+      plot file name   = "box-step.tec"
+      stats file name  = "box-step.txt"
+      mesh file format = "ISM-v2"
+      polynomial order = 1
+   \end{RunParameters}
+
+   \begin{MeshParameters}
+      mesh type            = "conforming"
+      background grid size = [0.5,0.5,0.5]
+   \end{MeshParameters}
+
+   \begin{RefinementLine}
+      type = "smooth"
+      x0   = [0.4 0.0 0.0]
+      x1   = [0.4 0.5 0.0]
+      h    = 0.05
+      w    = 0.05
+   \end{RefinementLine}
+   
+   \begin{RefinementLine}
+      type = "smooth"
+      x0   = [0.4 0.25 0.0]
+      x1   = [1.0 0.25 0.0]
+      h    = 0.05
+      w    = 0.05
+   \end{RefinementLine}
+   
+   
+   \begin{SpringSmoother}
+      smoothing            = "ON"
+      smoothing type       = "LinearAndCrossBarSpring"
+      spring constant      = 1.0
+      mass                 = 1.0
+      rest length          = 0.0
+      damping coefficient  = 5.0
+      number of iterations = 25
+      time step            = 0.1
+   \end{SpringSmoother}
+
+\end{ControlInput}
+
+\begin{Model}
+\begin{OuterBoundary}
+      \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  0.6*t+0.4"
+	 yEqn = "f(t) =  0.0"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  1.0"
+	 yEqn = "f(t) =  t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  1.0-t"
+	 yEqn = "f(t) =  1.0"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  0.0"
+	 yEqn = "f(t) =  1.0-0.5*t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+       \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  0.4*t"
+	 yEqn = "f(t) =  0.5"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+       \begin{ParametricEquationCurve}
+	 name = "NO_NORMAL_FLOW"
+	 xEqn = "f(t) =  0.4"
+	 yEqn = "f(t) =  0.5*(1.0-t)"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+     
+
+\end{OuterBoundary}
+\end{Model}
+\end{File}

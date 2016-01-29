@@ -32,17 +32,19 @@ IMPLICIT NONE
        PROCEDURE :: GetLength => GetLength_Vector
        PROCEDURE :: GetDimension => GetDimension_Vector
 
+       PROCEDURE :: Add => Add_Vector
+       PROCEDURE :: Dot => Dot_Vector
        PROCEDURE :: Normalize => Normalize_Vector
        
    END TYPE Vector
 
-   INTERFACE OPERATOR(+)
-      MODULE PROCEDURE Add_Vector
-   END INTERFACE
+   !INTERFACE OPERATOR(+)
+   !   MODULE PROCEDURE Add_Vector
+   !END INTERFACE
 
-   INTERFACE OPERATOR(*)
-      MODULE PROCEDURE Dot_Vector
-   END INTERFACE
+   !INTERFACE OPERATOR(*)
+   !   MODULE PROCEDURE Dot_Vector
+   !END INTERFACE
 
  CONTAINS
 !
@@ -69,7 +71,7 @@ IMPLICIT NONE
          CALL myVec % SetDirection( dir )
       ENDIF
       
-      CALL myVec % SetLength( sqrt(myVec*myVec) )
+      CALL myVec % SetLength( DOT_PRODUCT( myvec % dir, myvec % dir ) )
 
  END SUBROUTINE Build_Vector
 !
@@ -178,8 +180,9 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   TYPE(Vector), INTENT(in) :: vec1, vec2
-   TYPE(Vector)             :: vec3
+   CLASS(Vector), INTENT(in) :: vec1
+   TYPE(Vector)               :: vec2
+   TYPE(Vector)               :: vec3
    ! LOCAL
    INTEGER :: iDimen
    
@@ -192,7 +195,7 @@ IMPLICIT NONE
 
       enddo  ! iDim, cycle over the vector dimensions
 
-      CALL vec3 % SetLength( sqrt( vec3*vec3 ) )
+      CALL vec3 % SetLength( sqrt( vec3 % Dot(vec3) ) )
 
  END FUNCTION Add_Vector
 !
@@ -204,7 +207,7 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   TYPE(Vector), INTENT(in) :: vec1, vec2
+   CLASS(Vector), INTENT(in) :: vec1, vec2
    REAL(prec)               :: vec1DotVec2
    ! LOCAL
    INTEGER :: iDimen
@@ -223,7 +226,7 @@ IMPLICIT NONE
    IMPLICIT NONE
    CLASS(Vector), INTENT(inout)  :: myvec
    
-      myvec % dir = myvec % dir/sqrt( myvec*myvec )
+      myvec % dir = myvec % dir/sqrt( Dot_Vector(myvec, myvec) )
 
  END SUBROUTINE Normalize_Vector
 

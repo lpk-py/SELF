@@ -61,9 +61,9 @@ IMPLICIT NONE
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: relax(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: bathymetry(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: vorticity(:)
-      TYPE( SWParams )                        :: params
-      REAL(prec), ALLOCATABLE                :: plMatS(:,:), plMatP(:,:)
-      REAL(prec)                              :: relativeFactor
+      TYPE( SWParams )                   :: params
+      REAL(prec), ALLOCATABLE            :: plMatS(:,:), plMatP(:,:)
+      REAL(prec), ALLOCATABLE            :: relativeFactor
 
       CONTAINS
 
@@ -1388,9 +1388,9 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
         ! Calculate the tendency
         CALL myDGSEM % GlobalTimeDerivative( t )
         
-        IF( myDGSEM % params % ModelFormulation == SKEW_SYMMETRIC )THEN
-           CALL myDGSEM % GlobalVorticityTimeDerivative( t )
-        ENDIF
+       ! IF( myDGSEM % params % ModelFormulation == SKEW_SYMMETRIC )THEN
+       !    CALL myDGSEM % GlobalVorticityTimeDerivative( t )
+       ! ENDIF
         
         DO iEl = 1, myDGSEM % mesh % nElems ! Loop over all of the elements
 
@@ -1399,11 +1399,11 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
 
            myDGSEM % sol(iEl) % solution = myDGSEM % sol(iEl) % solution + rk3_g(m)*dt*G2D(:,:,:,iEl)
            
-           CALL myDGSEM % GetVorticityTendency( iEl, dVdt )
-           V2D(:,:,iEl) = rk3_a(m)*V2D(:,:, iEl) + dVdt(:,:,2)
+        !   CALL myDGSEM % GetVorticityTendency( iEl, dVdt )
+        !   V2D(:,:,iEl) = rk3_a(m)*V2D(:,:, iEl) + dVdt(:,:,2)
 
-           myDGSEM % vorticity(iEl) % solution(:,:,2) = myDGSEM % vorticity(iEl) % solution(:,:,2) + &
-                                                        rk3_g(m)*dt*V2D(:,:,iEl)
+        !   myDGSEM % vorticity(iEl) % solution(:,:,2) = myDGSEM % vorticity(iEl) % solution(:,:,2) + &
+        !                                                rk3_g(m)*dt*V2D(:,:,iEl)
 
          ENDDO ! iEl, loop over all of the elements
          
@@ -1446,12 +1446,12 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
 !$OMP END DO
 !$OMP FLUSH( myDGSEM ) 
 
-!OMP DO
-   !   DO iEl = 1,myDGSEM % mesh % nElems
-   !      CALL myDGSEM % CalculateRelativeVorticity( iEl ) 
-   !   ENDDO
-!OMP END DO
-!OMP FLUSH( myDGSEM ) 
+!$OMP DO
+      DO iEl = 1,myDGSEM % mesh % nElems
+         CALL myDGSEM % CalculateRelativeVorticity( iEl ) 
+      ENDDO
+!$OMP END DO
+!$OMP FLUSH( myDGSEM ) 
 
 !$OMP DO
       DO iEl = 1, myDGSEM % mesh % nElems
@@ -1560,7 +1560,7 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
             h = HALF*(inBathy(iNode, 1) + exBathy(k, 1)) ! calculate the depth
             
             CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, iNode, s1 ) ! Get nHat
-           
+
             ! Calculate the RIEMANN flux
             flux = RiemannSolver( inState(iNode,:), exState(k,:), h, nHat, myDGSEM % params )*nHatLength
 
@@ -1659,7 +1659,7 @@ SUBROUTINE RelativeVorticityEdgeFlux_ShallowWater( myDGSEM, iEdge, tn )
          DO iNode = 0, nS ! Loop over the nodes
           
             CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, iNode, s1 ) ! Get nHat
-            
+
             ! Calculate the RIEMANN flux
             zIn = relVorticityIn(iNode) + planetaryVorticityIn(iNode)
             zOut = relVorticityOut(k) + planetaryVorticityOut(k)
@@ -2291,13 +2291,28 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
    INTEGER    :: bcFlag, formulation
    REAL(prec) :: extState(1:nEqn)
    TYPE( SWParams ) :: locParams
+   !LOCAL
+   REAL(prec) :: f0, g, vm, Lj, x0, dn
 
        IF( bcFlag == NO_NORMAL_FLOW ) then
           
           extState(1) = (nHat(2)*nHat(2) -nHat(1)*nHat(1))*intState(1) - 2.0_prec*nHat(1)*nHat(2)*intState(2) ! u velocity
           extState(2) = (nHat(1)*nHat(1) -nHat(2)*nHat(2))*intState(2) - 2.0_prec*nHat(1)*nHat(2)*intState(1) ! v velocity
           extState(3) = intState(3) ! barotropic pressure
-             
+       
+       ELSEIF( bcFlag == PRESCRIBED )then
+       
+          f0 = locParams % f0
+          g  = locParams % g
+          vm = locParams % maxV
+          Lj = locParams % jetWidth
+          x0 = locParams % jetCenter
+          dn = TWO*f0*vm*Lj/g
+          
+          extState(1) = ZERO
+          extState(2) = vm*( ONE -  ( tanh( (x-x0)/Lj ) )**2 )
+          extState(3) = HALF*dn*( ONE + tanh( (x-x0)/Lj ) )
+              
        ELSEIF( bcFlag == RADIATION ) then
           extState = ZERO
           
@@ -2326,14 +2341,24 @@ FUNCTION GetExternalVorticity( nEqn, nHat, x, y, t, bcFlag, intVort, locParams) 
    INTEGER    :: bcFlag, formulation
    REAL(prec) :: extVort
    TYPE( SWParams ) :: locParams
+   ! LOCAL
+   REAL(prec) :: vm, Lj, x0
 
        IF( bcFlag == NO_NORMAL_FLOW ) then
           
           extVort = intVort ! With a no-normal flow velocity, this gives no vorticity flux into the interior
-          
+       
+       ELSEIF( bcFlag == PRESCRIBED )then
+       
+          vm = locParams % maxV
+          Lj = locParams % jetWidth
+          x0 = locParams % jetCenter
+
+          extVort = -(TWO*vm/Lj)*( tanh( (x-x0)/Lj ) )*( ONE - ( tanh( (x-x0)/Lj ) )**2 )
+        ! extVort = intVort
        ELSEIF( bcFlag == RADIATION ) then
  
-          extVort = ZERO
+          extVort = intvort
           
        ELSE       
        

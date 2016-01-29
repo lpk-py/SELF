@@ -171,6 +171,21 @@ CONTAINS
 !
 !
 !
+ FUNCTION LinearBlend( a ) RESULT( weights )
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   REAL(prec) :: a
+   REAL(prec) :: weights(1:2)
+
+       weights(1) = HALF*(ONE - a)
+       weights(2) = HALF*(ONE + a)
+    
+ END FUNCTION LinearBlend
+!
+!
+!
  FUNCTION UnidirectionalDerivative_2D( valLeft, valRight, a ) RESULT( P )
  !
  ! =============================================================================================== !
