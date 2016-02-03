@@ -17,6 +17,7 @@ MODULE ModelFlags
     INTEGER, PARAMETER :: nHexFaces  = 6
     INTEGER, PARAMETER :: nHexNodes  = 8
     INTEGER, PARAMETER :: nQuadEdges = 4
+    INTEGER, PARAMETER :: nQuadNodes = 4
 
   !*************************************************************!
   ! ----------------- BOUNDARY CONDITION FLAGS -----------------!

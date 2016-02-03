@@ -8,12 +8,12 @@
 SHELL=/bin/bash
 FC=gfortran
 FCUNI=gfortran
-LIB=-L/usr/local/lapack -llapack -lrefblas
+LIB=
 INC=
 #OPT=-O3 -fopenmp
-OPT=-Og -fcheck=all 
+OPT=-O0 -fcheck=all 
 WFLAGS= 
-SRCDIR=/home/joe/Desktop/work/software/SEM_v2.0/src_2.1/
+SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -31,8 +31,14 @@ INIDIR=${DIR}/init/
 TestLL : LinkedListClass.o TestLinkedList.o
 	${FC} ${OPT} LinkedListClass.o TestLinkedList.o -o $@
 
+TestKR : CommonRoutines.o KeyRingClass.o TestKeyRing.o 
+	${FC} ${OPT} CommonRoutines.o KeyRingClass.o TestKeyRing.o -o $@
+
 TestLinkedList.o : LinkedListClass.o
 	${FC} ${OPT} -c ${SRCDIR}common/Testing/TestLinkedList.f90 -o $@
+
+TestKeyRing.o : KeyRingClass.o
+	${FC} ${OPT} -c ${SRCDIR}common/Testing/TestKeyRing.f90 -o $@
 
 # Module list #
 ModelPrecision.o :
@@ -43,7 +49,10 @@ ModelFlags.o :
 
 LinkedListClass.o :
 	${FC} ${OPT} -c ${SRCDIR}common/LinkedListClass.f90 -o $@
-	
+
+KeyRingClass.o : CommonRoutines.o
+	${FC} ${OPT} -c ${SRCDIR}common/KeyRingClass.f90 -o $@
+
 HashTableClass.o : LinkedListClass.o
 	${FC} ${OPT} -c ${SRCDIR}common/HashTableClass.f90 -o $@
 

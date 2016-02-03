@@ -67,6 +67,38 @@ CONTAINS
 !
 !
 !
+ SUBROUTINE InsertionSort( inArray, outArray, N )
+ ! S/R InsertionSort
+ !
+ !   Sorts array from smallest to largest. 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   INTEGER, INTENT(in)  :: N
+   INTEGER, INTENT(in)  :: inArray(1:N)
+   INTEGER, INTENT(out) :: outArray(1:N)
+   ! LOCAL
+   INTEGER :: i, j
+   INTEGER :: temp
+
+    outArray = inArray
+
+    DO i = 2,  N
+       j = i
+       DO WHILE( j > 1 .AND. outArray(j-1) > outArray(j) )
+          !Swap outArray(j) outArray(j-1)
+          temp          = outArray(j)
+          outArray(j)   = outArray(j-1)
+          outArray(j-1) = temp 
+        
+          j = j-1
+       ENDDO
+    ENDDO
+
+ END SUBROUTINE InsertionSort
+!
+!
+!
  SUBROUTINE SortAndSum( myArray, low, high, arraysum)
  !
  ! 

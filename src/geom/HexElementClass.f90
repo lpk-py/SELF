@@ -22,7 +22,7 @@
 ! o  (ver 2.1) January 2016
 !
 ! ========================================= Logs ================================================= !
-! 2016-01-26  Joe  <joe@clay>
+! 2016-01-26  Joe  <joe@clay> : schoonover.numerics@gmail.com
 !
 ! * In other modules in version 2.1, the "Get" accessor routines have been written as subroutines.
 !   It was not foreseen that this would be "clunky" in implementation where one would have to 
@@ -57,7 +57,7 @@ USE MappedGeometryClass_3D
 IMPLICIT NONE
 
    TYPE HexElement
-      INTEGER                         :: nS, nP, nQ, nmax
+      INTEGER                          :: nS, nP, nQ, nmax
       INTEGER, PRIVATE                :: nodeIDs(1:nHexNodes)   ! Corner Node ID's
       INTEGER, PRIVATE                :: neighbors(1:nHexFaces) ! Elements IDs for the neighbors
       INTEGER, PRIVATE                :: globElID               ! Global Element ID 

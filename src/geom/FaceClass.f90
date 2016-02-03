@@ -14,7 +14,7 @@ MODULE FaceClass
 !
 ! 
 !  
-! =======================================================================================
+! ================================================================================================ !
 USE ModelPrecision
 USE ConstantsDictionary
 USE ModelFlags
@@ -29,8 +29,8 @@ IMPLICIT NONE
       INTEGER, PRIVATE      :: nodeIDs(1:4)      ! Node IDs which start and terminate this edge
       INTEGER, PRIVATE      :: elementIDs(1:2)   ! Neighboring elements IDs across the edge
       INTEGER, PRIVATE      :: elementSides(1:2) ! Local side IDs for the neighboring elements
-      INTEGER, PRIVATE      :: start, inc        ! Loop start and increment for the secondary element side
-      LOGICAL, PRIVATE      :: swapDimensions    ! A flag for swapping the dimensions of the secondary
+      INTEGER, PRIVATE      :: iStart, iInc, jStart, jInc        ! Loop start and increment for the secondary element side
+      INTEGER, PRIVATE      :: swapDimensions    ! A flag for swapping the dimensions of the secondary
                                                  ! element's boundary solution/flux/etc.
                                                 
       TYPE( Face ), POINTER :: next => NULL( )
@@ -96,7 +96,7 @@ IMPLICIT NONE
 ! Setting up some parameters pertaining to this module
  INTEGER, PARAMETER, PRIVATE :: keyInc   = 1 ! The default increment in the Record Key
  INTEGER, PARAMETER, PRIVATE :: keyStart = 1 ! The default starting Record key
- LOGICAL, PARAMETER, PRIVATE :: defaultSwapDim = .FALSE.
+ INTEGER, PARAMETER, PRIVATE :: defaultSwapDim = 0
 
  CONTAINS
 !
@@ -118,8 +118,10 @@ SUBROUTINE Build_Face( myFace )
      myFace % nodeIDs        = NO_NORMAL_FLOW
      myFace % elementIDs     = NO_NORMAL_FLOW
      myFace % elementSides   = 0
-     myFace % start          = 1 
-     myFace % inc            = 1
+     myFace % iStart         = 1 
+     myFace % iInc           = 1
+     myFace % jStart         = 1 
+     myFace % jInc           = 1
      myFace % swapDimensions = defaultSwapDim
      myFace % next => NULL()
      
@@ -194,7 +196,7 @@ SUBROUTINE Build_Face( myFace )
 !==================================================================================================!
 !
 !
- SUBROUTINE SetCurrentData_FaceList( myList, nodeIDs, elementIDs, elementSides, key, start, inc )
+ SUBROUTINE SetCurrentData_FaceList( myList, nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc )
  ! S/R SetCurrentData
  !
  !
@@ -202,15 +204,15 @@ SUBROUTINE Build_Face( myFace )
  IMPLICIT NONE
   CLASS( FaceList )   :: myList
   INTEGER, INTENT(in) :: nodeIDs(1:4), elementIDs(1:2), elementSides(1:2)
-  INTEGER, INTENT(in) :: key, start, inc
+  INTEGER, INTENT(in) :: key, iStart, iInc, jStart, jInc
 
-     CALL myList % current % SetData( nodeIDs, elementIDs, elementSides, key, start, inc )
+     CALL myList % current % SetData( nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc )
 
  END SUBROUTINE SetCurrentData_FaceList
 !
 !
 !
- SUBROUTINE GetCurrentData_FaceList( myList, nodeIDs, elementIDs, elementSides, key, start, inc )
+ SUBROUTINE GetCurrentData_FaceList( myList, nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc )
  ! S/R GetCurrentData
  !
  !
@@ -218,9 +220,9 @@ SUBROUTINE Build_Face( myFace )
  IMPLICIT NONE
   CLASS( FaceList )    :: myList
   INTEGER, INTENT(out) :: nodeIDs(1:4), elementIDs(1:2), elementSides(1:2)
-  INTEGER, INTENT(out) :: key, start, inc
+  INTEGER, INTENT(out) :: key, iStart, iInc, jStart, jInc
 
-     CALL myList % current % GetData( nodeIDs, elementIDs, elementSides, key, start, inc )
+     CALL myList % current % GetData( nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc )
 
  END SUBROUTINE GetCurrentData_FaceList
 !
@@ -288,7 +290,7 @@ SUBROUTINE Build_Face( myFace )
 !
 !
 !
- SUBROUTINE SetData_Face( thisFace, nodeIDs, elementIDs, elementSides, key, start, inc )
+ SUBROUTINE SetData_Face( thisFace, nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc )
  ! S/R SetData
  !  
  !
@@ -296,21 +298,21 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(inout) :: thisFace
-   INTEGER, INTENT(in)          :: nodeIDs(1:4), elementIDs(1:2), elementSides(1:2)
-   INTEGER, INTENT(in)          :: key, start, inc
+   INTEGER, INTENT(in)          :: nodeIDs(1:nQuadNodes), elementIDs(1:2), elementSides(1:2)
+   INTEGER, INTENT(in)          :: key, iStart, iInc, jStart, jInc
 
       CALL thisFace % SetNodeIDs( nodeIDs )
       CALL thisFace % SetElementIDs( elementIDs )
       CALL thisFace % SetElementSides( elementSides )
       CALL thisFace % SetKey( key )
-      CALL thisFace % SetStart( start )
-      CALL thisFace % SetIncrement( inc )
+      CALL thisFace % SetStart( iStart, jStart )
+      CALL thisFace % SetIncrement( iInc, jInc )
 
  END SUBROUTINE SetData_Face
 !
 !
 !
- SUBROUTINE GetData_Face( thisFace, nodeIDs, elementIDs, elementSides, key, start, inc )
+ SUBROUTINE GetData_Face( thisFace, nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc )
  ! S/R GetData
  !  
  !
@@ -318,15 +320,15 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(in) :: thisFace
-   INTEGER, INTENT(out)      :: nodeIDs(1:4), elementIDs(1:2), elementSides(1:2)
-   INTEGER, INTENT(out)      :: key, start, inc
+   INTEGER, INTENT(out)      :: nodeIDs(1:nQuadNodes), elementIDs(1:2), elementSides(1:2)
+   INTEGER, INTENT(out)      :: key, iStart, iInc, jStart, jInc
 
       CALL thisFace % GetNodeIDs( nodeIDs )
       CALL thisFace % GetElementIDs( elementIDs )
       CALL thisFace % GetElementSides( elementSides )
       CALL thisFace % GetKey( key )
-      CALL thisFace % GetStart( start )
-      CALL thisFace % GetIncrement( inc )
+      CALL thisFace % GetStart( iStart, jStart )
+      CALL thisFace % GetIncrement( iInc, jInc )
 
  END SUBROUTINE GetData_Face
 !
@@ -340,7 +342,7 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(inout) :: thisFace
-   INTEGER, INTENT(in)          :: nodeIDs(1:4)
+   INTEGER, INTENT(in)          :: nodeIDs(1:nQuadNodes)
 
       thisFace % nodeIDs = nodeIDs
 
@@ -356,7 +358,7 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(in) :: thisFace
-   INTEGER, INTENT(out)      :: nodeIDs(1:4)
+   INTEGER, INTENT(out)      :: nodeIDs(1:nQuadNodes)
 
       nodeIDs = thisFace % nodeIDs
 
@@ -556,7 +558,7 @@ SUBROUTINE Build_Face( myFace )
 !
 !
 !
- SUBROUTINE SetStart_Face( thisFace, start )
+ SUBROUTINE SetStart_Face( thisFace, iStart, jStart )
  ! S/R SetStart
  !  
  !
@@ -564,15 +566,16 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(inout) :: thisFace
-   INTEGER, INTENT(in)          :: start
+   INTEGER, INTENT(in)          :: iStart, jStart
     
-      thisFace % start = start
+      thisFace % iStart = iStart
+      thisFace % jStart = jStart
       
  END SUBROUTINE SetStart_Face
 !
 !
 !
- SUBROUTINE GetStart_Face( thisFace, start )
+ SUBROUTINE GetStart_Face( thisFace, iStart, jStart )
  ! S/R GetStart
  !  
  !
@@ -580,15 +583,16 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(in) :: thisFace
-   INTEGER, INTENT(out)      :: start
+   INTEGER, INTENT(out)      :: iStart, jStart
 
-      start = thisFace % start
+      iStart = thisFace % iStart
+      jStart = thisFace % jStart
 
  END SUBROUTINE GetStart_Face
 !
 !
 !
- SUBROUTINE SetIncrement_Face( thisFace, inc )
+ SUBROUTINE SetIncrement_Face( thisFace, iInc, jInc )
  ! S/R SetIncrement
  !  
  !
@@ -596,15 +600,16 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(inout) :: thisFace
-   INTEGER, INTENT(in)          :: inc
+   INTEGER, INTENT(in)          :: iInc, jInc
 
-      thisFace % inc = inc
+      thisFace % iInc = iInc
+      thisFace % jInc = jInc
 
  END SUBROUTINE SetIncrement_Face
 !
 !
 !
- SUBROUTINE GetIncrement_Face( thisFace, inc )
+ SUBROUTINE GetIncrement_Face( thisFace, iInc, jInc )
  ! S/R GetIncrement
  !  
  !
@@ -612,9 +617,10 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(in) :: thisFace
-   INTEGER, INTENT(out)      :: inc
+   INTEGER, INTENT(out)      :: iInc, jInc
 
-      inc = thisFace % inc
+      iInc = thisFace % iInc
+      jInc = thisFace % jInc
 
  END SUBROUTINE GetIncrement_Face
 !
@@ -628,7 +634,7 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(inout) :: thisFace
-   LOGICAL, INTENT(in)          :: swap
+   INTEGER, INTENT(in)          :: swap
 
       thisFace % swapDimensions = swap
 
@@ -644,7 +650,7 @@ SUBROUTINE Build_Face( myFace )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Face ), INTENT(in) :: thisFace
-   LOGICAL, INTENT(out)      :: swap
+   INTEGER, INTENT(out)      :: swap
 
       swap = thisFace % swapDimensions
 
@@ -673,7 +679,7 @@ SUBROUTINE Build_Face( myFace )
 !
 !
 !
- SUBROUTINE AddToList_FaceList( myList,  nodeIDs, elementIDs, elementSides, key, start, inc, inKey )
+ SUBROUTINE AddToList_FaceList( myList,  nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc, inKey )
  ! S/R AddToList
  !
  !  This subroutine adds an item to the linked list. If "inKey"
@@ -686,7 +692,7 @@ SUBROUTINE Build_Face( myFace )
   IMPLICIT NONE
   CLASS( FaceList ) :: myList
   INTEGER           :: nodeIDs(1:4), elementIDs(1:2), elementSides(1:2)
-  INTEGER           :: key, start, inc
+  INTEGER           :: key, iStart, iInc, jStart, jInc
   INTEGER, OPTIONAL :: inKey
   ! LOCAL
   LOGICAL               :: isAssigned
@@ -705,7 +711,7 @@ SUBROUTINE Build_Face( myFace )
         ! Point the current position to the head
         myList % current => myList % head
         ! Set the data
-        CALL myList % SetData(  nodeIDs, elementIDs, elementSides, key, start, inc )
+        CALL myList % SetData(  nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc )
         
         IF( PRESENT(inKey) )THEN
            CALL myList % SetKey( inKey )
@@ -735,7 +741,7 @@ SUBROUTINE Build_Face( myFace )
         myList % current => myList % tail
   
         ! Fill in the data
-        CALL myList % SetData(  nodeIDs, elementIDs, elementSides, key, start, inc )
+        CALL myList % SetData(  nodeIDs, elementIDs, elementSides, key, iStart, iInc, jStart, jInc )
         
         ! Fill in the key information
         IF( PRESENT(inKey) )THEN
@@ -912,24 +918,5 @@ SUBROUTINE Build_Face( myFace )
      ENDIF
 
  END SUBROUTINE GetCount_FaceList
-! SUBROUTINE PrintList( myList )
- ! S/R PrintList
- !
- ! =============================================================================================== !
- ! DECLARATIONS
-!  IMPLICIT NONE
-!  CLASS( FaceList ) :: myList
 
-!     myList % current => myList % head
-
-!    PRINT*, '          Data        Key'
-!    DO WHILE( ASSOCIATED( myList % current ) )
- 
-!        PRINT*, myList % current % listData, myList % current % key
-
-!        CALL myList % MoveToNext()
-
-!     ENDDO
-
-! END SUBROUTINE PrintList
 END MODULE FaceClass

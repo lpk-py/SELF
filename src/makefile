@@ -37,7 +37,10 @@ ModelFlags.o :
 
 LinkedListClass.o :
 	${FC} ${OPT} -c ${SRCDIR}common/LinkedListClass.f90 -o $@
-	
+
+KeyRingClass.o : CommonRoutines.o
+	${FC} ${OPT} -c ${SRCDIR}common/KeyRingClass.f90 -o $@
+
 HashTableClass.o : ConstantsDictionary.o LinkedListClass.o
 	${FC} ${OPT} -c ${SRCDIR}common/HashTableClass.f90 -o $@
 
@@ -173,6 +176,10 @@ MappedGeometryClass_3D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o C
 QuadElementClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o \
                      Lagrange_2D_Class.o CurveClass_2D.o GeometrySupportRoutines.o MappedGeometryClass_2D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/QuadElementClass.f90 -o $@	
+	
+HexElementClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o \
+                     Lagrange_3D_Class.o SurfaceClass_3D.o MappedGeometryClass_3D.o
+	${FC} ${OPT} -c ${SRCDIR}geom/HexElementClass.f90 -o $@
 
 QuadMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o LinkedListClass.o HashTableClass.o \
                   Chebyshev.o Lagrange_2D_Class.o CurveClass_2D.o  MappedGeometryClass_2D.o \

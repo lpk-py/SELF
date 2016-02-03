@@ -3,8 +3,8 @@ ModelFormulation = 'Skew-Symmetric',
 /
 &TIME_MANAGEMENT
 dt = 0.1,
-iterInit = 410000,
-nTimeSteps = 399999,
+iterInit = 1110000,
+nTimeSteps = 299999,
 dumpFreq = 1000,
 /
 &SPACE_MANAGEMENT

@@ -41,12 +41,12 @@ USE LinkedListClass
 USE HashTableClass
 ! src/interp/
 USE Chebyshev
-USE Lagrange_2D_Class
+USE Lagrange_3D_Class
 ! src/geom/
-USE MappedGeometryClass_2D
+USE MappFaceometryClass_3D
 USE HexElementClass
-USE EdgeClass
-USE NodeClass_2D
+USE FaceClass
+USE NodeClass_3D
 
 
 
@@ -58,13 +58,14 @@ IMPLICIT NONE
 ! additional accessor routines would be necessary.
  
     TYPE HexMesh 
-       INTEGER                          :: nElems, nNodes, nEdges
+       INTEGER                          :: nElems, nNodes, nFaces
        TYPE( HexElement ), ALLOCATABLE  :: elements(:)
        TYPE( Node ), ALLOCATABLE        :: nodes(:)  
-       TYPE( Edge ), ALLOCATABLE        :: edges(:)
-       INTEGER                          :: cornerMap(1:2,1:nHexNodes) 
+       TYPE( Face ), ALLOCATABLE        :: Faces(:)
+       INTEGER                          :: cornerMap(1:3,1:nHexNodes) 
        INTEGER                          :: sideMap(1:nHexFaces) 
-       INTEGER                          :: faceMap(1:2,1:nHexFaces) 
+       INTEGER                          :: faceMap(1:nQuadNodes,1:nHexFaces) 
+       INTEGER                          :: edgeFaceMap(1:2,1:nQuadEdges)
 
        CONTAINS
 
@@ -75,8 +76,8 @@ IMPLICIT NONE
        PROCEDURE :: GetNumberOfElements => GetNumberOfElements_HexMesh
        PROCEDURE :: SetNumberOfNodes => SetNumberOfNodes_HexMesh
        PROCEDURE :: GetNumberOfNodes => GetNumberOfNodes_HexMesh
-       PROCEDURE :: SetNumberOfEdge => SetNumberOfEdges_HexMesh
-       PROCEDURE :: GetNumberOfEdges => GetNumberOfEdges_HexMesh
+       PROCEDURE :: SetNumberOfFace => SetNumberOfFaces_HexMesh
+       PROCEDURE :: GetNumberOfFaces => GetNumberOfFaces_HexMesh
        
        !HexElement Wrapper Routines
        PROCEDURE :: SetElementNodeIDs => SetElementNodeIDs_HexMesh
@@ -95,8 +96,12 @@ IMPLICIT NONE
        PROCEDURE :: GetElementEasternNeighbor  => GetElementEasternNeighbor_HexMesh
        PROCEDURE :: SetElementWesternNeighbor  => SetElementWesternNeighbor_HexMesh
        PROCEDURE :: GetElementWesternNeighbor  => GetElementWesternNeighbor_HexMesh
-      
-       ! MappedGeometry_2D Wrapper Routines
+       PROCEDURE :: SetElementBottomNeighbor  => SetElementBottomNeighbor_HexMesh
+       PROCEDURE :: GetElementBottomNeighbor  => GetElementBottomNeighbor_HexMesh
+       PROCEDURE :: SetElementTopNeighbor  => SetElementTopNeighbor_HexMesh
+       PROCEDURE :: GetElementTopNeighbor  => GetElementTopNeighbor_HexMesh
+
+       ! MappedGeometry_3D Wrapper Routines
        PROCEDURE :: SetNumberOfInternalNodes => SetNumberOfInternalNodes_HexMesh
        PROCEDURE :: GetNumberOfInternalNodes => GetNumberOfInternalNodes_HexMesh
        PROCEDURE :: SetPositions => SetPositions_HexMesh
@@ -118,7 +123,7 @@ IMPLICIT NONE
        PROCEDURE :: SetBoundaryNormalAtNode => SetBoundaryNormalAtNode_HexMesh
        PROCEDURE :: GetBoundaryNormalAtNode => GetBoundaryNormalAtNode_HexMesh
        
-       ! NodeClass_2D Wrapper Routines
+       ! NodeClass_3D Wrapper Routines
        PROCEDURE :: SetNodeData => SetNodeData_HexMesh
        PROCEDURE :: GetNodeData => GetNodeData_HexMesh
        PROCEDURE :: SetNodeKey => SetNodeKey_HexMesh
@@ -128,31 +133,33 @@ IMPLICIT NONE
        PROCEDURE :: SetNodePosition => SetNodePosition_HexMesh
        PROCEDURE :: GetNodePosition => GetNodePosition_HexMesh
 
-       ! EdgeClass Wrapper Routines 
-       PROCEDURE :: SetEdgeKey => SetEdgeKey_HexMesh
-       PROCEDURE :: GetEdgeKey => GetEdgeKey_HexMesh
-       PROCEDURE :: SetEdgeData => SetEdgeData_HexMesh
-       PROCEDURE :: GetEdgeData => GetEdgeData_HexMesh
-       PROCEDURE :: SetEdgeNodeIDs => SetEdgeNodeIDs_HexMesh
-       PROCEDURE :: GetEdgeNodeIDs => GetEdgeNodeIDs_HexMesh
-       PROCEDURE :: SetEdgeElementIDs => SetEdgeElementIDs_HexMesh
-       PROCEDURE :: GetEdgeElementIDs => GetEdgeElementIDs_HexMesh
-       PROCEDURE :: SetEdgePrimaryElementID => SetEdgePrimaryElementID_HexMesh
-       PROCEDURE :: GetEdgePrimaryElementID => GetEdgePrimaryElementID_HexMesh
-       PROCEDURE :: SetEdgeSecondaryElementID => SetEdgeSecondaryElementID_HexMesh
-       PROCEDURE :: GetEdgeSecondaryElementID => GetEdgeSecondaryElementID_HexMesh
-       PROCEDURE :: SetEdgeElementSides => SetEdgeElementSides_HexMesh
-       PROCEDURE :: GetEdgeElementSides => GetEdgeElementSides_HexMesh
-       PROCEDURE :: SetEdgePrimaryElementSide => SetEdgePrimaryElementSide_HexMesh
-       PROCEDURE :: GetEdgePrimaryElementSide => GetEdgePrimaryElementSide_HexMesh
-       PROCEDURE :: SetEdgeSecondaryElementSide => SetEdgeSecondaryElementSide_HexMesh
-       PROCEDURE :: GetEdgeSecondaryElementSide => GetEdgeSecondaryElementSide_HexMesh
-       PROCEDURE :: SetEdgeStart => SetEdgeStart_HexMesh
-       PROCEDURE :: GetEdgeStart => GetEdgeStart_HexMesh
-       PROCEDURE :: SetEdgeIncrement => SetEdgeIncrement_HexMesh
-       PROCEDURE :: GetEdgeIncrement => GetEdgeIncrement_HexMesh
+       ! FaceClass Wrapper Routines 
+       PROCEDURE :: SetFaceKey => SetFaceKey_HexMesh
+       PROCEDURE :: GetFaceKey => GetFaceKey_HexMesh
+       PROCEDURE :: SetFaceData => SetFaceData_HexMesh
+       PROCEDURE :: GetFaceData => GetFaceData_HexMesh
+       PROCEDURE :: SetFaceNodeIDs => SetFaceNodeIDs_HexMesh
+       PROCEDURE :: GetFaceNodeIDs => GetFaceNodeIDs_HexMesh
+       PROCEDURE :: SetFaceElementIDs => SetFaceElementIDs_HexMesh
+       PROCEDURE :: GetFaceElementIDs => GetFaceElementIDs_HexMesh
+       PROCEDURE :: SetFacePrimaryElementID => SetFacePrimaryElementID_HexMesh
+       PROCEDURE :: GetFacePrimaryElementID => GetFacePrimaryElementID_HexMesh
+       PROCEDURE :: SetFaceSecondaryElementID => SetFaceSecondaryElementID_HexMesh
+       PROCEDURE :: GetFaceSecondaryElementID => GetFaceSecondaryElementID_HexMesh
+       PROCEDURE :: SetFaceElementSides => SetFaceElementSides_HexMesh
+       PROCEDURE :: GetFaceElementSides => GetFaceElementSides_HexMesh
+       PROCEDURE :: SetFacePrimaryElementSide => SetFacePrimaryElementSide_HexMesh
+       PROCEDURE :: GetFacePrimaryElementSide => GetFacePrimaryElementSide_HexMesh
+       PROCEDURE :: SetFaceSecondaryElementSide => SetFaceSecondaryElementSide_HexMesh
+       PROCEDURE :: GetFaceSecondaryElementSide => GetFaceSecondaryElementSide_HexMesh
+       PROCEDURE :: SetFaceStart => SetFaceStart_HexMesh
+       PROCEDURE :: GetFaceStart => GetFaceStart_HexMesh
+       PROCEDURE :: SetFaceIncrement => SetFaceIncrement_HexMesh
+       PROCEDURE :: GetFaceIncrement => GetFaceIncrement_HexMesh
+       PROCEDURE :: SetSwapDimensions => SetSwapDimensions_HexMesh 
+       PROCEDURE :: GetSwapDimensions => GetSwapDimensions_HexMesh
        
-       PROCEDURE :: ConstructEdges => ConstructEdges_HexMesh
+       PROCEDURE :: ConstructFaces => ConstructFaces_HexMesh
        PROCEDURE :: GetNodeToElementConnectivity => GetNodeToElementConnectivity_HexMesh
        PROCEDURE :: ScaleTheMesh => ScaleTheMesh_HexMesh
        PROCEDURE :: LoadDefaultMesh => LoadDefaultMesh_HexMesh
@@ -177,7 +184,7 @@ IMPLICIT NONE
 !==================================================================================================!
 !
 !
- SUBROUTINE Build_HexMesh( myHexMesh, nNodes, nElems, nEdges, nS )
+ SUBROUTINE Build_HexMesh( myHexMesh, nNodes, nElems, nFaces, nS )
  ! S/R Build
  ! 
  !
@@ -185,28 +192,89 @@ IMPLICIT NONE
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(HexMesh), INTENT(out) :: myHexMesh
-   INTEGER, INTENT(in)          :: nNodes, nElems, nEdges, nS
+   INTEGER, INTENT(in)         :: nNodes, nElems, nFaces, nS
    !LOCAL
    INTEGER :: iNode
 
-      myHexmesh % sideMap(1:4) = (/ 0, nS, nS, 0 /)
-      myHexmesh % cornerMap(1, 1:4) = (/ 0, nS, nS, 0 /)
-      myHexmesh % cornerMap(2, 1:4) = (/ 0, 0, nS, nS /)
-      myHexmesh % faceMap(1, 1:4) = (/ 1, 2, 4, 1 /)
-      myHexmesh % faceMap(2, 1:4) = (/ 2, 3, 3, 4 /)
-
-      myHexmesh % nNodes = nNodes
-      myHexmesh % nElems = nElems
-
-      ALLOCATE( myHexmesh % elements(1:nElems) )
-      ALLOCATE( myHexmesh % nodes(1:nNodes) )
-      ALLOCATE( myHexmesh % edges(1:nEdges) )
+    ! A hexahedron element (hex-element for short) has six faces. Each face has geometry that 
+    ! requires the use of two computational coordinates. The third computational coordinate is 
+    ! fixed. The sideMap gives the value of the remaining computational coordinate for each face
+    ! of the hex-element.
+    ! 
+    ! The face ordering is  1 - South, 2 - East, 3 - North, 4 - West, 5 - Bottom, 6 - Top 
+    myHexmesh % sideMap(1:nHexFaces) = (/ 0, nS, nS, 0, 0, nS /)
+      
+    ! The eight corner nodes in an approximation that uses Gauss-Lobatto points, typically CG-type
+    ! methods, have fixed computational coordinates. The corner node numbering  starts in the 
+    ! southwest corner (in the computational grid) of the bottom face, proceeds counter clockwise
+    ! around the face, and then repeats for the top face. This gives the local ID for the corner
+    ! nodes as
+    ! 
+    ! Bottom, SouthWest = 1
+    ! Bottom, SouthEast = 2
+    ! Bottom, NorthEast = 3
+    ! Bottom, NorthWest = 4
+    ! Top, SouthWest = 5
+    ! Top, SouthEast = 6
+    ! Top, NorthEast = 7
+    ! Top, NorthWest = 8
+    !
+    ! The computational coordinates for the corner nodes is given assuming a Gauss-Lobatto 
+    ! computational mesh is used. Note that for a Gauss mesh, the corner nodes are not included.
      
+    myHexmesh % cornerMap(1, 1:nHexNodes) = (/ 0, nS, nS,  0,  0, nS, nS,  0 /)
+    myHexmesh % cornerMap(2, 1:nHexNodes) = (/ 0,  0, nS, nS,  0,  0, nS, nS /)
+    myHexmesh % cornerMap(3, 1:nHexNodes) = (/ 0,  0,  0,  0, nS, nS, nS, nS /)
+      
+    ! Mesh construction usually begins with the specification of elements and the corner nodes, in
+    ! addition to the element geometry. From the element-to-node connectivity, we need to construct
+    ! the unique faces in the mesh and specify the abutting elements and their relative orientation.
+    ! This procedure is aided by a "convenience array" that lists the local corner node IDs in the
+    ! local counter-clockwise direction beginning in the local southwest corner of the face. When 
+    ! two elements share a face, the global node IDs for each element can be found using this 
+    ! convenience array (called "faceMap") and the relative orientation of the neighboring elements
+    ! can be determined. The first index cycles over the nodes which make up the face in a 
+    ! counterclockwise direction. The second index cycles over the faces in the element.
+      
+    myHexMesh % faceMap(1:nQuadNodes, south)  = (/ 1, 2, 6, 5 /)
+    myHexMesh % faceMap(1:nQuadNodes, east)   = (/ 2, 3, 7, 6 /)
+    myHexMesh % faceMap(1:nQuadNodes, north)  = (/ 4, 3, 7, 8 /)
+    myHexMesh % faceMap(1:nQuadNodes, west)   = (/ 1, 4, 8, 5 /)
+    myHexMesh % faceMap(1:nQuadNodes, bottom) = (/ 1, 2, 3, 4 /)
+    myHexMesh % faceMap(1:nQuadNodes, top)    = (/ 5, 6, 7, 8 /)
+      
+    ! Each of the faces can be identified by their four corner nodes. The geometry of the faces
+    ! is described using two computational coordinates between [-1,1]X[-1,1]. This 2-D computational
+    ! grid has its own "southwest", "southeast", "northeast", and "northwest" identifications. The
+    ! The corner nodes of the faces are labeled in the order mentioned in the previous sentence
+    ! ( counterclockwise starting from southwest ). For quick referencing when producing tri-linear
+    ! elements, a book-keeping array is useful for ensuring that we reference each edge of the 
+    ! face in the order of increasing computational coordinate. This is identical to what is done
+    ! in the QuadMeshClass.f90 for the "edgeMap". Here, it is called the "edgeFaceMap".
+    ! The first index references the starting(1) or ending(2) node. The second index references
+    ! the edge of the face with the first being the southern edge and increasing the second index
+    ! proceeds counter-clockwise.
+      
+    myHexmesh % edgeFaceMap(1, 1:nQuadEdges) = (/ 1, 2, 4, 1 /)
+    myHexmesh % edgeFaceMap(2, 1:nQuadEdges) = (/ 2, 3, 3, 4 /)
 
+    ! The number of nodes, the number of elements, and the number of faces are stored in this data
+    ! structure for convenience. In another implementation (planned for the next version), the 
+    ! number of elements, nodes, and faces is dynamic and can change; that implementation 
+    ! requires the use of dynamic storage, e.g. a linked-list like structure for elements, edges,
+    ! and nodes.
+    CALL myHexMesh % SetNumberOfNodes( nNodes )
+    CALL myHexMesh % SetNumberOfElements( nElems )
+    CALL myHexMesh % SetNumberOfFaces( nFaces )
+
+    ALLOCATE( myHexmesh % elements(1:nElems) )
+    ALLOCATE( myHexmesh % nodes(1:nNodes) )
+    ALLOCATE( myHexmesh % Faces(1:nFaces) )
+     
       ! Default nodes to origin
-      DO iNode = 1, myHexmesh % nNodes ! loop over the number of nodes
-         CALL myHexmesh % nodes(iNode) % Build( ZERO, ZERO )
-      ENDDO ! iNode, loop over the number of nodes
+    DO iNode = 1, myHexmesh % nNodes ! loop over the number of nodes
+       CALL myHexmesh % nodes(iNode) % Build( ZERO, ZERO, ZERO )
+    ENDDO ! iNode, loop over the number of nodes
      
 
  END SUBROUTINE Build_HexMesh
@@ -224,15 +292,15 @@ IMPLICIT NONE
   ! LOCAL
    INTEGER :: iNode, iEl
 
-      DO iEl = 1, myHexMesh % nElems
-         CALL myHexMesh % elements(iEl) % TRASH( )
-      ENDDO
+    DO iEl = 1, myHexMesh % nElems
+       CALL myHexMesh % elements(iEl) % TRASH( )
+    ENDDO
 
-      DO iNode = 1, myHexMesh % nNodes
-         CALL myHexMesh % nodes(iNode) % TRASH( )
-      ENDDO
+    DO iNode = 1, myHexMesh % nNodes
+       CALL myHexMesh % nodes(iNode) % TRASH( )
+    ENDDO
 
-      DEALLOCATE( myHexMesh % nodes, myHexMesh % elements, myHexMesh % edges )
+    DEALLOCATE( myHexMesh % nodes, myHexMesh % elements, myHexMesh % Faces )
       
 
  END SUBROUTINE Trash_HexMesh
@@ -253,7 +321,7 @@ IMPLICIT NONE
    CLASS(HexMesh), INTENT(inout) :: myHexMesh
    INTEGER, INTENT(in)            :: nElems
    
-      myHexMesh % nElems = nElems
+    myHexMesh % nElems = nElems
       
  END SUBROUTINE SetNumberOfElements_HexMesh
 !
@@ -269,7 +337,7 @@ IMPLICIT NONE
    CLASS(HexMesh), INTENT(in) :: myHexMesh
    INTEGER, INTENT(out)        :: nElems
    
-      nElems = myHexMesh % nElems
+    nElems = myHexMesh % nElems
       
  END SUBROUTINE GetNumberOfElements_HexMesh
 !
@@ -285,7 +353,7 @@ IMPLICIT NONE
    CLASS(HexMesh), INTENT(inout) :: myHexMesh
    INTEGER, INTENT(in)            :: nNodes
    
-      myHexMesh % nNodes = nNodes
+    myHexMesh % nNodes = nNodes
       
  END SUBROUTINE SetNumberOfNodes_HexMesh
 !
@@ -301,43 +369,45 @@ IMPLICIT NONE
    CLASS(HexMesh), INTENT(in) :: myHexMesh
    INTEGER, INTENT(out)        :: nNodes
    
-      nNodes = myHexMesh % nNodes
+    nNodes = myHexMesh % nNodes
       
  END SUBROUTINE GetNumberOfNodes_HexMesh
 !
 !
 !
- SUBROUTINE SetNumberOfEdges_HexMesh( myHexMesh, nEdges )
- ! S/R SetNumberOfEdges
+ SUBROUTINE SetNumberOfFaces_HexMesh( myHexMesh, nFaces )
+ ! S/R SetNumberOfFaces
  ! 
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(HexMesh), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)            :: nEdges
+   INTEGER, INTENT(in)            :: nFaces
    
-      myHexMesh % nEdges = nEdges
+    myHexMesh % nFaces = nFaces
       
- END SUBROUTINE SetNumberOfEdges_HexMesh
+ END SUBROUTINE SetNumberOfFaces_HexMesh
 !
 !
 !
- SUBROUTINE GetNumberOfEdges_HexMesh( myHexMesh, nEdges )
- ! S/R GetNumberOfEdges
+ SUBROUTINE GetNumberOfFaces_HexMesh( myHexMesh, nFaces )
+ ! S/R GetNumberOfFaces
  ! 
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(HexMesh), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(out)        :: nEdges
+   INTEGER, INTENT(out)        :: nFaces
    
-      nEdges = myHexMesh % nEdges
+    nFaces = myHexMesh % nFaces
       
- END SUBROUTINE GetNumberOfEdges_HexMesh
+ END SUBROUTINE GetNumberOfFaces_HexMesh
 !
-! ---------------------------- HexElement Wrapper Routines -------------------------------------- !
+! ------------------------------------------------------------------------------------------------ !
+! ---------------------------- HexElement Wrapper Routines --------------------------------------- !
+! ------------------------------------------------------------------------------------------------ !
 !
 SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
  ! S/R SetElementNodeIDs
@@ -346,24 +416,24 @@ SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
    IMPLICIT NONE
    CLASS( Hexmesh ), INTENT(inout) :: myHexMesh
    INTEGER, INTENT(in)              :: iEl
-   INTEGER, INTENT(in)              :: nodeIDs(1:4)
+   INTEGER, INTENT(in)              :: nodeIDs(1:nHexNodes)
    
-      CALL myHexMesh % elements(iEl)  % SetNodeIDs( nodeIDs )
+    CALL myHexMesh % elements(iEl)  % SetNodeIDs( nodeIDs )
 
  END SUBROUTINE SetElementNodeIDs_Hexmesh
 !
 !
 !
- SUBROUTINE GetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
+ FUNCTION GetElementNodeIDs_Hexmesh( myHexMesh, iEl ) RESULT( nodeIDs )
  ! S/R GetElementNodeIDs
  !
  ! =============================================================================================== !
    IMPLICIT NONE
-   CLASS( Hexmesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEl
-   INTEGER, INTENT(out)          :: nodeIDs(1:4)
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: nodeIDs(1:nHexNodes)
    
-      CALL myHexMesh % elements(iEl)  % GetNodeIDs( nodeIDs )
+    nodeIDs =  myHexMesh % elements(iEl)  % GetNodeIDs( )
 
  END SUBROUTINE GetElementNodeIDs_Hexmesh
 !
@@ -378,23 +448,23 @@ SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
    INTEGER, INTENT(in)              :: iEl
    INTEGER, INTENT(in)              :: localID, nodeID
    
-      CALL myHexMesh % elements(iEl)  % SetNodeID( localID, nodeID )
+    CALL myHexMesh % elements(iEl)  % SetNodeID( localID, nodeID )
 
  END SUBROUTINE SetElementNodeID_Hexmesh
 !
 !
 !
- SUBROUTINE GetElementNodeID_Hexmesh( myHexMesh, iEl, localID, nodeID )
+ FUNCTION GetElementNodeID_Hexmesh( myHexMesh, iEl, localID ) RESULT( nodeID )
  ! S/R GetElementNodeID
  !
  ! =============================================================================================== !
    IMPLICIT NONE
-   CLASS( Hexmesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEl
-   INTEGER, INTENT(in)           :: localID
-   INTEGER, INTENT(out)          :: nodeID
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: localID
+   INTEGER          :: nodeID
    
-      CALL myHexMesh % elements(iEl) % GetNodeID( localID, nodeID )
+    nodeID = myHexMesh % elements(iEl) % GetNodeID( localID )
 
  END SUBROUTINE GetElementNodeID_Hexmesh
 !
@@ -409,29 +479,29 @@ SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
    INTEGER, INTENT(in)              :: iEl
    INTEGER, INTENT(in)              :: eID
    
-      CALL myHexMesh % elements(iEl)  % SetElementID( eID )
+    CALL myHexMesh % elements(iEl)  % SetElementID( eID )
 
  END SUBROUTINE SetElementID_Hexmesh
 !
 !
 !
- SUBROUTINE GetElementID_Hexmesh( myHexMesh, iEl, eID )
+ FUNCTION GetElementID_Hexmesh( myHexMesh, iEl ) RESULT( eID )
  ! S/R GetElementID
  !
  ! =============================================================================================== !
    IMPLICIT NONE
-   CLASS( Hexmesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEl
-   INTEGER, INTENT(out)          :: eID
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: eID
    
-      CALL myHexMesh % elements(iEl)  % GetElementID( eID )
+    eID = myHexMesh % elements(iEl) % GetElementID( )
 
  END SUBROUTINE GetElementID_Hexmesh
 !
 !
 !
  SUBROUTINE SetElementNeighbor_Hexmesh( myHexMesh, iEl, sID, eID )
-  ! S/R SetElementNeighbor
+ ! S/R SetElementNeighbor
  !
  ! =============================================================================================== !
  ! DECLARATIONS
@@ -441,24 +511,24 @@ SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
    INTEGER, INTENT(in)              :: sID
    INTEGER, INTENT(in)              :: eID
    
-      CALL myHexMesh % elements(iEl) % SetNeighbor( sID, eID )
+    CALL myHexMesh % elements(iEl) % SetNeighbor( sID, eID )
       
  END SUBROUTINE SetElementNeighbor_Hexmesh
 !
 !
 !
- SUBROUTINE GetElementNeighbor_Hexmesh( myHexMesh, iEl, sID, eID )
+ FUNCTION GetElementNeighbor_Hexmesh( myHexMesh, iEl, sID ) RESULT( eID )
  ! S/R GetElementNeighbor
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( Hexmesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEl
-   INTEGER, INTENT(in)           :: sID
-   INTEGER, INTENT(out)          :: eID
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: sID
+   INTEGER          :: eID
    
-      CALL myHexMesh % elements(iEl) % GetNeighbor( sID, eID )
+    eID = myHexMesh % elements(iEl) % GetNeighbor( sID )
       
  END SUBROUTINE GetElementNeighbor_Hexmesh
 !
@@ -474,25 +544,25 @@ SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
    INTEGER, INTENT(in)              :: iEl
    INTEGER, INTENT(in)              :: eID
    
-      CALL myHexMesh % elements(iEl) % SetSouthernNeighbor( eID )
+    CALL myHexMesh % elements(iEl) % SetSouthernNeighbor( eID )
       
  END SUBROUTINE SetElementSouthernNeighbor_Hexmesh
 !
 !
 !
- SUBROUTINE GetElementSouthernNeighbor_Hexmesh( myHexMesh, iEl, eID )
+ FUNCTION GetElementSouthernNeighbor_Hexmesh( myHexMesh, iEl ) RESULT( eID )
  ! S/R GetElementSouthernNeighbor
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( Hexmesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEl
-   INTEGER, INTENT(out)          :: eID
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: eID
    
-      CALL myHexMesh % elements(iEl) % GetSouthernNeighbor( eID )
+    eID = myHexMesh % elements(iEl) % GetSouthernNeighbor( )
       
- END SUBROUTINE GetElementSouthernNeighbor_Hexmesh
+ END FUNCTION GetElementSouthernNeighbor_Hexmesh
 !
 !
 !
@@ -506,25 +576,25 @@ SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
    INTEGER, INTENT(in)              :: iEl
    INTEGER, INTENT(in)              :: eID
    
-      CALL myHexMesh % elements(iEl) % SetNorthernNeighbor( eID )
+    CALL myHexMesh % elements(iEl) % SetNorthernNeighbor( eID )
       
  END SUBROUTINE SetElementNorthernNeighbor_Hexmesh
 !
 !
 !
- SUBROUTINE GetElementNorthernNeighbor_Hexmesh( myHexMesh, iEl, eID )
+ FUNCTION GetElementNorthernNeighbor_Hexmesh( myHexMesh, iEl ) RESULT( eID )
  ! S/R GetElementNorthernNeighbor
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( Hexmesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEl 
-   INTEGER, INTENT(out)          :: eID
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl 
+   INTEGER          :: eID
    
-      CALL myHexMesh % elements(iEl) % GetNorthernNeighbor( eID )
+    eID = myHexMesh % elements(iEl) % GetNorthernNeighbor( )
       
- END SUBROUTINE GetElementNorthernNeighbor_Hexmesh
+ END FUNCTION GetElementNorthernNeighbor_Hexmesh
 !
 !
 !
@@ -538,25 +608,25 @@ SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
    INTEGER, INTENT(in)              :: iEl
    INTEGER, INTENT(in)              :: eID
    
-      CALL myHexMesh % elements(iEl) % SetEasternNeighbor( eID )
+    CALL myHexMesh % elements(iEl) % SetEasternNeighbor( eID )
       
  END SUBROUTINE SetElementEasternNeighbor_Hexmesh
 !
 !
 !
- SUBROUTINE GetElementEasternNeighbor_Hexmesh( myHexMesh, iEl, eID )
+ FUNCTION GetElementEasternNeighbor_Hexmesh( myHexMesh, iEl ) RESULT( eID )
  ! S/R GetElementEasternNeighbor
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( Hexmesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEl
-   INTEGER, INTENT(out)          :: eID
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: eID
    
-      CALL myHexMesh % elements(iEl) % GetEasternNeighbor( eID )
+    eID = myHexMesh % elements(iEl) % GetEasternNeighbor(  )
       
- END SUBROUTINE GetElementEasternNeighbor_Hexmesh
+ END FUNCTION GetElementEasternNeighbor_Hexmesh
 !
 !
 !
@@ -567,75 +637,148 @@ SUBROUTINE SetElementNodeIDs_Hexmesh( myHexMesh, iEl, nodeIDs )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Hexmesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEl
-   INTEGER, INTENT(in)              :: eID
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: eID
    
-      CALL myHexMesh % elements(iEl) % SetWesternNeighbor( eID )
+    CALL myHexMesh % elements(iEl) % SetWesternNeighbor( eID )
       
  END SUBROUTINE SetElementWesternNeighbor_Hexmesh
 !
 !
 !
- SUBROUTINE GetElementWesternNeighbor_Hexmesh( myHexMesh, iEl, eID )
+ FUNCTION GetElementWesternNeighbor_Hexmesh( myHexMesh, iEl ) RESULT ( eID )
  ! S/R GetElementWesternNeighbor
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( Hexmesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEl
-   INTEGER, INTENT(out)          :: eID
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: eID
    
-      CALL myHexMesh % elements(iEl) % GetWesternNeighbor( eID )
+    eID = myHexMesh % elements(iEl) % GetWesternNeighbor(  )
       
- END SUBROUTINE GetElementWesternNeighbor_Hexmesh
+ END FUNCTION GetElementWesternNeighbor_Hexmesh
 !
-! ---------------------------- MappedGeometryClass_2D Wrappers ----------------------------------- !
 !
-SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
+!
+ SUBROUTINE SetElementBottomNeighbor_Hexmesh( myHexMesh, iEl, eID )
+ ! S/R SetElementBottomNeighbor
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( Hexmesh ), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: eID
+   
+    CALL myHexMesh % elements(iEl) % SetbottomNeighbor( eID )
+      
+ END SUBROUTINE SetElementBottomNeighbor_Hexmesh
+!
+!
+!
+ FUNCTION GetElementBottomNeighbor_Hexmesh( myHexMesh, iEl ) RESULT ( eID )
+ ! S/R GetElementBottomNeighbor
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: eID
+   
+    eID = myHexMesh % elements(iEl) % GetbottomNeighbor(  )
+      
+ END FUNCTION GetElementBottomNeighbor_Hexmesh
+!
+!
+!
+ SUBROUTINE SetElementTopNeighbor_Hexmesh( myHexMesh, iEl, eID )
+ ! S/R SetElementTopNeighbor
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( Hexmesh ), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: eID
+   
+    CALL myHexMesh % elements(iEl) % SetTopNeighbor( eID )
+      
+ END SUBROUTINE SetElementTopNeighbor_Hexmesh
+!
+!
+!
+ FUNCTION GetElementTopNeighbor_Hexmesh( myHexMesh, iEl ) RESULT ( eID )
+ ! S/R GetElementTopNeighbor
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( Hexmesh ) :: myHexMesh
+   INTEGER          :: iEl
+   INTEGER          :: eID
+   
+    eID = myHexMesh % elements(iEl) % GetTopNeighbor(  )
+      
+ END FUNCTION GetElementTopNeighbor_Hexmesh
+!
+! ------------------------------------------------------------------------------------------------ !
+! ---------------------------- MappedGeometryClass_3D Wrappers ----------------------------------- !
+! ------------------------------------------------------------------------------------------------ !
+!
+SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP, nQ )
  ! S/R SetNumberOfInternalNodes
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  INTEGER, INTENT(in)            :: nS, nP
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   INTEGER, INTENT(in)           :: nS, nP, nQ
   
-     CALL myHexMesh % elements(iEl) % SetNumberOfNodes( nS, nP )
+    CALL myHexMesh % elements(iEl) % SetNumberOfNodes( nS, nP, nQ )
      
  END SUBROUTINE SetNumberOfInternalNodes_Hexmesh
 !
 !
 !
- SUBROUTINE GetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
+ SUBROUTINE GetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP, nQ )
  ! S/R GetNumberOfInternalNodes
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  INTEGER, INTENT(out)        :: nS, nP
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   INTEGER, INTENT(out)       :: nS, nP, nQ
   
-     CALL myHexMesh % elements(iEl) % GetNumberOfNodes( nS, nP )
+    CALL myHexMesh % elements(iEl) % GetNumberOfNodes( nS, nP, nQ )
      
  END SUBROUTINE GetNumberOfInternalNodes_Hexmesh
 !
 !
 !
- SUBROUTINE SetPositions_Hexmesh( myHexMesh, iEl, x, y )
+ SUBROUTINE SetPositions_Hexmesh( myHexMesh, iEl, x, y, z )
  ! S/R SetPositions
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  REAL(prec), INTENT(in)         :: x(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  REAL(prec), INTENT(in)         :: y(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   REAL(prec), INTENT(in)        :: x(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, & 
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: y(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, & 
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: z(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, & 
+                                      0:myHexMesh % elements(iEl) % nQ )
   
-     CALL myHexMesh % elements(iEl) % SetPositions( x, y )
+    CALL myHexMesh % elements(iEl) % SetPositions( x, y, z )
      
  END SUBROUTINE SetPositions_Hexmesh
 !
@@ -646,47 +789,54 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  REAL(prec), INTENT(out)     :: x(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  REAL(prec), INTENT(out)     :: y(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  
-     CALL myHexMesh % elements(iEl) % GetPositions( x, y )
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   REAL(prec), INTENT(out)    :: x(0:myHexMesh % elements(iEl) % nS, &
+                                   0:myHexMesh % elements(iEl) % nP, & 
+                                   0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: y(0:myHexMesh % elements(iEl) % nS, &
+                                   0:myHexMesh % elements(iEl) % nP, & 
+                                   0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: z(0:myHexMesh % elements(iEl) % nS, &
+                                   0:myHexMesh % elements(iEl) % nP, & 
+                                   0:myHexMesh % elements(iEl) % nQ )
+   
+    CALL myHexMesh % elements(iEl) % GetPositions( x, y, z )
      
  END SUBROUTINE GetPositions_Hexmesh
 !
 !
 !
- SUBROUTINE SetPositionAtNode_Hexmesh( myHexMesh, iEl, x, y, i, j )
+ SUBROUTINE SetPositionAtNode_Hexmesh( myHexMesh, iEl, x, y, z, i, j, k )
  ! S/R SetPositionAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  REAL(prec), INTENT(in)         :: x, y
-  INTEGER, INTENT(in)            :: i, j
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)            :: iEl
+   REAL(prec), INTENT(in)         :: x, y, z
+   INTEGER, INTENT(in)            :: i, j, k
   
-     CALL myHexMesh % elements(iEl) % SetPositionAtNode( x, y, i, j )
+    CALL myHexMesh % elements(iEl) % SetPositionAtNode( x, y, z, i, j, k )
      
  END SUBROUTINE SetPositionAtNode_Hexmesh
 !
 !
 !
- SUBROUTINE GetPositionAtNode_Hexmesh( myHexMesh, iEl, x, y, i, j )
+ SUBROUTINE GetPositionAtNode_Hexmesh( myHexMesh, iEl, x, y, z, i, j, k )
  ! S/R GetPositionAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  REAL(prec), INTENT(out)     :: x, y
-  INTEGER, INTENT(in)         :: i, j
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)         :: iEl
+   REAL(prec), INTENT(out)     :: x, y, z
+   INTEGER, INTENT(in)         :: i, j, k
   
-     CALL myHexMesh % elements(iEl) % GetPositionAtNode( x, y, i, j )
+    CALL myHexMesh % elements(iEl) % GetPositionAtNode( x, y, z, i, j, k )
      
  END SUBROUTINE GetPositionAtNode_Hexmesh
 !
@@ -697,12 +847,14 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  REAL(prec), INTENT(in)         :: J(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   REAL(prec), INTENT(in)        :: J(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
   
-     CALL myHexMesh % elements(iEl) % SetJacobian( J )
+    CALL myHexMesh % elements(iEl) % SetJacobian( J )
      
  END SUBROUTINE SetJacobian_Hexmesh
 !
@@ -713,228 +865,306 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  REAL(prec), INTENT(out)     :: J(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   REAL(prec), INTENT(out)    :: J(0:myHexMesh % elements(iEl) % nS, &
+                                   0:myHexMesh % elements(iEl) % nP, &
+                                   0:myHexMesh % elements(iEl) % nQ )
   
-     CALL myHexMesh % elements(iEl) % GetJacobian( J )
+    CALL myHexMesh % elements(iEl) % GetJacobian( J )
      
  END SUBROUTINE GetJacobian_Hexmesh
 !
 !
 !
- SUBROUTINE SetJacobianAtNode_Hexmesh( myHexMesh, iEl, J, iS, iP )
+ SUBROUTINE SetJacobianAtNode_Hexmesh( myHexMesh, iEl, J, iS, iP, iQ )
  ! S/R SetJacobianAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  REAL(prec), INTENT(in)         :: J
-  INTEGER, INTENT(in)            :: iS, iP
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   REAL(prec), INTENT(in)        :: J
+   INTEGER, INTENT(in)           :: iS, iP, iQ
   
-     CALL myHexMesh % elements(iEl) % SetJacobianAtNode( J, iS, iP )
+    CALL myHexMesh % elements(iEl) % SetJacobianAtNode( J, iS, iP, iQ )
      
  END SUBROUTINE SetJacobianAtNode_Hexmesh
 !
 !
 !
- SUBROUTINE GetJacobianAtNode_Hexmesh( myHexMesh, iEl, J, iS, iP )
+ SUBROUTINE GetJacobianAtNode_Hexmesh( myHexMesh, iEl, J, iS, iP, iQ )
  ! S/R GetJacobianAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  REAL(prec), INTENT(out)     :: J
-  INTEGER, INTENT(in)         :: iS, iP
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   REAL(prec), INTENT(out)    :: J
+   INTEGER, INTENT(in)        :: iS, iP, iQ
   
-     CALL myHexMesh % elements(iEl) % GetJacobianAtNode( J, iS, iP )
+    CALL myHexMesh % elements(iEl) % GetJacobianAtNode( J, iS, iP, iQ )
      
  END SUBROUTINE GetJacobianAtNode_Hexmesh
 !
 !
 !
- SUBROUTINE SetCovariantMetrics_Hexmesh( myHexMesh, iEl, dxds, dxdp, dyds, dydp )
+ SUBROUTINE SetCovariantMetrics_Hexmesh( myHexMesh, iEl, dxds, dxdp, dxdq, &
+                                                         dyds, dydp, dydq, &
+                                                         dzds, dzdp, dzdq )
  ! S/R SetCovariantMetrics
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  REAL(prec), INTENT(in)         :: dxds(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  REAL(prec), INTENT(in)         :: dxdp(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  REAL(prec), INTENT(in)         :: dyds(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  REAL(prec), INTENT(in)         :: dydp(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  
-     CALL myHexMesh % elements(iEl) % SetCovariantMetrics( dxds, dxdp, dyds, dydp )
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   REAL(prec), INTENT(in)        :: dxds(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: dxdp(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: dxdq(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: dyds(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: dydp(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: dydq(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: dzds(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: dzdp(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(in)        :: dzdq(0:myHexMesh % elements(iEl) % nS, &
+                                         0:myHexMesh % elements(iEl) % nP, &
+                                         0:myHexMesh % elements(iEl) % nQ ) 
+
+    CALL myHexMesh % elements(iEl) % SetCovariantMetrics( dxds, dxdp, dxdq, &
+                                                          dyds, dydp, dydq, &
+                                                          dzds, dzdp, dzdq )
      
  END SUBROUTINE SetCovariantMetrics_Hexmesh
 !
 !
 !
- SUBROUTINE GetCovariantMetrics_Hexmesh( myHexMesh, iEl, dxds, dxdp, dyds, dydp )
+ SUBROUTINE GetCovariantMetrics_Hexmesh( myHexMesh, iEl, dxds, dxdp, dxdq, &
+                                                         dyds, dydp, dydq, &
+                                                         dzds, dzdp, dzdq )
  ! S/R GetCovariantMetrics
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  REAL(prec), INTENT(out)     :: dxds(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  REAL(prec), INTENT(out)     :: dxdp(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  REAL(prec), INTENT(out)     :: dyds(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
-  REAL(prec), INTENT(out)     :: dydp(0:myHexMesh % elements(iEl) % nS, 0:myHexMesh % elements(iEl) % nP)
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   REAL(prec), INTENT(out)    :: dxds(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: dxdp(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: dxdq(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: dyds(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: dydp(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: dydq(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: dzds(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: dzdp(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
+   REAL(prec), INTENT(out)    :: dzdq(0:myHexMesh % elements(iEl) % nS, &
+                                      0:myHexMesh % elements(iEl) % nP, &
+                                      0:myHexMesh % elements(iEl) % nQ )
   
-     CALL myHexMesh % elements(iEl) % GetCovariantMetrics( dxds, dxdp, dyds, dydp )
-     
+    CALL myHexMesh % elements(iEl) % GetCovariantMetrics( dxds, dxdp, dxdq, &
+                                                          dyds, dydp, dydq, &
+                                                          dzds, dzdp, dzdq )
+    
  END SUBROUTINE GetCovariantMetrics_Hexmesh
 !
 !
 !
- SUBROUTINE SetCovariantMetricsAtNode_Hexmesh( myHexMesh, iEl, dxds, dxdp, dyds, dydp, iS, iP )
+ SUBROUTINE SetCovariantMetricsAtNode_Hexmesh( myHexMesh, iEl, dxds, dxdp, dxdq, &
+                                                               dyds, dydp, dydq, &
+                                                               dzds, dzdp, dzdq, &
+                                                               iS, iP, iQ )
  ! S/R SetCovariantMetricsAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  REAL(prec), INTENT(in)         :: dxds, dxdp, dyds, dydp
-  INTEGER, INTENT(in)            :: iS, iP
-  
-     CALL myHexMesh % elements(iEl) % SetCovariantMetricsAtNode( dxds, dxdp, dyds, dydp, iS, iP )
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   REAL(prec), INTENT(in)        :: dxds, dxdp, dxdq, dyds, dydp, dydq, dzds, dzdp, dzdq
+   INTEGER, INTENT(in)           :: iS, iP, iQ
+   
+    CALL myHexMesh % elements(iEl) % SetCovariantMetricsAtNode( dxds, dxdp, dxdq, &
+                                                                dyds, dydp, dydq, &
+                                                                dzds, dzdp, dzdq, &
+                                                                iS, iP, iQ )
      
  END SUBROUTINE SetCovariantMetricsAtNode_Hexmesh
 !
 !
 !
- SUBROUTINE GetCovariantMetricsAtNode_Hexmesh( myHexMesh, iEl, dxds, dxdp, dyds, dydp, iS, iP )
+ SUBROUTINE GetCovariantMetricsAtNode_Hexmesh( myHexMesh, iEl, dxds, dxdp, dxdq, &
+                                                               dyds, dydp, dydq, &
+                                                               dzds, dzdp, dzdq, &
+                                                               iS, iP, iQ )
  ! S/R GetCovariantMetricsAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  REAL(prec), INTENT(out)     :: dxds, dxdp, dyds, dydp
-  INTEGER, INTENT(in)         :: iS, iP
-  
-     CALL myHexMesh % elements(iEl) % GetCovariantMetricsAtNode( dxds, dxdp, dyds, dydp, iS, iP )
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   REAL(prec), INTENT(out)    :: dxds, dxdp, dxdq, dyds, dydp, dydq, dzds, dzdp, dzdq
+   INTEGER, INTENT(in)        :: iS, iP, iQ
+   
+    CALL myHexMesh % elements(iEl) % GetCovariantMetricsAtNode( dxds, dxdp, dxdq, &
+                                                                dyds, dydp, dydq, &
+                                                                dzds, dzdp, dzdq, &
+                                                                iS, iP, iQ )
      
  END SUBROUTINE GetCovariantMetricsAtNode_Hexmesh
 !
 !
 !
- SUBROUTINE SetBoundaryLocation_Hexmesh( myHexMesh, iEl, x, y, iBound )
+ SUBROUTINE SetBoundaryLocation_Hexmesh( myHexMesh, iEl, x, y, z, iBound )
  ! S/R SetBoundaryLocation
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  INTEGER, INTENT(in)            :: iBound
-  REAL(prec), INTENT(in)         :: x(0:myHexMesh % elements(iEl) % nMax)
-  REAL(prec), INTENT(in)         :: y(0:myHexMesh % elements(iEl) % nMax)
-  
-     CALL myHexMesh % elements(iEl) % SetBoundaryLocation( x, y, iBound )
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   INTEGER, INTENT(in)           :: iBound
+   REAL(prec), INTENT(in)        :: x(0:myHexMesh % elements(iEl) % nMax, &
+                                      0:myHexMesh % elements(iEl) % nMax)
+   REAL(prec), INTENT(in)        :: y(0:myHexMesh % elements(iEl) % nMax, &
+                                      0:myHexMesh % elements(iEl) % nMax)
+   REAL(prec), INTENT(in)        :: z(0:myHexMesh % elements(iEl) % nMax, &
+                                      0:myHexMesh % elements(iEl) % nMax)  
+
+    CALL myHexMesh % elements(iEl) % SetBoundaryLocation( x, y, z, iBound )
      
  END SUBROUTINE SetBoundaryLocation_Hexmesh
 !
 !
 !
- SUBROUTINE GetBoundaryLocation_Hexmesh( myHexMesh, iEl, x, y, iBound )
+ SUBROUTINE GetBoundaryLocation_Hexmesh( myHexMesh, iEl, x, y, z, iBound )
  ! S/R GetBoundaryLocation
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  INTEGER, INTENT(in)         :: iBound
-  REAL(prec), INTENT(out)     :: x(0:myHexMesh % elements(iEl) % nMax)
-  REAL(prec), INTENT(out)     :: y(0:myHexMesh % elements(iEl) % nMax)
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   INTEGER, INTENT(in)        :: iBound
+   REAL(prec), INTENT(out)    :: x(0:myHexMesh % elements(iEl) % nMax, &
+                                   0:myHexMesh % elements(iEl) % nMax)
+   REAL(prec), INTENT(out)    :: y(0:myHexMesh % elements(iEl) % nMax, &
+                                   0:myHexMesh % elements(iEl) % nMax)
+   REAL(prec), INTENT(out)    :: z(0:myHexMesh % elements(iEl) % nMax, &
+                                   0:myHexMesh % elements(iEl) % nMax)  
   
-     CALL myHexMesh % elements(iEl) % GetBoundaryLocation( x, y, iBound )
+    CALL myHexMesh % elements(iEl) % GetBoundaryLocation( x, y, z, iBound )
      
  END SUBROUTINE GetBoundaryLocation_Hexmesh
 !
 !
 !
- SUBROUTINE SetBoundaryLocationAtNode_Hexmesh( myHexMesh, iEl, x, y, i, iBound )
+ SUBROUTINE SetBoundaryLocationAtNode_Hexmesh( myHexMesh, iEl, x, y, z, i, j, iBound )
  ! S/R SetBoundaryLocationAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  REAL(prec), INTENT(in)         :: x, y
-  INTEGER, INTENT(in)            :: i, iBound
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   REAL(prec), INTENT(in)        :: x, y, z
+   INTEGER, INTENT(in)           :: i, j, iBound
   
-     CALL myHexMesh % elements(iEl) % SetBoundaryLocationAtNode( x, y, i, iBound )
+    CALL myHexMesh % elements(iEl) % SetBoundaryLocationAtNode( x, y, z, i, j, iBound )
      
  END SUBROUTINE SetBoundaryLocationAtNode_Hexmesh
 !
 !
 !
- SUBROUTINE GetBoundaryLocationAtNode_Hexmesh( myHexMesh, iEl, x, y, i, iBound )
+ SUBROUTINE GetBoundaryLocationAtNode_Hexmesh( myHexMesh, iEl, x, y, z, i, j, iBound )
  ! S/R GetBoundaryLocationAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  REAL(prec), INTENT(out)     :: x, y
-  INTEGER, INTENT(in)         :: i, iBound
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   REAL(prec), INTENT(out)    :: x, y, z
+   INTEGER, INTENT(in)        :: i, j, iBound
   
-     CALL myHexMesh % elements(iEl) % GetBoundaryLocationAtNode( x, y, i, iBound )
+    CALL myHexMesh % elements(iEl) % GetBoundaryLocationAtNode( x, y, z, i, j, iBound )
      
  END SUBROUTINE GetBoundaryLocationAtNode_Hexmesh
 !
 !
 !
- SUBROUTINE SetBoundaryNormalAtNode_Hexmesh( myHexMesh, iEl, dir, i, iBound )
+ SUBROUTINE SetBoundaryNormalAtNode_Hexmesh( myHexMesh, iEl, dir, i, j, iBound )
  ! S/R SetBoundaryNormalAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(inout) :: myHexMesh
-  INTEGER, INTENT(in)            :: iEl
-  REAL(prec), INTENT(in)         :: dir(1:2)
-  INTEGER, INTENT(in)            :: i, iBound
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)           :: iEl
+   REAL(prec), INTENT(in)        :: dir(1:nDims)
+   INTEGER, INTENT(in)           :: i, j, iBound
   
-     CALL myHexMesh % elements(iEl) % SetBoundaryNormalAtNode( dir, i, iBound )
+    CALL myHexMesh % elements(iEl) % SetBoundaryNormalAtNode( dir, i, j, iBound )
      
  END SUBROUTINE SetBoundaryNormalAtNode_Hexmesh
 !
 !
 !
- SUBROUTINE GetBoundaryNormalAtNode_Hexmesh( myHexMesh, iEl, dir, length, i, iBound )
+ SUBROUTINE GetBoundaryNormalAtNode_Hexmesh( myHexMesh, iEl, dir, length, i, j, iBound )
  ! S/R GetBoundaryNormalAtNode
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Hexmesh), INTENT(in) :: myHexMesh
-  INTEGER, INTENT(in)         :: iEl
-  REAL(prec), INTENT(out)     :: dir(1:2), length
-  INTEGER, INTENT(in)         :: i, iBound
+   IMPLICIT NONE
+   CLASS(Hexmesh), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)        :: iEl
+   REAL(prec), INTENT(out)    :: dir(1:nDims), length
+   INTEGER, INTENT(in)        :: i, j, iBound
   
-     CALL myHexMesh % elements(iEl) % GetBoundaryNormalAtNode( dir, length, i, iBound )
+    CALL myHexMesh % elements(iEl) % GetBoundaryNormalAtNode( dir, length, i, j, iBound )
      
  END SUBROUTINE GetBoundaryNormalAtNode_Hexmesh
 !
+! ------------------------------------------------------------------------------------------------ !
 ! ------------------------------- Node Wrapper Routines ------------------------------------------ !
+! ------------------------------------------------------------------------------------------------ !
 !
- SUBROUTINE SetNodeData_HexMesh( myHexMesh, iNode, x, y, nodeType )
+ SUBROUTINE SetNodeData_HexMesh( myHexMesh, iNode, x, y, z, nodeType )
  ! S/R SetNodeData
  !  
  !
@@ -942,17 +1172,17 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iNode
-   REAL(prec), INTENT(in)           :: x, y
-   INTEGER, INTENT(in)              :: nodeType
+   INTEGER, INTENT(in)             :: iNode
+   REAL(prec), INTENT(in)          :: x, y, z
+   INTEGER, INTENT(in)             :: nodeType
 
-      CALL myHexMesh % nodes(iNode) % SetData( x, y, nodeType )
+    CALL myHexMesh % nodes(iNode) % SetData( x, y, z, nodeType )
 
  END SUBROUTINE SetNodeData_HexMesh
 !
 !
 !
- SUBROUTINE GetNodeData_HexMesh( myHexMesh, iNode, x, y, nodeType )
+ SUBROUTINE GetNodeData_HexMesh( myHexMesh, iNode, x, y, z, nodeType )
  ! S/R GetNodeData
  !  
  !
@@ -960,11 +1190,11 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iNode
-   REAL(prec), INTENT(out)       :: x, y
-   INTEGER, INTENT(out)          :: nodeType
+   INTEGER, INTENT(in)          :: iNode
+   REAL(prec), INTENT(out)      :: x, y
+   INTEGER, INTENT(out)         :: nodeType
 
-      CALL myHexMesh % nodes(iNode) % GetData( x, y, nodeType )
+    CALL myHexMesh % nodes(iNode) % GetData( x, y, z, nodeType )
 
  END SUBROUTINE GetNodeData_HexMesh
 !
@@ -978,10 +1208,10 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iNode
-   INTEGER, INTENT(in)              :: key
+   INTEGER, INTENT(in)             :: iNode
+   INTEGER, INTENT(in)             :: key
    
-      CALL myHexMesh % nodes(iNode) % SetKey( key )
+    CALL myHexMesh % nodes(iNode) % SetKey( key )
    
  END SUBROUTINE SetNodeKey_HexMesh
 !
@@ -995,10 +1225,10 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iNode
-   INTEGER, INTENT(out)          :: key
+   INTEGER, INTENT(in)          :: iNode
+   INTEGER, INTENT(out)         :: key
    
-      CALL myHexMesh % nodes(iNode) % GetKey( key )
+    CALL myHexMesh % nodes(iNode) % GetKey( key )
    
  END SUBROUTINE GetNodeKey_HexMesh
 !
@@ -1012,10 +1242,10 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iNode
-   INTEGER, INTENT(in)              :: nodeType
+   INTEGER, INTENT(in)             :: iNode
+   INTEGER, INTENT(in)             :: nodeType
    
-      CALL myHexMesh % nodes(iNode) % SetType( nodeType )
+    CALL myHexMesh % nodes(iNode) % SetType( nodeType )
    
  END SUBROUTINE SetNodeType_HexMesh
 !
@@ -1029,16 +1259,16 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iNode
-   INTEGER, INTENT(out)          :: nodeType
+   INTEGER, INTENT(in)          :: iNode
+   INTEGER, INTENT(out)         :: nodeType
    
-      CALL myHexMesh % nodes(iNode) % GetType( nodeType )
+    CALL myHexMesh % nodes(iNode) % GetType( nodeType )
    
  END SUBROUTINE GetNodeType_HexMesh
 !
 !
 !
- SUBROUTINE SetNodePosition_HexMesh( myHexMesh, iNode, x, y )
+ SUBROUTINE SetNodePosition_HexMesh( myHexMesh, iNode, x, y, z )
  ! S/R SetNodePosition_HexMesh
  !  
  !
@@ -1046,16 +1276,16 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iNode
-   REAL(prec), INTENT(in)           :: x, y
+   INTEGER, INTENT(in)             :: iNode
+   REAL(prec), INTENT(in)          :: x, y, z
    
-      CALL myHexMesh % nodes(iNode) % SetPosition( x, y )
+    CALL myHexMesh % nodes(iNode) % SetPosition( x, y, z )
    
  END SUBROUTINE SetNodePosition_HexMesh
 !
 !
 !
- SUBROUTINE GetNodePosition_HexMesh( myHexMesh, iNode, x, y )
+ SUBROUTINE GetNodePosition_HexMesh( myHexMesh, iNode, x, y, z )
  ! S/R GetNodePosition_HexMesh
  !  
  !
@@ -1063,389 +1293,428 @@ SUBROUTINE SetNumberOfInternalNodes_Hexmesh( myHexMesh, iEl, nS, nP )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iNode
-   REAL(prec), INTENT(out)       :: x, y
+   INTEGER, INTENT(in)          :: iNode
+   REAL(prec), INTENT(out)      :: x, y, z
    
-      CALL myHexMesh % nodes(iNode) % GetPosition( x, y )
+    CALL myHexMesh % nodes(iNode) % GetPosition( x, y, z )
    
  END SUBROUTINE GetNodePosition_HexMesh
 !
-! --------------------------------- Edge Wrapper Routines ---------------------------------------- !
+! ------------------------------------------------------------------------------------------------ !
+! --------------------------------- Face Wrapper Routines ---------------------------------------- !
+! ------------------------------------------------------------------------------------------------ !
 !
- SUBROUTINE SetEdgeData_HexMesh( myHexMesh, iEdge, nodeIDs, elementIDs, elementSides, key, start, inc )
- ! S/R SetEdgeData
+ SUBROUTINE SetFaceData_HexMesh( myHexMesh, iFace, nodeIDs, elementIDs, elementSides, &
+                                 key, iStart, jStart, iInc, jInc )
+ ! S/R SetFaceData
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: nodeIDs(1:2), elementIDs(1:2), elementSides(1:2)
-   INTEGER, INTENT(in)              :: key, start, inc
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: nodeIDs(1:nQuadNodes), elementIDs(1:2), elementSides(1:2)
+   INTEGER, INTENT(in)             :: key, iStart, jStart, iInc, jInc
 
-      CALL myHexMesh % edges(iEdge) % SetData( nodeIDs, elementIDs, elementSides, key, start, inc )
+    CALL myHexMesh % Faces(iFace) % SetData( nodeIDs, elementIDs, elementSides, &
+                                             key, iStart, jStart, iInc, jInc )
 
- END SUBROUTINE SetEdgeData_HexMesh
+ END SUBROUTINE SetFaceData_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeData_HexMesh( myHexMesh, iEdge, nodeIDs, elementIDs, elementSides, key, start, inc )
- ! S/R GetEdgeData
+ SUBROUTINE GetFaceData_HexMesh( myHexMesh, iFace, nodeIDs, elementIDs, elementSides, &
+                                 key, iStart, jStart, iInc, jInc )
+ ! S/R GetFaceData
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: nodeIDs(1:2), elementIDs(1:2), elementSides(1:2)
-   INTEGER, INTENT(out)          :: key, start, inc
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: nodeIDs(1:nQuadNodes), elementIDs(1:2), elementSides(1:2)
+   INTEGER, INTENT(out)         :: key, iStart, jStart, iInc, jInc
 
-      CALL myHexMesh % edges(iEdge) % GetData( nodeIDs, elementIDs, elementSides, key, start, inc )
+    CALL myHexMesh % Faces(iFace) % GetData( nodeIDs, elementIDs, elementSides, &
+                                             key, iStart, jStart, iInc, jInc )
       
- END SUBROUTINE GetEdgeData_HexMesh
+ END SUBROUTINE GetFaceData_HexMesh
 !
 !
 !
-SUBROUTINE SetEdgeKey_HexMesh( myHexMesh, iEdge, key )
- ! S/R SetEdgeKey
+SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
+ ! S/R SetFaceKey
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: key
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: key
 
-      CALL myHexMesh % edges(iEdge) % SetKey( key )    
+    CALL myHexMesh % Faces(iFace) % SetKey( key )    
 
- END SUBROUTINE SetEdgeKey_HexMesh
+ END SUBROUTINE SetFaceKey_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeKey_HexMesh( myHexMesh, iEdge, key )
- ! S/R GetEdgeKey
+ SUBROUTINE GetFaceKey_HexMesh( myHexMesh, iFace, key )
+ ! S/R GetFaceKey
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: key
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: key
 
-      CALL myHexMesh % edges(iEdge) % GetKey( key )
+    CALL myHexMesh % Faces(iFace) % GetKey( key )
 
- END SUBROUTINE GetEdgeKey_HexMesh
+ END SUBROUTINE GetFaceKey_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgeNodeIDs_HexMesh( myHexMesh, iEdge, nodeIDs )
- ! S/R SetEdgeNodeIDs
+ SUBROUTINE SetFaceNodeIDs_HexMesh( myHexMesh, iFace, nodeIDs )
+ ! S/R SetFaceNodeIDs
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: nodeIDs(1:2)
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: nodeIDs(1:nQuadNodes)
 
-      CALL myHexMesh % edges(iEdge) % SetNodeIDs( nodeIds )
+    CALL myHexMesh % Faces(iFace) % SetNodeIDs( nodeIds )
 
- END SUBROUTINE SetEdgeNodeIDs_HexMesh
+ END SUBROUTINE SetFaceNodeIDs_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeNodeIDs_HexMesh( myHexMesh, iEdge, nodeIDs )
- ! S/R GetEdgeNodeIDs
+ SUBROUTINE GetFaceNodeIDs_HexMesh( myHexMesh, iFace, nodeIDs )
+ ! S/R GetFaceNodeIDs
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: nodeIDs(1:2)
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: nodeIDs(1:nQuadNodes)
 
-      CALL myHexMesh % edges(iEdge) % GetNodeIDs( nodeIDs )
+    CALL myHexMesh % Faces(iFace) % GetNodeIDs( nodeIDs )
 
- END SUBROUTINE GetEdgeNodeIDs_HexMesh
+ END SUBROUTINE GetFaceNodeIDs_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgeElementIDs_HexMesh( myHexMesh, iEdge, elementIDs )
- ! S/R SetEdgeElementIDs
+ SUBROUTINE SetFaceElementIDs_HexMesh( myHexMesh, iFace, elementIDs )
+ ! S/R SetFaceElementIDs
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: elementIDs(1:2)
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: elementIDs(1:2)
 
-      CALL myHexMesh % edges(iEdge) % SetElementIDs( elementIDs )
+    CALL myHexMesh % Faces(iFace) % SetElementIDs( elementIDs )
 
- END SUBROUTINE SetEdgeElementIDs_HexMesh
+ END SUBROUTINE SetFaceElementIDs_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeElementIDs_HexMesh( myHexMesh, iEdge, elementIDs )
- ! S/R GetEdgeElementIDs
+ SUBROUTINE GetFaceElementIDs_HexMesh( myHexMesh, iFace, elementIDs )
+ ! S/R GetFaceElementIDs
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: elementIDs(1:2)
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: elementIDs(1:2)
 
-      CALL myHexMesh % edges(iEdge) % GetElementIDs( elementIDs )
+    CALL myHexMesh % Faces(iFace) % GetElementIDs( elementIDs )
 
- END SUBROUTINE GetEdgeElementIDs_HexMesh
+ END SUBROUTINE GetFaceElementIDs_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgePrimaryElementID_HexMesh( myHexMesh, iEdge, elementID )
- ! S/R SetEdgePrimaryElementID
+ SUBROUTINE SetFacePrimaryElementID_HexMesh( myHexMesh, iFace, elementID )
+ ! S/R SetFacePrimaryElementID
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: elementID
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: elementID
 
-      CALL myHexMesh % edges(iEdge) % SetPrimaryElementID( elementID )
+    CALL myHexMesh % Faces(iFace) % SetPrimaryElementID( elementID )
       
- END SUBROUTINE SetEdgePrimaryElementID_HexMesh
+ END SUBROUTINE SetFacePrimaryElementID_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgePrimaryElementID_HexMesh( myHexMesh, iEdge, elementID )
- ! S/R GetEdgePrimaryElementID
+ SUBROUTINE GetFacePrimaryElementID_HexMesh( myHexMesh, iFace, elementID )
+ ! S/R GetFacePrimaryElementID
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
+   INTEGER, INTENT(in)           :: iFace
    INTEGER, INTENT(out)          :: elementID
 
-      CALL myHexMesh % edges(iEdge) % GetPrimaryElementID( elementID )
+    CALL myHexMesh % Faces(iFace) % GetPrimaryElementID( elementID )
 
- END SUBROUTINE GetEdgePrimaryElementID_HexMesh
+ END SUBROUTINE GetFacePrimaryElementID_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgeSecondaryElementID_HexMesh( myHexMesh, iEdge, elementID )
- ! S/R SetEdgeSecondaryElementID
+ SUBROUTINE SetFaceSecondaryElementID_HexMesh( myHexMesh, iFace, elementID )
+ ! S/R SetFaceSecondaryElementID
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: elementID
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: elementID
 
-      CALL myHexMesh % edges(iEdge) % SetSecondaryElementID( elementID )
+    CALL myHexMesh % Faces(iFace) % SetSecondaryElementID( elementID )
       
- END SUBROUTINE SetEdgeSecondaryElementID_HexMesh
+ END SUBROUTINE SetFaceSecondaryElementID_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeSecondaryElementID_HexMesh( myHexMesh, iEdge, elementID )
- ! S/R GetEdgeSecondaryElementID
+ SUBROUTINE GetFaceSecondaryElementID_HexMesh( myHexMesh, iFace, elementID )
+ ! S/R GetFaceSecondaryElementID
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: elementID
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: elementID
 
-      CALL myHexMesh % edges(iEdge) % GetSecondaryElementID( elementID )
+    CALL myHexMesh % Faces(iFace) % GetSecondaryElementID( elementID )
 
- END SUBROUTINE GetEdgeSecondaryElementID_HexMesh
+ END SUBROUTINE GetFaceSecondaryElementID_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgeElementSides_HexMesh( myHexMesh, iEdge, elementSides )
- ! S/R SetEdgeElementSides
+ SUBROUTINE SetFaceElementSides_HexMesh( myHexMesh, iFace, elementSides )
+ ! S/R SetFaceElementSides
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: elementSides(1:2)
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: elementSides(1:2)
 
-      CALL myHexMesh % edges(iEdge) % SetElementSides( elementSides )
+    CALL myHexMesh % Faces(iFace) % SetElementSides( elementSides )
 
- END SUBROUTINE SetEdgeElementSides_HexMesh
+ END SUBROUTINE SetFaceElementSides_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeElementSides_HexMesh( myHexMesh, iEdge, elementSides )
- ! S/R GetEdgeElementSides
+ SUBROUTINE GetFaceElementSides_HexMesh( myHexMesh, iFace, elementSides )
+ ! S/R GetFaceElementSides
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: elementSides(1:2)
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: elementSides(1:2)
 
-      CALL myHexMesh % edges(iEdge) % GetElementSides( elementSides )
+    CALL myHexMesh % Faces(iFace) % GetElementSides( elementSides )
 
- END SUBROUTINE GetEdgeElementSides_HexMesh
+ END SUBROUTINE GetFaceElementSides_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgePrimaryElementSide_HexMesh( myHexMesh, iEdge, elementSide )
- ! S/R SetEdgePrimaryElementSide
+ SUBROUTINE SetFacePrimaryElementSide_HexMesh( myHexMesh, iFace, elementSide )
+ ! S/R SetFacePrimaryElementSide
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: elementSide
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: elementSide
 
-      CALL myHexMesh % edges(iEdge) % SetPrimaryElementSide( elementSide )
+    CALL myHexMesh % Faces(iFace) % SetPrimaryElementSide( elementSide )
       
- END SUBROUTINE SetEdgePrimaryElementSide_HexMesh
+ END SUBROUTINE SetFacePrimaryElementSide_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgePrimaryElementSide_HexMesh( myHexMesh, iEdge, elementSide )
- ! S/R GetEdgePrimaryElementSide
+ SUBROUTINE GetFacePrimaryElementSide_HexMesh( myHexMesh, iFace, elementSide )
+ ! S/R GetFacePrimaryElementSide
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: elementSide
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: elementSide
 
-      CALL myHexMesh % edges(iEdge) % GetPrimaryElementSide( elementSide )
+    CALL myHexMesh % Faces(iFace) % GetPrimaryElementSide( elementSide )
 
- END SUBROUTINE GetEdgePrimaryElementSide_HexMesh
+ END SUBROUTINE GetFacePrimaryElementSide_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgeSecondaryElementSide_HexMesh( myHexMesh, iEdge, elementSide )
- ! S/R SetEdgeSecondaryElementSide
+ SUBROUTINE SetFaceSecondaryElementSide_HexMesh( myHexMesh, iFace, elementSide )
+ ! S/R SetFaceSecondaryElementSide
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: elementSide
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: elementSide
 
-      CALL myHexMesh % edges(iEdge) % SetSecondaryElementSide( elementSide )
+    CALL myHexMesh % Faces(iFace) % SetSecondaryElementSide( elementSide )
       
- END SUBROUTINE SetEdgeSecondaryElementSide_HexMesh
+ END SUBROUTINE SetFaceSecondaryElementSide_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeSecondaryElementSide_HexMesh( myHexMesh, iEdge, elementSide )
- ! S/R GetEdgeSecondaryElementSide
+ SUBROUTINE GetFaceSecondaryElementSide_HexMesh( myHexMesh, iFace, elementSide )
+ ! S/R GetFaceSecondaryElementSide
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: elementSide
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: elementSide
 
-      CALL myHexMesh % edges(iEdge) % GetSecondaryElementSide( elementSide )
+    CALL myHexMesh % Faces(iFace) % GetSecondaryElementSide( elementSide )
 
- END SUBROUTINE GetEdgeSecondaryElementSide_HexMesh
+ END SUBROUTINE GetFaceSecondaryElementSide_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgeStart_HexMesh( myHexMesh, iEdge, start )
- ! S/R SetEdgeStart
+ SUBROUTINE SetFaceStart_HexMesh( myHexMesh, iFace, iStart, jStart )
+ ! S/R SetFaceStart
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: start
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: iStart, jStart
     
-      CALL myHexMesh % edges(iEdge) % SetStart( start )
+    CALL myHexMesh % Faces(iFace) % SetStart( iStart, jStart )
       
- END SUBROUTINE SetEdgeStart_HexMesh
+ END SUBROUTINE SetFaceStart_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeStart_HexMesh( myHexMesh, iEdge, start )
- ! S/R GetEdgeStart
+ SUBROUTINE GetFaceStart_HexMesh( myHexMesh, iFace, iStart, jStart )
+ ! S/R GetFaceStart
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: start
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: iStart, jStart
 
-      CALL myHexMesh % edges(iEdge) % GetStart( start )
+    CALL myHexMesh % Faces(iFace) % GetStart( iStart, jStart )
 
- END SUBROUTINE GetEdgeStart_HexMesh
+ END SUBROUTINE GetFaceStart_HexMesh
 !
 !
 !
- SUBROUTINE SetEdgeIncrement_HexMesh( myHexMesh, iEdge, inc )
- ! S/R SetEdgeIncrement
+ SUBROUTINE SetFaceIncrement_HexMesh( myHexMesh, iFace, iInc, jInc )
+ ! S/R SetFaceIncrement
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)              :: iEdge
-   INTEGER, INTENT(in)              :: inc
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: iInc, jInc
 
-      CALL myHexMesh % edges(iEdge) % SetIncrement( inc )
+    CALL myHexMesh % Faces(iFace) % SetIncrement( iInc, jInc )
 
- END SUBROUTINE SetEdgeIncrement_HexMesh
+ END SUBROUTINE SetFaceIncrement_HexMesh
 !
 !
 !
- SUBROUTINE GetEdgeIncrement_HexMesh( myHexMesh, iEdge, inc )
- ! S/R GetEdgeIncrement
+ SUBROUTINE GetFaceIncrement_HexMesh( myHexMesh, iFace, iInc, jInc )
+ ! S/R GetFaceIncrement
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)           :: iEdge
-   INTEGER, INTENT(out)          :: inc
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: iInc, jInc
 
-      CALL myHexMesh % edges(iEdge) % GetIncrement( inc )
+    CALL myHexMesh % Faces(iFace) % GetIncrement( iInc, jInc )
 
- END SUBROUTINE GetEdgeIncrement_HexMesh
+ END SUBROUTINE GetFaceIncrement_HexMesh
 !
+!
+!
+ SUBROUTINE SetSwapDimensions_HexMesh( myHexMesh, iFace, swap )
+ ! S/R SetSwapDimensions
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( HexMesh ), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)             :: iFace
+   INTEGER, INTENT(in)             :: swap
+
+    CALL myHexMesh % Faces(iFace) % SetSwapDimensions( swap )
+
+ END SUBROUTINE SetSwapDimensions_HexMesh
+!
+!
+!
+ SUBROUTINE GetSwapDimensions_HexMesh( myHexMesh, iFace, swap )
+ ! S/R GetSwapDimensions
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( HexMesh ), INTENT(in) :: myHexMesh
+   INTEGER, INTENT(in)          :: iFace
+   INTEGER, INTENT(out)         :: swap
+
+    CALL myHexMesh % Faces(iFace) % GetSwapDimensions( swap )
+
+ END SUBROUTINE GetSwapDimensions_HexMesh
 !
 !
 !==================================================================================================!
@@ -1453,36 +1722,36 @@ SUBROUTINE SetEdgeKey_HexMesh( myHexMesh, iEdge, key )
 !==================================================================================================!
 !
 !
-SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
- ! S/R ConstructEdges
+SUBROUTINE ConstructFaces_HexMesh( myHexMesh )
+ ! S/R ConstructFaces
  !
  !    Takes in the mesh of quadrilaterals which has not filled in the 
- !    edge information, and finds all of the unique edges in the mesh.
- !    The space for the edges is REALlocated with the correct number of edges
+ !    Face information, and finds all of the unique Faces in the mesh.
+ !    The space for the Faces is REALlocated with the correct number of Faces
  ! 
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
    ! LOCAL
-   TYPE( HashTable ) :: edgeTable
-   INTEGER :: nEls, nNodes, iEl, nEdges, k  
+   TYPE( HashTable ) :: FaceTable
+   INTEGER :: nEls, nNodes, iEl, nFaces, k  
    INTEGER :: l1, l2, startID, endID, key1, key2
-   INTEGER :: e1, e2, s1, s2, edgeID, n1, nID
+   INTEGER :: e1, e2, s1, s2, FaceID, n1, nID
 
       CALL myHexMesh % GetNumberOfNodes( nNodes )   
       CALL myHexMesh % GetNumberOfElements( nEls )
-      nEdges = 0
+      nFaces = 0
 
-      ! First, just count the number of edges
-      CALL edgeTable % Build( nNodes )
+      ! First, just count the number of Faces
+      CALL FaceTable % Build( nNodes )
 
       do iEl = 1, nEls ! Loop over the elements in the mesh
 
          do k = 1, 4 ! Loop over the sides of each element
 
-            l1 = myHexMesh % faceMap(1,k) ! starting local node for this edge
-            l2 = myHexMesh % faceMap(2,k) ! ending local node for this edge
+            l1 = myHexMesh % faceMap(1,k) ! starting local node for this Face
+            l2 = myHexMesh % faceMap(2,k) ! ending local node for this Face
             
             CALL myHexMesh % GetElementNodeID( iEl, l1, startID )
             CALL myHexMesh % GetElementNodeID( iEl, l2, endID )
@@ -1491,11 +1760,11 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
             key2 = max( startID, endID )
 
             ! Add element to corner-node connectivity list
-            IF( edgeTable % ContainsKeys( key1, key2 ) .EQV. .FALSE. )then ! this is a new edge
+            IF( FaceTable % ContainsKeys( key1, key2 ) .EQV. .FALSE. )then ! this is a new Face
                
-               ! Add the edge to the list
-               nEdges = nEdges + 1
-               CALL edgeTable % AddDataForKeys( nEdges, key1, key2 )
+               ! Add the Face to the list
+               nFaces = nFaces + 1
+               CALL FaceTable % AddDataForKeys( nFaces, key1, key2 )
                
             ENDIF
 
@@ -1503,25 +1772,25 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
         
       enddo ! iEl, Loop over the elements in the mesh
  
-      CALL edgeTable % Trash( ) ! TRASH the edgetable
+      CALL FaceTable % Trash( ) ! TRASH the Facetable
 
       ! And rebuild it
-      CALL edgeTable % Build( nNodes )
+      CALL FaceTable % Build( nNodes )
       
-      ! Re-allocate space for the mesh edges
+      ! Re-allocate space for the mesh Faces
 
-      DEALLOCATE( myHexMesh % edges )
+      DEALLOCATE( myHexMesh % Faces )
 
-      ALLOCATE( myHexMesh % edges( 1:nEdges ) )
+      ALLOCATE( myHexMesh % Faces( 1:nFaces ) )
 
-      nEdges = 0 ! restart the edge counting
+      nFaces = 0 ! restart the Face counting
 
       do iEl = 1, nEls ! Loop over the elements in the mesh
 
          do k = 1, 4 ! Loop over the sides of each element
 
-            l1 = myHexMesh % faceMap(1,k) ! starting local node for this edge
-            l2 = myHexMesh % faceMap(2,k) ! ending local node for this edge
+            l1 = myHexMesh % faceMap(1,k) ! starting local node for this Face
+            l2 = myHexMesh % faceMap(2,k) ! ending local node for this Face
 
             CALL myHexMesh % GetElementNodeID( iEl, l1, startID )
             CALL myHexMesh % GetElementNodeID( iEl, l2, endID )
@@ -1529,68 +1798,68 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
             key1 = min( startID, endID )
             key2 = max( startID, endID )
 
-            IF( edgeTable % ContainsKeys( key1, key2 )  )then ! this edge already exists
+            IF( FaceTable % ContainsKeys( key1, key2 )  )then ! this Face already exists
                
-               !Get the edgeID
-               CALL edgeTable % GetDataForKeys( edgeID, key1, key2 )
-               ! Find the primary element and the starting node for this element's edge
+               !Get the FaceID
+               CALL FaceTable % GetDataForKeys( FaceID, key1, key2 )
+               ! Find the primary element and the starting node for this element's Face
                ! This is compared with the secondary element's starting node to infer
                ! the relative orientation of the two elements.
-               CALL myHexMesh % GetEdgePrimaryElementID( edgeID, e1 )
-               CALL myHexMesh % GetEdgePrimaryElementSide( edgeID, s1 )
+               CALL myHexMesh % GetFacePrimaryElementID( FaceID, e1 )
+               CALL myHexMesh % GetFacePrimaryElementSide( FaceID, s1 )
                
                l1 = myHexMesh % faceMap(1,s1)
                CALL myHexMesh % GetElementNodeID( e1, l1, n1 )
 
                ! Set the secondary element information
-               CALL myHexMesh % SetEdgeSecondaryElementID( edgeID, iEl )
+               CALL myHexMesh % SetFaceSecondaryElementID( FaceID, iEl )
                
-               !PRINT*, 'edgeID, primary, secondary:', edgeID, e1, iEl
+               !PRINT*, 'FaceID, primary, secondary:', FaceID, e1, iEl
                IF( startID == n1 ) then ! the elements are oriented the same direction
-                  CALL myHexMesh % SetEdgeSecondaryElementSide( edgeID, k )
+                  CALL myHexMesh % SetFaceSecondaryElementSide( FaceID, k )
                  
 
                ELSE ! the elements are oriented in the opposite direction
 
-                  ! For these edges, we mark the side ID as negative
-                  CALL myHexMesh % SetEdgeSecondaryElementSide( edgeID, -k )
+                  ! For these Faces, we mark the side ID as negative
+                  CALL myHexMesh % SetFaceSecondaryElementSide( FaceID, -k )
                  
                ENDIF
 
-            ELSE ! this is a new edge
+            ELSE ! this is a new Face
 
-               ! Add the edge to the list
-               nEdges = nEdges + 1
+               ! Add the Face to the list
+               nFaces = nFaces + 1
                
-               edgeID = nEdges
-               CALL myHexMesh % edges(edgeID) % Build()
-               CALL myHexMesh % SetEdgePrimaryElementID( edgeID, iEl )
-               CALL myHexMesh % SetEdgePrimaryElementSide( edgeID, k )
-               CALL myHexMesh % SetEdgeNodeIDs( edgeID, (/startID, endID /) )
+               FaceID = nFaces
+               CALL myHexMesh % Faces(FaceID) % Build()
+               CALL myHexMesh % SetFacePrimaryElementID( FaceID, iEl )
+               CALL myHexMesh % SetFacePrimaryElementSide( FaceID, k )
+               CALL myHexMesh % SetFaceNodeIDs( FaceID, (/startID, endID /) )
 
                ! Default the secondary information
-               CALL myHexMesh % SetEdgeSecondaryElementID( edgeID, BoundaryFlagDefault )
+               CALL myHexMesh % SetFaceSecondaryElementID( FaceID, BoundaryFlagDefault )
                
-               CALL edgeTable % AddDataForKeys( edgeID, key1, key2 )
+               CALL FaceTable % AddDataForKeys( FaceID, key1, key2 )
                
             ENDIF
          enddo ! k, Loop over the sides of each element
         
       enddo ! iEl, Loop over the elements in the mesh
 
-      CALL edgeTable % Trash( )
-      myHexMesh % nEdges = nEdges
+      CALL FaceTable % Trash( )
+      myHexMesh % nFaces = nFaces
 
-     ! do edgeID = 1, nEdges
+     ! do FaceID = 1, nFaces
       
-     !    CALL myHexMesh % GetEdgePrimaryElementID( edgeID, e1 )
-     !    CALL myHexMesh % GetEdgePrimaryElementSide( edgeID, s1 )
-     !    CALL myHexMesh % GetEdgeSecondaryElementID( edgeID, e2 )
-     !    CALL myHexMesh % GetEdgeSecondaryElementSide( edgeID, s2 )
+     !    CALL myHexMesh % GetFacePrimaryElementID( FaceID, e1 )
+     !    CALL myHexMesh % GetFacePrimaryElementSide( FaceID, s1 )
+     !    CALL myHexMesh % GetFaceSecondaryElementID( FaceID, e2 )
+     !    CALL myHexMesh % GetFaceSecondaryElementSide( FaceID, s2 )
          
-     !    PRINT*, edgeID, e1, s1, e2, s2
+     !    PRINT*, FaceID, e1, s1, e2, s2
      ! enddo
- END SUBROUTINE ConstructEdges_HexMesh
+ END SUBROUTINE ConstructFaces_HexMesh
 !
 !
 !
@@ -1602,13 +1871,13 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
    ! LOCAL
-   INTEGER :: nEls, nNodes, iEl, nEdges, k  
+   INTEGER :: nEls, nNodes, iEl, nFaces, k  
    INTEGER :: l1, l2, startID, endID, key1, key2
-   INTEGER :: e1, e2, s1, s2, edgeID, n1, nID
+   INTEGER :: e1, e2, s1, s2, FaceID, n1, nID
 
       CALL myHexMesh % GetNumberOfNodes( nNodes )   
       CALL myHexMesh % GetNumberOfElements( nEls )
-      nEdges = 0
+      nFaces = 0
 
       DO iEl = 1, nEls ! Loop over the elements in the mesh
 
@@ -1635,19 +1904,19 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
    ! LOCAL
-   INTEGER :: e(1:2), s(1:2), nEdges, iEdge
+   INTEGER :: e(1:2), s(1:2), nFaces, iFace
   
-      CALL myHexMesh % GetNumberOfEdges( nEdges )
+      CALL myHexMesh % GetNumberOfFaces( nFaces )
  
-      DO iEdge = 1, nEdges ! Loop over the edges
+      DO iFace = 1, nFaces ! Loop over the Faces
 
-         CALL myHexMesh % GetEdgeElementIDs( iEdge, e )
-         CALL myHexMesh % GetEdgeElementSides( iEdge, s )
+         CALL myHexMesh % GetFaceElementIDs( iFace, e )
+         CALL myHexMesh % GetFaceElementSides( iFace, s )
 
          CALL myHexMesh % SetElementNeighbor( e(1), s(1), e(2) )
          CALL myHexMesh % SetElementNeighbor( e(2), ABS(s(2)), e(1) )
          
-      ENDDO ! iEdge, Loop over the edges
+      ENDDO ! iFace, Loop over the Faces
 
      
  END SUBROUTINE ConstructElementNeighbors_HexMesh
@@ -1699,15 +1968,15 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
    REAL(prec) :: x1, x2, y1, y2, a, b, c
    REAL(prec), ALLOCATABLE :: xc(:), yc(:), s(:)
 
-   INTEGER :: nNodes, nElems, nEdges, gPolyDeg
+   INTEGER :: nNodes, nElems, nFaces, gPolyDeg
    INTEGER :: bFlags(1:4), nodes(1:4)
    INTEGER :: e1, e2, s1, s2, n1, n2, n(1:2), e(1:2), si(1:2)
-   INTEGER :: iEdge, iNode, iEl, iSide, iX, iY
+   INTEGER :: iFace, iNode, iEl, iSide, iX, iY
    INTEGER :: fUnit, iC, jC
 
    CHARACTER(20) :: ISMversion
-   CHARACTER(40) :: edgeNames
-   CHARACTER(40) :: thisEdge
+   CHARACTER(40) :: FaceNames
+   CHARACTER(40) :: thisFace
       
       dxElem = ONE/nXElem
       dyElem = ONE/nYElem
@@ -1715,7 +1984,7 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
       ! ** "Hard-wired" values for a structured mesh with no holes ** !
       nNodes   = (nXElem+1)*(nYElem+1)
       nElems   = (nXElem)*(nYElem)
-      nEdges   = (nXElem)*(nYElem+1) + (nXElem+1)*(nYElem)
+      nFaces   = (nXElem)*(nYElem+1) + (nXElem+1)*(nYElem)
       gPolyDeg = 1
       ! ************************************************************************* !
 
@@ -1732,7 +2001,7 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
 
       ! ---- Build the quadrature mesh (empty) ---- !
   
-      CALL myHexMesh % Build( nNodes, nElems, nEdges, interp % nS ) 
+      CALL myHexMesh % Build( nNodes, nElems, nFaces, interp % nS ) 
       
       
       ! ---- Read in the corner nodes ---- !
@@ -1793,19 +2062,19 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
          ENDDO
       ENDDO ! iEl, cycle over the elements
 
-      CALL myHexMesh % ConstructEdges( )
-      nEdges = myHexMesh % nEdges
-      PRINT*, 'nEdges    : ', nEdges
+      CALL myHexMesh % ConstructFaces( )
+      nFaces = myHexMesh % nFaces
+      PRINT*, 'nFaces    : ', nFaces
       
       ! Set the start and increment for the secondary element 
-      DO iEdge = 1, nEdges
-            CALL myHexMesh % GetEdgeSecondaryElementSide(iEdge, s2)
+      DO iFace = 1, nFaces
+            CALL myHexMesh % GetFaceSecondaryElementSide(iFace, s2)
             IF(s2 < 0)THEN
-               CALL myHexMesh % SetEdgeStart( iEdge, interp % nS-1 )
-               CALL myHexMesh % SetEdgeIncrement( iEdge, -1)
+               CALL myHexMesh % SetFaceStart( iFace, interp % nS-1 )
+               CALL myHexMesh % SetFaceIncrement( iFace, -1)
             ELSE
-               CALL myHexMesh % SetEdgeStart( iEdge, 1 )
-               CALL myHexMesh % SetEdgeIncrement( iEdge, 1 )
+               CALL myHexMesh % SetFaceStart( iFace, 1 )
+               CALL myHexMesh % SetFaceIncrement( iFace, 1 )
             ENDIF
             
       ENDDO
@@ -1846,16 +2115,16 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
    REAL(prec) :: x1, x2, y1, y2
    REAL(prec), ALLOCATABLE :: xc(:), yc(:), s(:)
 
-   INTEGER :: nNodes, nElems, nEdges, gPolyDeg
+   INTEGER :: nNodes, nElems, nFaces, gPolyDeg
    INTEGER :: bFlags(1:4), nodes(1:4)
    INTEGER :: e1, e2, s1, s2, n1, n2, n(1:2), e(1:2), si(1:2)
-   INTEGER :: iEdge, iNode, iEl, iSide
+   INTEGER :: iFace, iNode, iEl, iSide
    INTEGER :: fUnit, iC, jC
    INTEGER, ALLOCATABLE :: sideFlags(:,:)
 
    CHARACTER(20) :: ISMversion
-   CHARACTER(40) :: edgeNames
-   CHARACTER(40) :: thisEdge
+   CHARACTER(40) :: FaceNames
+   CHARACTER(40) :: thisFace
 
       PRINT*, 'Mesh File : '//TRIM( filename )
       
@@ -1873,13 +2142,13 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
       PRINT*, 'Version   : '//TRIM( ISMversion )
 
 
-      ! ---- Gather the number of nodes, number of elements, and number of edges ---- !
+      ! ---- Gather the number of nodes, number of elements, and number of Faces ---- !
       
-      READ( fUnit, * ) nNodes, nEdges, nElems, gPolyDeg
+      READ( fUnit, * ) nNodes, nFaces, nElems, gPolyDeg
 
       PRINT*, 'nNodes    : ', nNodes
       PRINT*, 'nElems    : ', nElems
-      PRINT*, 'nEdges    : ', nEdges
+      PRINT*, 'nFaces    : ', nFaces
       PRINT*, 'gPolyDeg  : ', gPolyDeg
 
       ! Generate the chebyshev points of order gPolyDeg
@@ -1895,7 +2164,7 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
 
       ! ---- Build the quadrature mesh (empty) ---- !
   
-      CALL myHexMesh % Build( nNodes, nElems, nEdges, interp % nS ) 
+      CALL myHexMesh % Build( nNodes, nElems, nFaces, interp % nS ) 
       
       ! ---- Read in the corner nodes ---- !
 
@@ -1905,15 +2174,15 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
       ENDDO
 
 
-      ! ---- Read in the edge information ---- !
+      ! ---- Read in the Face information ---- !
 
-      DO iEdge = 1, nEdges
+      DO iFace = 1, nFaces
 
          READ( fUnit, * ) n, e, si 
          
-         !CALL myHexMesh % SetEdgeNodeIDs( iEdge, n )
-         !CALL myHexMesh % SetEdgeElementIDs( iEdge, e )
-         !CALL myHexMesh % SetEdgeElementSides( iEdge, si )
+         !CALL myHexMesh % SetFaceNodeIDs( iFace, n )
+         !CALL myHexMesh % SetFaceElementIDs( iFace, e )
+         !CALL myHexMesh % SetFaceElementSides( iFace, si )
        
       ENDDO
       
@@ -1936,7 +2205,7 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
          DO iSide = 1, 4 ! Loop over the sides of the quads
 
             
-            IF( bFlags(iSide) == 0 )then ! this is an interior edge
+            IF( bFlags(iSide) == 0 )then ! this is an interior Face
 
                ! Build a straight curve for this side
                n1 = nodes( myHexMesh % faceMap(1,iSide) )
@@ -1954,7 +2223,7 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
 
                CALL elBoundCurves(iSide) % SetNodes( xc, yc ) 
 
-            ELSEIF( bFlags(iSide) == 1 )then ! this is a boundary edge
+            ELSEIF( bFlags(iSide) == 1 )then ! this is a boundary Face
 
                 ! Read in the parametric curve
                 DO iNode = 0, gPolyDeg
@@ -1978,61 +2247,61 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
          ! Build this element's geometry
          CALL myHexMesh % elements(iEl) % Build( nodes, iEl, elBoundCurves, interp )
 
-         ! Read in and parse the edge names
-         READ( fUnit, '(1x, A40)' )  edgeNames
+         ! Read in and parse the Face names
+         READ( fUnit, '(1x, A40)' )  FaceNames
 
-         ! Parse the edge names into four edge names
+         ! Parse the Face names into four Face names
          iSide = 1
          iC = 1
          jC = 1
 
          DO while( iSide <= 4 )
 
-            IF( edgeNames(iC:iC) == ' ' )then ! we have reached a blank space
+            IF( FaceNames(iC:iC) == ' ' )then ! we have reached a blank space
      
                n1 = nodes( myHexMesh % faceMap(1,iSide) )
                n2 = nodes( myHexMesh % faceMap(2,iSide) )
                
-               IF( TRIM(thisEdge) == 'DIRICHLET' )then
+               IF( TRIM(thisFace) == 'DIRICHLET' )then
                   
                   sideFlags(iEl,iSide) = DIRICHLET
 
-               ELSEIF( TRIM(thisEdge) == 'ROBIN' )then
+               ELSEIF( TRIM(thisFace) == 'ROBIN' )then
 
                   sideFlags(iEl,iSide) = ROBIN
 
-               ELSEIF( TRIM(thisEdge) == 'ROBIN_FORCED' )then
+               ELSEIF( TRIM(thisFace) == 'ROBIN_FORCED' )then
 
                   sideFlags(iEl,iSide) = ROBIN_FORCED
 
-               ELSEIF( TRIM(thisEdge) == 'HOMOGENEOUS_NEUMANN' )then
+               ELSEIF( TRIM(thisFace) == 'HOMOGENEOUS_NEUMANN' )then
 
                   sideFlags(iEl,iSide) = HOMOGENEOUS_NEUMANN
 
-               ELSEIF( TRIM(thisEdge) == 'NEUMANN_WALL' )then
+               ELSEIF( TRIM(thisFace) == 'NEUMANN_WALL' )then
 
                   sideFlags(iEl,iSide) = NEUMANN_WALL
 
-               ELSEIF( TRIM(thisEdge) == 'NEUMANN' )then
+               ELSEIF( TRIM(thisFace) == 'NEUMANN' )then
 
                   sideFlags(iEl,iSide) = NEUMANN
  
-               ELSEIF( TRIM(thisEdge) == 'NO_NORMAL_FLOW' )then
+               ELSEIF( TRIM(thisFace) == 'NO_NORMAL_FLOW' )then
                   
                   sideFlags(iEl,iSide) = NO_NORMAL_FLOW
 
-               ELSEIF( TRIM(thisEdge) == 'PRESCRIBED' )then
+               ELSEIF( TRIM(thisFace) == 'PRESCRIBED' )then
                
                   sideFlags(iEl,iSide) = PRESCRIBED
 
-               ELSEIF( TRIM(thisEdge) == 'RADIATION' )then
+               ELSEIF( TRIM(thisFace) == 'RADIATION' )then
                   
                   sideFlags(iEl,iSide) = RADIATION
 
                ENDIF
 
-               ! Reset thisEdge
-               thisEdge = ' '
+               ! Reset thisFace
+               thisFace = ' '
                jC = 1 
                iC = iC + 1
                ! Increment the side
@@ -2040,7 +2309,7 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
 
             ELSE
             
-               thisEdge(jC:jC) = edgeNames(iC:iC)
+               thisFace(jC:jC) = FaceNames(iC:iC)
                iC = iC + 1
                jC = jC + 1
 
@@ -2052,73 +2321,73 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
       ENDDO ! iEl, cycle over the elements
 
       close( fUnit )
-            CALL myHexMesh % ConstructEdges( )
-      ! Set the secondary element on boundary edges to the boundary flag
-      DO iEdge = 1, nEdges
+            CALL myHexMesh % ConstructFaces( )
+      ! Set the secondary element on boundary Faces to the boundary flag
+      DO iFace = 1, nFaces
 
-         CALL myHexMesh % GetEdgePrimaryElementID( iEdge, e1 )
-         CALL myHexMesh % GetEdgePrimaryElementSide( iEdge, s1 )
+         CALL myHexMesh % GetFacePrimaryElementID( iFace, e1 )
+         CALL myHexMesh % GetFacePrimaryElementSide( iFace, s1 )
       
          IF( sideFlags(e1,s1) == DIRICHLET )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, DIRICHLET )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, DIRICHLET )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), DIRICHLET )
             CALL myHexMesh % SetNodeType( n(2), DIRICHLET )
 
          ELSEIF( sideFlags(e1,s1) == ROBIN )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, ROBIN )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, ROBIN )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), ROBIN )
             CALL myHexMesh % SetNodeType( n(2), ROBIN )
 
          ELSEIF( sideFlags(e1,s1) == ROBIN_FORCED )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, ROBIN_FORCED )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, ROBIN_FORCED )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), ROBIN_FORCED )
             CALL myHexMesh % SetNodeType( n(2), ROBIN_FORCED )
 
          ELSEIF( sideFlags(e1,s1) == HOMOGENEOUS_NEUMANN )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, HOMOGENEOUS_NEUMANN )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, HOMOGENEOUS_NEUMANN )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), HOMOGENEOUS_NEUMANN )
             CALL myHexMesh % SetNodeType( n(2), HOMOGENEOUS_NEUMANN )
 
          ELSEIF( sideFlags(e1,s1) == NEUMANN_WALL )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, NEUMANN_WALL )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, NEUMANN_WALL )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), NEUMANN_WALL )
             CALL myHexMesh % SetNodeType( n(2), NEUMANN_WALL )
 
          ELSEIF( sideFlags(e1,s1) == NEUMANN )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, NEUMANN )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, NEUMANN )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), NEUMANN )
             CALL myHexMesh % SetNodeType( n(2), NEUMANN )
 
          ELSEIF( sideFlags(e1,s1) == NO_NORMAL_FLOW )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, NO_NORMAL_FLOW )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, NO_NORMAL_FLOW )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), NO_NORMAL_FLOW )
             CALL myHexMesh % SetNodeType( n(2), NO_NORMAL_FLOW )
 
          ELSEIF( sideFlags(e1,s1) == PRESCRIBED )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, PRESCRIBED )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, PRESCRIBED )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), PRESCRIBED )
             CALL myHexMesh % SetNodeType( n(2), PRESCRIBED )
 
          ELSEIF( sideFlags(e1,s1) == RADIATION )then
 
-            CALL myHexMesh % SetEdgeSecondaryElementID( iEdge, RADIATION )
-            CALL myHexMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myHexMesh % SetFaceSecondaryElementID( iFace, RADIATION )
+            CALL myHexMesh % GetFaceNodeIDs( iFace, n )
             CALL myHexMesh % SetNodeType( n(1), RADIATION )
             CALL myHexMesh % SetNodeType( n(2), RADIATION )
          
@@ -2126,29 +2395,29 @@ SUBROUTINE ConstructEdges_HexMesh( myHexMesh )
  
       ENDDO
 
-      DO iEdge = 1, nEdges
-            CALL myHexMesh % GetEdgeSecondaryElementSide(iEdge, s2)
+      DO iFace = 1, nFaces
+            CALL myHexMesh % GetFaceSecondaryElementSide(iFace, s2)
             IF(s2 < 0)THEN
-               CALL myHexMesh % SetEdgeStart( iEdge, interp % nS-1 )
-               CALL myHexMesh % SetEdgeIncrement( iEdge, -1)
+               CALL myHexMesh % SetFaceStart( iFace, interp % nS-1 )
+               CALL myHexMesh % SetFaceIncrement( iFace, -1)
             ELSE
-               CALL myHexMesh % SetEdgeStart( iEdge, 1 )
-               CALL myHexMesh % SetEdgeIncrement( iEdge, 1 )
+               CALL myHexMesh % SetFaceStart( iFace, 1 )
+               CALL myHexMesh % SetFaceIncrement( iFace, 1 )
             ENDIF
             
       ENDDO
  ! If a node is at the corner of any boundary condition and a dirichlet boundary condition,
  ! we opt to keep it as a dirichlet boundary condition
-    !  DO iEdge = 1, nEdges
+    !  DO iFace = 1, nFaces
 
-    !     CALL myHexMesh % edges(iEdge) % GetPrimaryElementID( e1 )
-    !     CALL myHexMesh % edges(iEdge) % GetPrimaryElementSide( s1 )
+    !     CALL myHexMesh % Faces(iFace) % GetPrimaryElementID( e1 )
+    !     CALL myHexMesh % Faces(iFace) % GetPrimaryElementSide( s1 )
 
     !     IF( sideFlags(e1,s1) == DIRICHLET )then
 
-    !        CALL myHexMesh % edges(iEdge) % SetSecondaryElementID( DIRICHLET )
+    !        CALL myHexMesh % Faces(iFace) % SetSecondaryElementID( DIRICHLET )
             
-    !        CALL myHexMesh % edges(iEdge) % GetNodeIDs( n )
+    !        CALL myHexMesh % Faces(iFace) % GetNodeIDs( n )
     !        CALL myHexMesh % nodes(n(1)) % SetType( DIRICHLET )
     !        CALL myHexMesh % nodes(n(2)) % SetType( DIRICHLET )
 
