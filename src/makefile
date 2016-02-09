@@ -11,10 +11,10 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-OPT=-O3 -fopenmp
-#OPT=-O0 -fcheck=all 
+#OPT=-O3 -fopenmp
+OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
-SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
+SRCDIR=/home/joe/Desktop/work/software/SELF/src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -56,7 +56,12 @@ RunParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRou
 Timing.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}common/Timing.f90 -o $@
 
+# ---------------------------------------------------------------------- #
+#                       ~/src/iterativesolve/                            #
+# ---------------------------------------------------------------------- #
 
+IterativeSolvers_Class.o : ModelPrecision.o ConstantsDictionary.o
+	${FC} ${OPT} -c ${SRCDIR}iterativesolve/IterativeSolvers_Class.f90 -o $@
 # ---------------------------------------------------------------------- #
 #                           ~/src/interp/                                #
 # ---------------------------------------------------------------------- #

@@ -1,0 +1,33 @@
+-- Joe Schoonover 
+-- schoonover.numerics@gmail.com
+-- 07-02-2016
+
+Listed here is a set of planned updates and additions to the SELF.
+
+
+Main
+  [ ] The remainder of the HexMesh module will be finished, complete with a mesh face detection routine ( for hexmesh )
+  [ ] 3-D DGSEM test solver will be added to the dgsem/ subdirectory
+  [ ] 2-D cgsem libraries will be updated - the iterative solver will be removed from this module.
+  [ ] IterativeSolvers module will be added. Data and procedural polymorphism will be implemented to carry out
+      iterative solution algorithms with or without preconditioning. The only requirements of extended types of IterativeSolvers
+      are MatrixAction and Residual procedures.
+  [ ] EigenSolvers module will be added in a similar manner to the IterativeSolvers. This will improved readability
+      and reusability. Highend module for computing topographic wave mode dispersion relation and modal structures
+      will be redesigned with the new EigenSolvers module.  The only requirement of extended types of IterativeSolvers
+      are MatrixAction.
+  [ ] Piecewise interpolation modules will be added which make use of the mesh modules. The primary purpose of the 
+      piecewise routines is to support the development of particle tracking modules (also planned).
+  [ ] Particle tracking modules will be added.
+
+Periphery
+
+  [ ] The TimerClass will be finished. Library routines and test-programs will be copied with timing routine calls inserted.
+  [ ] I am looking for anyone with familiarity with TAU or other profiling tools to help perform benchmarking studies with the
+      SELF.
+  [ ] Conform all modules to the same "header-format". 
+  [ ] To be consistent with other OOP libraries, swap "Build" for "Initialize" and "Trash" for "Finallize"
+  [ ] Determine the best method for accessor routines and when to appropriately implement data-hiding.
+
+
+----

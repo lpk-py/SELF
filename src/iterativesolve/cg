@@ -1,0 +1,93 @@
+SUBROUTINE Solve_ConjugateGradient( this, ioerr )
+ !  S/R Solve
+ !
+ !  This subroutine solves the system Ax = b using the un-preconditioned conjugate gradient method.
+ !  The matrix action and residual routines are supplied by a non-abstracted type-extension of
+ !  ConjugateGradient. These routines should return an array indexed from 1 to nDOF. Thus,
+ !  in addition to a MatrixAction and Residual, the user should map their data-structure to a 1-D 
+ !  array.  
+ !
+ !  On output ioerr is set to an error checking flag. 
+ !  If ioerr ==  0, the method converged within the maximum number of iterations.
+ !     ioerr == -1, the method did not converge within the maximum number of iterations.
+ !     ioerr == -2, something that is not caught by the current construct happened.
+ !  
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( ConjugateGradient ), INTENT(inout) :: this
+   INTEGER, INTENT(out)                      :: ioerr
+   ! LOCAL
+   INTEGER    :: iter
+   INTEGER    :: nIt
+   REAL(prec) :: TOL
+   REAL(prec) :: r(1:this % nDOF )
+   REAL(prec) :: v(1:this % nDOF )
+   REAL(prec) :: z(1:this % nDOF )
+   REAL(prec) :: rNorm
+   REAL(prec) :: a, b, num, den, r0
+   
+      ioerr = -2
+      nIt = this % maxIters
+      TOL = this % tolerance
+
+      r = this % Residual( )
+      r0 = DOT_PRODUCT( r, r ) 
+      
+      this % resi = ZERO
+      this % resi(0) = r0
+
+      ! Apply the preconditioner
+      r = z
+      num = DOT_PRODUCT( r, z ) ! numerator   r (DOT) (H^(-1)r )
+      v = z 
+
+      DO iter = 1,nIt ! Loop over the PCG iterates
+ 
+         ! Compute Ad matrix-vector product
+         z = this % MatrixAction( )
+         
+         ! Compute the search-direction magnitude
+         den = DOT_PRODUCT( v, z ) ! denominator
+
+         a = num/den
+
+         ! Update the solution guess
+         this % sol = this % sol + a*v
+
+         ! Update the residual
+         r = r - a*z
+         
+         rNorm = DOT_PRODUCT( r, r ) 
+
+         this % resi(iter) = sqrt(rNorm)
+         
+         IF( sqrt(rNorm)/r0 < TOL ) then
+            EXIT
+            ioerr = 0
+         ENDIF
+
+         ! Apply the preconditioner to the residual
+         r = z
+
+         den = num ! r(DOT)[ H^(-1)r ] = r(DOT)d
+
+         ! Calculate the change in the search direction
+         num = DOT_PRODUCT( r, z ) 
+         
+         ! Update the search direction
+         b = num/den
+
+         v = z + b*v
+         
+      ENDDO ! iter, loop over the CG iterates 
+
+
+      IF( SQRT(rNorm) > TOL )THEN
+         PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
+         PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
+         ioerr=-1
+      ENDIF   
+
+ END SUBROUTINE Solve_ConjugateGradient
+  
