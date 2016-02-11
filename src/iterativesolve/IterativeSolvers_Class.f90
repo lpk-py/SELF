@@ -35,7 +35,7 @@
 !      (3) PreconditionSolve -- Optionally, a preconditioner can be provided to solve Hz = r, where
 !                               H is the preconditioning matrix
 !
-! To accomplish this, an abstract data-type is provided here with the first four of the above listed
+! To accomplish this, an abstract data-type is provided here with the first two of the above listed
 ! procedures as "Deferred" procedures --> When the end-user wishes to use this module, these deferred
 ! procedures must be defined in the extended data type.
 !
