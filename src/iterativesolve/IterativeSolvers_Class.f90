@@ -52,16 +52,25 @@ USE ConstantsDictionary
 IMPLICIT NONE
 
   TYPE, ABSTRACT :: IterativeSolver
-     INTEGER                 :: maxIters  ! Maximum number of iterates
-     INTEGER                 :: nDOF      ! The number of Degrees of Freedom
-     REAL(prec)              :: tolerance ! tolerance for convergence
-     REAL(prec), ALLOCATABLE :: resi(:)   ! An array for storing the residual at each iterate
-     REAL(prec), ALLOCATABLE :: sol(:)
+     INTEGER, PRIVATE                 :: maxIters  ! Maximum number of iterates
+     INTEGER, PRIVATE                 :: nDOF      ! The number of Degrees of Freedom
+     REAL(prec), PRIVATE              :: tolerance ! tolerance for convergence
+     REAL(prec), PRIVATE, ALLOCATABLE :: resi(:)   ! An array for storing the residual at each iterate
+     REAL(prec), PRIVATE, ALLOCATABLE :: sol(:)
      
      CONTAINS
      
      PROCEDURE :: Initialize => Initialize_IterativeSolver
      PROCEDURE :: Finallize => Finallize_IterativeSolver
+     
+     PROCEDURE :: SetMaxIters => SetMaxIters_IterativeSolver
+     PROCEDURE :: GetMaxIters => GetMaxIters_IterativeSolver
+     PROCEDURE :: SetNDOF => SetNDOF_IterativeSolver
+     PROCEDURE :: GetNDOF => GetNDOF_IterativeSolver
+     PROCEDURE :: SetTolerance => SetTolerance_IterativeSolver
+     PROCEDURE :: GetTolerance => GetTolerance_IterativeSolver
+     
+     PROCEDURE :: WriteResidual => WriteResidual_IterativeSolver
      
      PROCEDURE (ActionOfMatrix), DEFERRED :: MatrixAction
      PROCEDURE (BminusAx), DEFERRED       :: Residual
@@ -104,7 +113,11 @@ IMPLICIT NONE
  CONTAINS
 !
 !
-! 
+!==================================================================================================!
+!------------------------------- Manual Constructors/Destructors ----------------------------------!
+!==================================================================================================!
+!
+!
  SUBROUTINE Initialize_IterativeSolver( this, maxIters, nDOF, tolerance )
  ! S/R Initialize
  !
@@ -140,6 +153,103 @@ IMPLICIT NONE
  END SUBROUTINE Finallize_IterativeSolver
 !
 !
+!==================================================================================================!
+!------------------------------------------- Accessors --------------------------------------------!
+!==================================================================================================!
+!
+! 
+ SUBROUTINE SetMaxIters_IterativeSolver( this, mI )
+ ! S/R SetMaxIters
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( IterativeSolvers ), INTENT(inout) :: this
+   INTEGER, INTENT(in)                      :: mI
+   
+    this % maxIters = mI
+    
+ END SUBROUTINE SetMaxIters_IterativeSolver
+!
+!
+!
+ FUNCTION GetMaxIters_IterativeSolver( this ) RESULT( mI )
+ ! FUNCTION GetMaxIters
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( IterativeSolvers ) :: this
+   INTEGER                   :: mI
+   
+    mI = this % maxIters 
+    
+ END FUNCTION GetMaxIters_IterativeSolver
+!
+!
+!
+ SUBROUTINE SetNDOF_IterativeSolver( this, n )
+ ! S/R SetNDOF
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( IterativeSolvers ), INTENT(inout) :: this
+   INTEGER, INTENT(in)                      :: n
+   
+    this % nDOF = n
+    
+ END SUBROUTINE SetNDOF_IterativeSolver
+!
+!
+!
+ FUNCTION GetNDOF_IterativeSolver( this ) RESULT( n )
+ ! FUNCTION GetNDOF
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( IterativeSolvers ) :: this
+   INTEGER                   :: n
+   
+    n = this % nDOF
+    
+ END FUNCTION GetNDOF_IterativeSolver
+!
+!
+!
+ SUBROUTINE SetTolerance_IterativeSolver( this, tol )
+ ! S/R SetTolerance
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( IterativeSolvers ), INTENT(inout) :: this
+   REAL(prec), INTENT(in)                   :: tol
+   
+    this % tolerance = tol
+    
+ END SUBROUTINE SetTolerance_IterativeSolver
+!
+!
+!
+ FUNCTION GetTolerance_IterativeSolver( this ) RESULT( tol )
+ ! FUNCTION GetTolerance
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( IterativeSolvers ) :: this
+   REAL(prec)                :: tol
+   
+    tol = this % Tolerance 
+    
+ END FUNCTION GetTolerance_IterativeSolver
+!
+!
+!==================================================================================================!
+!----------------------------------------- Type Specific ------------------------------------------!
+!==================================================================================================!
 !
 !
  SUBROUTINE Solve_ConjugateGradient( this, ioerr )
@@ -234,5 +344,43 @@ IMPLICIT NONE
       ENDIF   
 
  END SUBROUTINE Solve_ConjugateGradient
-  
+!
+!
+!==================================================================================================!
+!------------------------------------------- File I/O ---------------------------------------------!
+!==================================================================================================!
+!
+!
+ SUBROUTINE WriteResidual_IterativeSolver( this, rFile )
+ ! S/R WriteResidual
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( IterativeSolvers ), INTENT(in) :: this
+   CHARACTER(*), INTENT(in), OPTIONAL    :: rFile
+   ! LOCAL
+   INTEGER        :: n, i, fUnit
+   CHARACTER(100) :: localFile
+    
+    n = this % GetMaxIters( )
+    
+    IF( PRESENT(rFile) )THEN
+       localFile = rFile
+    ELSE
+       localFile = 'residual.curve'
+    ENDIF
+    
+    OPEN( UNIT = NewUnit(fUnit), &
+          FILE = TRIM(localFile), &
+          FORM = 'FORMATTED' )
+          
+    DO i = 0, n
+       WRITE(fUnit,'(I4,1x,E17.8)') i, this % residual(i)
+    ENDDO
+
+    CLOSE(UNIT = fUnit)   
+   
+ END SUBROUTINE WriteResidual_IterativeSolver
+ 
 END MODULE IterativeSolvers_Class
