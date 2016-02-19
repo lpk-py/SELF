@@ -137,7 +137,6 @@ CONTAINS
  REAL(prec), INTENT(inout) :: myArray(low:high)
  
  ! LOCAL
- REAL(prec) :: temp
  INTEGER :: locOfMin
  INTEGER :: ind
 
@@ -330,7 +329,7 @@ END FUNCTION UpperCase
    INTEGER    :: N
    REAL(prec) :: xU(0:N)
    ! LOCAL
-   REAL    :: dx
+   REAL(prec)    :: dx
    INTEGER :: i
    
       dx = (b-a)/REAL(N,prec)

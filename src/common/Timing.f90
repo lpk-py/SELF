@@ -32,7 +32,7 @@ USE CommonRoutines
     ! timers needed a'priori.
     !
     ! ============================================================================================ !
-    TYPE, PUBLIC RoutineTimer
+    TYPE RoutineTimer
        LOGICAL, PRIVATE                    :: started = .FALSE., stopped = .FALSE.
        REAL(prec), PRIVATE                 :: startTime = ZERO
        REAL(prec), PRIVATE                 :: stopTime = ZERO
@@ -48,10 +48,14 @@ USE CommonRoutines
        PROCEDURE :: GetName => GetTimerName
        PROCEDURE :: SetAccumulatedTime
        PROCEDURE :: GetAccumulatedTime
+  
+       PROCEDURE :: StartTimer
+       PROCEDURE :: StopTimer
+       PROCEDURE :: ElapsedTime 
 
     END TYPE RoutineTimer
 
-    TYPE, PUBLIC MultiTimers
+    TYPE MultiTimers
         TYPE( RoutineTimer ), POINTER :: head, current, tail
 
         CONTAINS
@@ -62,10 +66,13 @@ USE CommonRoutines
         PROCEDURE :: SetName => SetThisTimerName
         PROCEDURE :: GetName => GetThisTimerName
         
-        
+        PROCEDURE :: ThereAreNoTimers
+        PROCEDURE :: AddTimer 
         PROCEDURE :: PointToTimer
         PROCEDURE :: MoveToNext => MoveToNextTimer
         
+        PROCEDURE :: StartThisTimer
+        PROCEDURE :: StopThisTimer
         PROCEDURE :: AccumulateTimings
 
         PROCEDURE :: Write_MultiTimers
@@ -112,7 +119,7 @@ USE CommonRoutines
    TYPE( RoutineTimer ), POINTER :: pNext
    
      ! Set the current position of the list to the head
-     theTimers % current => myList % head
+     theTimers % current => theTimers % head
      
      ! Scroll through the list until the current position is nullified
      DO WHILE ( ASSOCIATED( theTimers % current ) )
@@ -167,7 +174,7 @@ USE CommonRoutines
  ! DELCARATION
    IMPLICIT NONE
    CLASS( MultiTimers )          :: theTimers
-   CHARACTER(*), INTENT(OUT)     :: nameOuput
+   CHARACTER(*), INTENT(OUT)     :: nameOutput
    INTEGER, OPTIONAL, INTENT(IN) :: tID
    ! LOCAL
    
@@ -230,18 +237,18 @@ USE CommonRoutines
 !
 !
 !
- SUBROUTINE GetAccumulatedTime( theTimer, accTime )
+ FUNCTION GetAccumulatedTime( theTimer ) RESULT( accTime )
  !
  !
  ! ================================================= !
  ! DELCARATION
    IMPLICIT NONE
-   CLASS( RoutineTimer ), INTENT(IN) :: theTimer
-   REAL(prec), INTENT(OUT)           :: accTime
+   CLASS( RoutineTimer ) :: theTimer
+   REAL(prec)            :: accTime
 
       accTime = theTimer % accumulatedTime
 
- END SUBROUTINE GetAccumulatedTime
+ END FUNCTION GetAccumulatedTime
 !
 !
 !=========================================================================!
@@ -249,6 +256,83 @@ USE CommonRoutines
 !=========================================================================!
 !
 ! 
+ FUNCTION ThereAreNoTimers( theTimers ) RESULT( TorF)
+ ! Function ThereAreNoTimers
+ !
+ !  
+ ! ========================================================================== !
+  IMPLICIT NONE
+  CLASS( MultiTimers ) :: theTimers
+  LOGICAL              :: TorF
+
+     TorF = .NOT.( ASSOCIATED( theTimers % head  ) )
+     
+ END FUNCTION ThereAreNoTimers
+!
+!
+!
+ SUBROUTINE AddTimer( theTimers, timername, inKey )
+ ! S/R AddTimer
+ !
+ !  
+ ! ========================================================================== !
+  IMPLICIT NONE
+  CLASS( MultiTimers ), INTENT(inout) :: theTimers
+  CHARACTER(*)                        :: timername
+  INTEGER                             :: inKey
+  ! LOCAL
+  INTEGER :: allocationStatus
+
+     ! Check to see if this list is empty
+     IF( theTimers % ThereAreNoTimers() )THEN
+     
+        ALLOCATE( theTimers % head, STAT = allocationStatus )
+        IF( allocationStatus /=0 )THEN
+           PRINT*, 'MODULE Timing.f90 : S/R AddTimer : Memory not allocated for next entry in list.'
+           ! An exception handler should be built to handle these problems
+        ENDIF      
+      
+        ! Point the current position to the head
+        theTimers % current => theTimers % head
+        ! Set the data
+        CALL theTimers % SetName( timername )
+        
+        theTimers % current % timerID = inkey
+        
+        ! Point the next to null and the tail to current
+        theTimers % current % next => NULL( )
+        theTimers % tail => theTimers % current
+        
+     ELSE ! the list is not empty
+    
+        ! Then we allocate space for the next item in the list    
+        ALLOCATE( theTimers % tail % next, STAT = allocationStatus )
+        IF( allocationStatus /=0 )THEN
+           PRINT*, 'MODULE Timing.f90 : S/R AddTimer : Memory not allocated for next entry in list.'
+           ! An exception handler should be built to handle these problems
+        ENDIF      
+        
+        ! Reassign the tail
+        theTimers % tail => theTimers % tail % next
+        
+        ! Set the current to the tail
+        theTimers % current => theTimers % tail
+  
+        ! Fill in the data
+        CALL theTimers % SetName( timername )
+        
+        ! Fill in the key information
+        theTimers % current % timerID = inkey
+
+        ! Point the next to null and the tail to current
+        theTimers % current % next => NULL( )
+        
+     ENDIF
+
+ END SUBROUTINE AddTimer
+!
+!
+!
  SUBROUTINE PointToTimer( theTimers, tID )
  ! S/R PointToTimer
  !
@@ -292,7 +376,90 @@ USE CommonRoutines
 !------------------- Data Structure Operations ---------------------------!
 !=========================================================================!
 !
-! 
+!
+ SUBROUTINE StartThisTimer( theTimers, tID )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( MultiTimers ), INTENT(inout) :: theTimers
+   INTEGER, INTENT(in)                 :: tID
+
+      CALL theTimers % PointToTimer( tID )
+      CALL theTimers % current % StartTimer( )
+
+ END SUBROUTINE StartThisTimer
+!
+!
+!
+ SUBROUTINE StopThisTimer( theTimers, tID )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( MultiTimers ), INTENT(inout) :: theTimers
+   INTEGER, INTENT(in)                 :: tID
+
+      CALL theTimers % PointToTimer( tID )
+      CALL theTimers % current % StopTimer( )
+      CALL theTimers % AccumulateTimings( )
+
+ END SUBROUTINE StopThisTimer
+!
+!
+!
+ SUBROUTINE StartTimer( thetimer )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( RoutineTimer ), INTENT(inout) :: theTimer
+
+      theTimer % started = .TRUE.
+      theTimer % stopped = .FALSE.
+      
+      CALL CPU_TIME( theTimer % startTime )
+
+ END SUBROUTINE StartTimer
+!
+!
+!
+ SUBROUTINE StopTimer( thetimer )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( RoutineTimer ), INTENT(inout) :: theTimer
+
+      CALL CPU_TIME( theTimer % stopTime )
+      theTimer % stopped = .TRUE.
+
+ END SUBROUTINE StopTimer
+!
+!
+!
+ FUNCTION ElapsedTime( theTimer ) RESULT( eTime )
+ !
+ !
+ ! =============================================================================================== !
+   IMPLICIT NONE
+   CLASS( RoutineTimer ) :: theTimer
+   REAL(prec)            :: eTime
+
+      IF( theTimer % stopped )THEN
+         eTime = theTimer % stopTime - theTimer % startTime 
+      ELSE
+         PRINT*, 'Module Timing.f90 : S/R ElapsedTime : Warning! Timer "', TRIM(theTimer % whatYourTiming),'" is not stopped'
+         eTime = ZERO 
+      ENDIF
+ END FUNCTION ElapsedTime
+!
+!
+!
  SUBROUTINE AccumulateTimings( theTimers, tID )
  ! S/R AccumulateTimings
  !
@@ -317,8 +484,8 @@ USE CommonRoutines
   
   
   
-      theTimers % current % totTimes = theTimers % current % totTimes + &
-                                       theTimers % current % ElapsedTime( )
+      theTimers % current % accumulatedTime = theTimers % current % accumulatedTime + &
+                                              theTimers % current % ElapsedTime( )
 
       theTimers % current % nObs = theTimers % current % nObs + ONE 
 
@@ -334,7 +501,7 @@ USE CommonRoutines
  ! ============================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( MultiTimers ), INTENT(IN) :: theTimers 
+   CLASS( MultiTimers ), INTENT(INOUT) :: theTimers 
    ! LOCAL
    INTEGER :: k, fUnit
    CHARACTER(defaultNameLength) :: tName
@@ -344,35 +511,41 @@ USE CommonRoutines
       WRITE(fUnit,*), '====================== Timing Results ======================'
       WRITE(fUnit,*), ' '
       
-      DO k = 1, theTimers % nTimers
+      theTimers % current => theTimers % head
+      k = 0
+      DO WHILE( ASSOCIATED(theTimers % current) )
+         k = k+1
 
-         CALL theTimers % GetName( k, tName )
+         CALL theTimers % GetName( tName )
 
          WRITE(fUnit,*), tName
-         WRITE(fUnit,*), 'Number of Measurements : ', theTimers % nObs(k)
-         WRITE(fUnit,*), 'Accumulated Time       : ', theTimers % totTimes(k)
-         WRITE(fUnit,*), 'Average Time           : ', theTimers % totTimes(k)/theTimers % nObs(k)
+         WRITE(fUnit,*), 'Number of Measurements : ', theTimers % current % nObs
+         WRITE(fUnit,*), 'Accumulated Time       : ', theTimers % current % accumulatedTime
+         WRITE(fUnit,*), 'Average Time           : ', theTimers % current % accumulatedTime/theTimers % current % nObs
          WRITE(fUnit,*), '------------------------------------------------------------'
 
+         CALL theTimers % MoveToNext( )
 
       ENDDO
       CLOSE(fUnit)
 
 
+      theTimers % current => theTimers % head
       
       PRINT*, '====================== Timing Results ======================'
       PRINT*, ' '
       
-      DO k = 1, theTimers % nTimers
+      DO WHILE( ASSOCIATED(theTimers % current) )
 
-         CALL theTimers % GetName( k, tName ) 
+         CALL theTimers % GetName( tName ) 
 
          PRINT*, tName
-         PRINT*, 'Number of Measurements : ', theTimers % nObs(k)
-         PRINT*, 'Accumulated Time       : ', theTimers % totTimes(k)
-         PRINT*, 'Average Time           : ', theTimers % totTimes(k)/theTimers % nObs(k)
+         PRINT*, 'Number of Measurements : ', theTimers % current % nObs
+         PRINT*, 'Accumulated Time       : ', theTimers % current % accumulatedTime
+         PRINT*, 'Average Time           : ', theTimers % current % accumulatedTime/theTimers % current % nObs
          PRINT*, '------------------------------------------------------------'
 
+         CALL theTimers % MoveToNext( )
 
       ENDDO
 

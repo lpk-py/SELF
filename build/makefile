@@ -14,7 +14,8 @@ INC=
 #OPT=-O3 -fopenmp
 OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
-SRCDIR=/home/joe/Desktop/work/software/SELF/src/
+#SRCDIR=/home/joe/Desktop/work/software/SELF/src/
+SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -60,8 +61,35 @@ Timing.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o
 #                       ~/src/iterativesolve/                            #
 # ---------------------------------------------------------------------- #
 
-IterativeSolvers_Class.o : ModelPrecision.o ConstantsDictionary.o
+IterativeSolvers_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o \
+                           IterativeSolversParams_Class.o
 	${FC} ${OPT} -c ${SRCDIR}iterativesolve/IterativeSolvers_Class.f90 -o $@
+
+# Test programs for the iterative solvers
+IterativeSolversParams_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
+	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/CG/IterativeSolversParams_Class.f90 -o $@
+
+EllipticFV1D_Class.o : ModelPrecision.o ConstantsDictionary.o IterativeSolvers_Class.o \
+                       IterativeSolversParams_Class.o
+	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/CG/EllipticFV1D_Class.f90 -o $@
+
+Driver_EllipticFV1D.o : ModelPrecision.o ConstantsDictionary.o IterativeSolvers_Class.o Timing.o \
+                        IterativeSolversParams_Class.o EllipticFV1D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/CG/Driver_EllipticFV1D.f90 -o $@
+
+CGFV1D_OBJS = ModelPrecision.o \
+              ConstantsDictionary.o \
+              CommonRoutines.o \
+              ModelFlags.o \
+              Timing.o \
+              IterativeSolversParams_Class.o \
+              IterativeSolvers_Class.o \
+              EllipticFV1D_Class.o \
+              Driver_EllipticFV1D.o
+
+solveFV1D : ${CGFV1D_OBJS}
+	${FC} ${OPT} ${CGFV1D_OBJS} -o $@
+           
 # ---------------------------------------------------------------------- #
 #                           ~/src/interp/                                #
 # ---------------------------------------------------------------------- #

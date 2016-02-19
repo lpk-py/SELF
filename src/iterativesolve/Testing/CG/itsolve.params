@@ -1,0 +1,11 @@
+&SolverCriteria
+MaximumIterates = 1000,
+tolerance = 1.0E-7,
+/
+&FV1D
+xL = 0.0,
+xR = 1.0,
+dx = 0.05,
+kappa = 1.0,
+nTimingCycles = 1000,
+/ 

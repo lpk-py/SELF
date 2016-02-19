@@ -48,15 +48,18 @@ MODULE IterativeSolvers_Class
 
 USE ModelPrecision
 USE ConstantsDictionary
+USE CommonRoutines
+
+USE IterativeSolversParams_Class
 
 IMPLICIT NONE
 
   TYPE, ABSTRACT :: IterativeSolver
-     INTEGER, PRIVATE                 :: maxIters  ! Maximum number of iterates
-     INTEGER, PRIVATE                 :: nDOF      ! The number of Degrees of Freedom
-     REAL(prec), PRIVATE              :: tolerance ! tolerance for convergence
-     REAL(prec), PRIVATE, ALLOCATABLE :: resi(:)   ! An array for storing the residual at each iterate
-     REAL(prec), PRIVATE, ALLOCATABLE :: sol(:)
+     INTEGER                 :: maxIters  ! Maximum number of iterates
+     INTEGER                 :: nDOF      ! The number of Degrees of Freedom
+     REAL(prec)              :: tolerance ! tolerance for convergence
+     REAL(prec), ALLOCATABLE :: resi(:)   ! An array for storing the residual at each iterate
+     REAL(prec), ALLOCATABLE :: sol(:)
      
      CONTAINS
      
@@ -74,26 +77,38 @@ IMPLICIT NONE
      
      PROCEDURE (ActionOfMatrix), DEFERRED :: MatrixAction
      PROCEDURE (BminusAx), DEFERRED       :: Residual
-     PROCEDURE (CopyFromType), DEFERRED   :: CopySolution
+     PROCEDURE (CopyFromType), DEFERRED   :: CopyFrom 
+     PROCEDURE (CopyToType), DEFERRED     :: CopyTo 
      
   END TYPE IterativeSolver
 
   ABSTRACT INTERFACE
-     FUNCTION ActionOfMatrix( this )
+     FUNCTION ActionOfMatrix( this, s )
         USE ModelPrecision
         IMPORT IterativeSolver
         CLASS(IterativeSolver) :: this
+        REAL(prec)             :: s(1:this % nDOF)
         REAL(prec)             :: ActionOfMatrix(1:this % nDOF)
      END FUNCTION ActionOfMatrix
   END INTERFACE
   
   ABSTRACT INTERFACE
-     FUNCTION BminusAx( this )
+     FUNCTION BminusAx( this, s )
         USE ModelPrecision
         IMPORT IterativeSolver
         CLASS(IterativeSolver) :: this
+        REAL(prec)             :: s(1:this % nDOF)
         REAL(prec)             :: BminusAx(1:this % nDOF)
      END FUNCTION BminusAx
+  END INTERFACE
+
+  ABSTRACT INTERFACE
+     SUBROUTINE CopyToType( this, sol )
+        USE ModelPrecision
+        IMPORT IterativeSolver
+        CLASS(IterativeSolver) :: this
+        REAL(prec)             :: sol(1:this % nDOF)
+     END SUBROUTINE CopyToType
   END INTERFACE
 
   ABSTRACT INTERFACE
@@ -118,21 +133,20 @@ IMPLICIT NONE
 !==================================================================================================!
 !
 !
- SUBROUTINE Initialize_IterativeSolver( this, maxIters, nDOF, tolerance )
+ SUBROUTINE Initialize_IterativeSolver( this, params )
  ! S/R Initialize
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( IterativeSolver ), INTENT(out) :: this
-   INTEGER, INTENT(in)                   :: maxIters, nDOF
-   REAL(prec), INTENT(in)                :: tolerance
+   CLASS( IterativeSolver ), INTENT(out)       :: this
+   TYPE( IterativeSolversParams ), INTENT(in)  :: params
    
-      this % maxIters  = maxIters
-      this % nDOF      = nDOF
-      this % tolerance = tolerance
+      this % maxIters  = params % MaximumIterates
+      this % nDOF      = params % nDOF
+      this % tolerance = params % tolerance
       
-      ALLOCATE( this % sol(1:nDOF), this % resi(0:maxIters) )
+      ALLOCATE( this % sol(1:this % nDOF), this % resi(0:this % maxIters) )
       this % sol  = ZERO
       this % resi = ZERO
       
@@ -164,7 +178,7 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( IterativeSolvers ), INTENT(inout) :: this
+   CLASS( IterativeSolver ), INTENT(inout) :: this
    INTEGER, INTENT(in)                      :: mI
    
     this % maxIters = mI
@@ -179,7 +193,7 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( IterativeSolvers ) :: this
+   CLASS( IterativeSolver ) :: this
    INTEGER                   :: mI
    
     mI = this % maxIters 
@@ -194,7 +208,7 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( IterativeSolvers ), INTENT(inout) :: this
+   CLASS( IterativeSolver ), INTENT(inout) :: this
    INTEGER, INTENT(in)                      :: n
    
     this % nDOF = n
@@ -209,7 +223,7 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( IterativeSolvers ) :: this
+   CLASS( IterativeSolver ) :: this
    INTEGER                   :: n
    
     n = this % nDOF
@@ -224,7 +238,7 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( IterativeSolvers ), INTENT(inout) :: this
+   CLASS( IterativeSolver ), INTENT(inout) :: this
    REAL(prec), INTENT(in)                   :: tol
    
     this % tolerance = tol
@@ -239,7 +253,7 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( IterativeSolvers ) :: this
+   CLASS( IterativeSolver ) :: this
    REAL(prec)                :: tol
    
     tol = this % Tolerance 
@@ -284,57 +298,43 @@ IMPLICIT NONE
       ioerr = -2
       nIt = this % maxIters
       TOL = this % tolerance
-
-      r = this % Residual( )
+      
+      CALL this % CopyTo( this % sol ) ! Copy the data-structure to the array "this % sol"
+      r = this % Residual( this % sol )
       r0 = DOT_PRODUCT( r, r ) 
       
       this % resi = ZERO
       this % resi(0) = r0
-
-      ! Apply the preconditioner
-      r = z
-      num = DOT_PRODUCT( r, z ) ! numerator   r (DOT) (H^(-1)r )
-      v = z 
-
-      DO iter = 1,nIt ! Loop over the PCG iterates
  
-         ! Compute Ad matrix-vector product
-         z = this % MatrixAction( )
-         
-         ! Compute the search-direction magnitude
-         den = DOT_PRODUCT( v, z ) ! denominator
+      DO iter = 1,nIt ! Loop over the CG iterates
 
-         a = num/den
+         num = DOT_PRODUCT( r, r )
 
-         ! Update the solution guess
-         this % sol = this % sol + a*v
-
-         ! Update the residual
-         r = r - a*z
-         
-         rNorm = DOT_PRODUCT( r, r ) 
-
-         this % resi(iter) = sqrt(rNorm)
-         
-         IF( sqrt(rNorm)/r0 < TOL ) then
-            EXIT
-            ioerr = 0
+         IF( iter == 1) THEN
+            v = r
+         ELSE
+            b = num/den
+            v = r + b*v
          ENDIF
 
-         ! Apply the preconditioner to the residual
-         r = z
-
-         den = num ! r(DOT)[ H^(-1)r ] = r(DOT)d
-
-         ! Calculate the change in the search direction
-         num = DOT_PRODUCT( r, z ) 
+         z = this % MatrixAction( v )
+         a = num/DOT_PRODUCT( v, z )
+         this % sol = this % sol + a*v
+         r = r - a*z
          
-         ! Update the search direction
-         b = num/den
+         den = num
 
-         v = z + b*v
-         
+         rNorm = DOT_PRODUCT(r,r)
+         this % resi(iter) = rNorm
+         IF( sqrt(rNorm)/r0 < TOL ) then
+           EXIT
+           ioerr = 0
+         ENDIF
+
       ENDDO ! iter, loop over the CG iterates 
+
+      ! Copy the array storage back to the native storage for file I/O
+      CALL this % CopyFrom( this % sol )
 
 
       IF( SQRT(rNorm) > TOL )THEN
@@ -344,6 +344,105 @@ IMPLICIT NONE
       ENDIF   
 
  END SUBROUTINE Solve_ConjugateGradient
+!
+!
+!
+! SUBROUTINE Solve_ConjugateGradient( this, ioerr )
+! !  S/R Solve
+! !
+! !  This subroutine solves the system Ax = b using the un-preconditioned conjugate gradient method.
+! !  The matrix action and residual routines are supplied by a non-abstracted type-extension of
+! !  ConjugateGradient. These routines should return an array indexed from 1 to nDOF. Thus,
+! !  in addition to a MatrixAction and Residual, the user should map their data-structure to a 1-D 
+! !  array.  
+! !
+! !  On output ioerr is set to an error checking flag. 
+! !  If ioerr ==  0, the method converged within the maximum number of iterations.
+! !     ioerr == -1, the method did not converge within the maximum number of iterations.
+! !     ioerr == -2, something that is not caught by the current construct happened.
+! !  
+! ! =============================================================================================== !
+! ! DECLARATIONS
+!   IMPLICIT NONE
+!   CLASS( ConjugateGradient ), INTENT(inout) :: this
+!   INTEGER, INTENT(out)                      :: ioerr
+!   ! LOCAL
+!   INTEGER    :: iter
+!   INTEGER    :: nIt
+!   REAL(prec) :: TOL
+!   REAL(prec) :: r(1:this % nDOF )
+!   REAL(prec) :: v(1:this % nDOF )
+!   REAL(prec) :: z(1:this % nDOF )
+!   REAL(prec) :: rNorm
+!   REAL(prec) :: a, b, num, den, r0
+   
+!      ioerr = -2
+!      nIt = this % maxIters
+!      TOL = this % tolerance
+      
+!      CALL this % CopyTo( this % sol ) ! Copy the data-structure to the array "z"
+!      r = this % Residual( this % sol )
+!      r0 = DOT_PRODUCT( r, r ) 
+      
+!      this % resi = ZERO
+!      this % resi(0) = r0
+
+!      ! Apply the preconditioner
+!      z = r
+!      v = z 
+!      num = DOT_PRODUCT( r, z ) ! numerator   r (DOT) (H^(-1)r )
+!      !print*, v
+!      DO iter = 1,nIt ! Loop over the PCG iterates
+ 
+!         ! Compute z = A*v matrix-vector product
+!         z = this % MatrixAction( v )
+!         !print *, z
+!         ! Compute the search-direction magnitude
+!         den = DOT_PRODUCT( v, z ) ! denominator
+
+!         a = num/den
+
+!         ! Update the solution guess
+!         this % sol = this % sol + a*v
+
+!         ! Update the residual
+!         r = r - a*z
+         
+!         rNorm = DOT_PRODUCT( r, r ) 
+
+!         this % resi(iter) = sqrt(rNorm)
+         
+!         IF( sqrt(rNorm)/r0 < TOL ) then
+!            EXIT
+!            ioerr = 0
+!         ENDIF
+
+!         ! Apply the preconditioner to the residual
+!         z = r
+
+!         den = num 
+
+!         ! Calculate the change in the search direction
+!         num = DOT_PRODUCT( r, z ) 
+         
+!         ! Update the search direction
+!         b = num/den
+
+!         v = z + b*v
+         
+!      ENDDO ! iter, loop over the CG iterates 
+
+!      ! Copy the array storage back to the native storage for file I/O
+!      CALL this % CopyFrom( this % sol )
+
+
+!      IF( SQRT(rNorm) > TOL )THEN
+!         PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
+!         PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
+!         ioerr=-1
+!      ENDIF   
+
+! END SUBROUTINE Solve_ConjugateGradient
 !
 !
 !==================================================================================================!
@@ -357,7 +456,7 @@ IMPLICIT NONE
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( IterativeSolvers ), INTENT(in) :: this
+   CLASS( IterativeSolver ), INTENT(in) :: this
    CHARACTER(*), INTENT(in), OPTIONAL    :: rFile
    ! LOCAL
    INTEGER        :: n, i, fUnit
@@ -374,9 +473,9 @@ IMPLICIT NONE
     OPEN( UNIT = NewUnit(fUnit), &
           FILE = TRIM(localFile), &
           FORM = 'FORMATTED' )
-          
+    WRITE( fUnit, * ) '#residual'
     DO i = 0, n
-       WRITE(fUnit,'(I4,1x,E17.8)') i, this % residual(i)
+       WRITE(fUnit,'(I4,1x,E17.8)') i, this % resi(i)
     ENDDO
 
     CLOSE(UNIT = fUnit)   
