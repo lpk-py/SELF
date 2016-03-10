@@ -27,7 +27,7 @@
 ! The KeyRing class was designed out of the necessity to have a structure that requires multiple
 ! "key information" in order to gain access to the record's data. In this class, the Record is now
 !  the "NotchedKey", and the NotchedKey has "notches" (just as a physical key has notches that give
-!  it access to a lock). By having the correct notches (not necessarily in the correct), one can 
+!  it access to a lock). By having the correct notches (not necessarily in the correct order), one can 
 !  gain access to the data held by the key. A "KeyRing" is just a linked-list of keys.
 !
 !  The application which motivated the development of this module is the construction of the unique 
@@ -35,7 +35,7 @@
 !  identifiable uniquely by its four corner nodes. The four corner nodes (in order according to the
 !  primary element) make up the notches on the key. The data that is stored is the face ID number.
 !  Quick searching through the set of keys is needed in order to create an efficient face-detection
-!  algorithm. For this, we use a "KeyCabinet" (similar to a HashTable) that contains an array of 
+!  algorithm. For this, we use a "KeyCabinet", which is an array of 
 !  KeyRings. The index used to assign a KeyRing is the minimum node ID in the set of four nodes that 
 !  make up a face. This way, when we query our list to see if a face has already been created, we
 !  focus on a single KeyRing which limits our search list to a size less than or equal to the 

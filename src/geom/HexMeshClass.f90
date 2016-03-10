@@ -61,7 +61,7 @@ IMPLICIT NONE
        INTEGER                          :: nElems, nNodes, nFaces
        TYPE( HexElement ), ALLOCATABLE  :: elements(:)
        TYPE( Node ), ALLOCATABLE        :: nodes(:)  
-       TYPE( Face ), ALLOCATABLE        :: Faces(:)
+       TYPE( Face ), ALLOCATABLE        :: faces(:)
        INTEGER                          :: cornerMap(1:3,1:nHexNodes) 
        INTEGER                          :: sideMap(1:nHexFaces) 
        INTEGER                          :: faceMap(1:nQuadNodes,1:nHexFaces) 
@@ -260,7 +260,7 @@ IMPLICIT NONE
 
     ! The number of nodes, the number of elements, and the number of faces are stored in this data
     ! structure for convenience. In another implementation (planned for the next version), the 
-    ! number of elements, nodes, and faces is dynamic and can change; that implementation 
+    ! number of elements, nodes, and faces is dynamic; that implementation 
     ! requires the use of dynamic storage, e.g. a linked-list like structure for elements, edges,
     ! and nodes.
     CALL myHexMesh % SetNumberOfNodes( nNodes )
@@ -1395,20 +1395,20 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
 !
 !
 !
- SUBROUTINE GetFaceNodeIDs_HexMesh( myHexMesh, iFace, nodeIDs )
- ! S/R GetFaceNodeIDs
+ FUNCTION GetFaceNodeIDs_HexMesh( myHexMesh, iFace ) RESULT( nodeIDs )
+ ! FUNCTION GetFaceNodeIDs
  !  
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( HexMesh ), INTENT(in) :: myHexMesh
-   INTEGER, INTENT(in)          :: iFace
-   INTEGER, INTENT(out)         :: nodeIDs(1:nQuadNodes)
+   CLASS( HexMesh ) :: myHexMesh
+   INTEGER          :: iFace
+   INTEGER          :: nodeIDs(1:nQuadNodes)
 
     CALL myHexMesh % Faces(iFace) % GetNodeIDs( nodeIDs )
 
- END SUBROUTINE GetFaceNodeIDs_HexMesh
+ END FUNCTION GetFaceNodeIDs_HexMesh
 !
 !
 !
@@ -1722,10 +1722,10 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
 !==================================================================================================!
 !
 !
-SUBROUTINE ConstructFaces_HexMesh( myHexMesh )
+ SUBROUTINE ConstructFaces_HexMesh( myHexMesh )
  ! S/R ConstructFaces
  !
- !    Takes in the mesh of quadrilaterals which has not filled in the 
+ !    Takes in the mesh of hexahedrons which has not filled in the 
  !    Face information, and finds all of the unique Faces in the mesh.
  !    The space for the Faces is REALlocated with the correct number of Faces
  ! 
@@ -1734,48 +1734,76 @@ SUBROUTINE ConstructFaces_HexMesh( myHexMesh )
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
    ! LOCAL
-   TYPE( HashTable ) :: FaceTable
-   INTEGER :: nEls, nNodes, iEl, nFaces, k  
-   INTEGER :: l1, l2, startID, endID, key1, key2
+   TYPE( KeyRing ) :: KeyCabinet(1:myHexMesh % nNodes)
+   INTEGER :: nEls, nNodes, iEl, nFaces, k, j  
+   INTEGER :: locNodeIDs(1:nQuadNodes), globNodeIDs(1:nQuadNodes)
+   INTEGER :: keyRingID, globFaceID
    INTEGER :: e1, e2, s1, s2, FaceID, n1, nID
+   LOGICAL :: keyExists
 
       CALL myHexMesh % GetNumberOfNodes( nNodes )   
       CALL myHexMesh % GetNumberOfElements( nEls )
       nFaces = 0
 
-      ! First, just count the number of Faces
-      CALL FaceTable % Build( nNodes )
+      DO k = 1, nNodes
+         CALL keyCabinet(keyRingID) % Build( )
+      ENDDO
 
-      do iEl = 1, nEls ! Loop over the elements in the mesh
+      DO iEl = 1, nEls ! Loop over the elements in the mesh
 
-         do k = 1, 4 ! Loop over the sides of each element
+         DO k = 1, nHexFaces ! Loop over the faces of each element
 
-            l1 = myHexMesh % faceMap(1,k) ! starting local node for this Face
-            l2 = myHexMesh % faceMap(2,k) ! ending local node for this Face
+            ! In this first step, we want to identify the unique global node ID's for this face
+            ! To do this, we start by gathering the local (to the element) node ID's.
+            DO j = 1, nQuadNodes   
+               locNodeIDs(j) = myHexMesh % faceMap(j,k) ! starting local node for this Face
+            ENDDO
             
-            CALL myHexMesh % GetElementNodeID( iEl, l1, startID )
-            CALL myHexMesh % GetElementNodeID( iEl, l2, endID )
+            ! Now, we extract, for this element, the global node ID's for each local node ID
+            DO j = 1, nQuadNodes 
+               globNodeIDs(j) = myHexMesh % GetElementNodeID( iEl, locNodeIDs(j) )
+            ENDDO
             
-            key1 = min( startID, endID )
-            key2 = max( startID, endID )
+            ! Our key cabinet has many key-rings with each key-ring containing a set of notched keys.
+            ! Each notched key corresponds to a unique face in the mesh. To enable fast searching
+            ! for a unique face, we address our key-rings according to the minimum global node ID
+            ! that resides on the current face. If another face shares this minimum global node ID,
+            ! then it is possible that the face has already been generated. If not, our search is 
+            ! limited only to the key-ring with the same key-ring ID. Here, we grab the key-ring ID.
+            keyRingID = MIN( globNodeIDs )
+            
+            ! Now, we check to see if a notched key already exists with the same set of global ID's
+            ! This is done by making a call to "FindDataForNotches". This routine searches through
+            ! the current key ring for the key which has the same global ID's (though not 
+            ! necessarily in the same order). If the face has been built already, the face ID is 
+            ! returned in globFaceID and the logical, "keyExists", is set to TRUE. Otherwise, 
+            ! globFaceID is set to zero and "keyExsists" is set to FALSE.
+            CALL KeyCabinet(keyRingID) % FindDataForNotches( globNodeIDS, nQuadNodes, &
+                                                             globFaceID, keyExists )
+
+            ! Here is where the conditional processing begins. 
+            ! 
+            ! If this face has already been found then we do nothing
+            !
+            ! If this is a new face, we increment the number of faces and add to the key-ring.
 
             ! Add element to corner-node connectivity list
-            IF( FaceTable % ContainsKeys( key1, key2 ) .EQV. .FALSE. )then ! this is a new Face
-               
-               ! Add the Face to the list
+            IF( .NOT.(keyExists) )then ! this is a new face
+
                nFaces = nFaces + 1
-               CALL FaceTable % AddDataForKeys( nFaces, key1, key2 )
+               CALL KeyCabinet(keyRingID) % AddToList( nFaces, globNodeIDs, nQuadNodes )
                
             ENDIF
 
-         enddo ! k, Loop over the sides of each element
+         ENDDO ! k, Loop over the faces of each element
         
-      enddo ! iEl, Loop over the elements in the mesh
+      ENDDO! iEl, Loop over the elements in the mesh
  
-      CALL FaceTable % Trash( ) ! TRASH the Facetable
 
-      ! And rebuild it
-      CALL FaceTable % Build( nNodes )
+      DO k = 1, nNodes
+         CALL keyCabinet(keyRingID) % Trash( ) ! Trash the Facetable
+         CALL keyCabinet(keyRingID) % Build( ) ! and rebuild a blank cabinet 
+      ENDDO
       
       ! Re-allocate space for the mesh Faces
 
@@ -1783,82 +1811,91 @@ SUBROUTINE ConstructFaces_HexMesh( myHexMesh )
 
       ALLOCATE( myHexMesh % Faces( 1:nFaces ) )
 
-      nFaces = 0 ! restart the Face counting
+      nFaces = 0
 
-      do iEl = 1, nEls ! Loop over the elements in the mesh
+      DO iEl = 1, nEls ! Loop over the elements in the mesh
 
-         do k = 1, 4 ! Loop over the sides of each element
+         DO k = 1, nHexFaces ! Loop over the faces of each element
 
-            l1 = myHexMesh % faceMap(1,k) ! starting local node for this Face
-            l2 = myHexMesh % faceMap(2,k) ! ending local node for this Face
+            ! In this first step, we want to identify the unique global node ID's for this face
+            ! To do this, we start by gathering the local (to the element) node ID's.
+            DO j = 1, nQuadNodes   
+               locNodeIDs(j) = myHexMesh % faceMap(j,k) ! starting local node for this Face
+            ENDDO
+            
+            ! Now, we extract, for this element, the global node ID's for each local node ID
+            DO j = 1, nQuadNodes 
+               globNodeIDs(j) = myHexMesh % GetElementNodeID( iEl, locNodeIDs(j) )
+            ENDDO
+            
+            ! Our key cabinet has many key-rings with each key-ring containing a set of notched keys.
+            ! Each notched key corresponds to a unique face in the mesh. To enable fast searching
+            ! for a unique face, we address our key-rings according to the minimum global node ID
+            ! that resides on the current face. If another face shares this minimum global node ID,
+            ! then it is possible that the face has already been generated. If not, our search is 
+            ! limited only to the key-ring with the same key-ring ID. Here, we grab the key-ring ID.
+            keyRingID = MIN( globNodeIDs )
+            
+            ! Now, we check to see if a notched key already exists with the same set of global ID's
+            ! This is done by making a call to "FindDataForNotches". This routine searches through
+            ! the current key ring for the key which has the same global ID's (though not 
+            ! necessarily in the same order). If the face has been built already, the face ID is 
+            ! returned in globFaceID and the logical, "keyExists", is set to TRUE. Otherwise, 
+            ! globFaceID is set to zero and "keyExsists" is set to FALSE.
+            CALL KeyCabinet(keyRingID) % FindDataForNotches( globNodeIDS, nQuadNodes, &
+                                                             globFaceID, keyExists )
 
-            CALL myHexMesh % GetElementNodeID( iEl, l1, startID )
-            CALL myHexMesh % GetElementNodeID( iEl, l2, endID )
+            ! Here is where the conditional processing begins. 
+            ! 
+            ! If this face has already been found then we need to determine the face orientation
+            ! of the secondary element relative to the primary element.
+            !
+            ! If this is a new face, we set the primary element information, and default the
+            ! secondary element information.
 
-            key1 = min( startID, endID )
-            key2 = max( startID, endID )
+            ! Add element to corner-node connectivity list
+            IF( keyExists )then ! this face has already been found
 
-            IF( FaceTable % ContainsKeys( key1, key2 )  )then ! this Face already exists
+               ! Since this face exists, we need to compare the relative face orientation of the 
+               ! secondary element to the primary element. .
+               !
+               ! *** March 4, 2016 ***
+               ! Joe : I still need to write this routine that determines the orientation of the 
+               !       secondary element.
+               CALL myHexMesh % DetermineOrientation( globFaceID, globNodeIDs )
+
+               myHexMesh % faces( globFaceID ) % elementIDs(2)   = iEl
+               myHexMesh % faces( globFaceID ) % elementSides(2) = k
                
-               !Get the FaceID
-               CALL FaceTable % GetDataForKeys( FaceID, key1, key2 )
-               ! Find the primary element and the starting node for this element's Face
-               ! This is compared with the secondary element's starting node to infer
-               ! the relative orientation of the two elements.
-               CALL myHexMesh % GetFacePrimaryElementID( FaceID, e1 )
-               CALL myHexMesh % GetFacePrimaryElementSide( FaceID, s1 )
-               
-               l1 = myHexMesh % faceMap(1,s1)
-               CALL myHexMesh % GetElementNodeID( e1, l1, n1 )
+            ELSE ! This is a new face
 
-               ! Set the secondary element information
-               CALL myHexMesh % SetFaceSecondaryElementID( FaceID, iEl )
-               
-               !PRINT*, 'FaceID, primary, secondary:', FaceID, e1, iEl
-               IF( startID == n1 ) then ! the elements are oriented the same direction
-                  CALL myHexMesh % SetFaceSecondaryElementSide( FaceID, k )
-                 
-
-               ELSE ! the elements are oriented in the opposite direction
-
-                  ! For these Faces, we mark the side ID as negative
-                  CALL myHexMesh % SetFaceSecondaryElementSide( FaceID, -k )
-                 
-               ENDIF
-
-            ELSE ! this is a new Face
-
-               ! Add the Face to the list
+               ! First, we store the key-ring information
                nFaces = nFaces + 1
-               
-               FaceID = nFaces
-               CALL myHexMesh % Faces(FaceID) % Build()
-               CALL myHexMesh % SetFacePrimaryElementID( FaceID, iEl )
-               CALL myHexMesh % SetFacePrimaryElementSide( FaceID, k )
-               CALL myHexMesh % SetFaceNodeIDs( FaceID, (/startID, endID /) )
+               CALL KeyCabinet(keyRingID) % AddToList( nFaces, globNodeIDs, nQuadNodes )
 
-               ! Default the secondary information
-               CALL myHexMesh % SetFaceSecondaryElementID( FaceID, BoundaryFlagDefault )
-               
-               CALL FaceTable % AddDataForKeys( FaceID, key1, key2 )
-               
+               ! Now, we set the primary element information
+               myHexMesh % faces( nFaces ) % key             = nFaces
+               myHexMesh % faces( nFaces ) % nodeIDs         = globNodeIDs
+               myHexMesh % faces( nFaces ) % elementIDs(1)   = iEl
+               myHexMesh % faces( nFaces ) % elementSides(1) = k
+               ! Now we default the secondary element information and the swap flag
+               myHexMesh % faces( nFaces ) % elementIDs(2)   = BoundaryFlagDefault
+               myHexMesh % faces( nFaces ) % elementSides(2) = k
+               myHexMesh % faces( nFaces ) % iStart          = 1
+               myHexMesh % faces( nFaces ) % iInc            = 1
+               myHexMesh % faces( nFaces ) % jStart          = 1
+               myHexMesh % faces( nFaces ) % jInc            = 1
+               myHexMesh % faces( nFaces ) % swapDimensions  = 0
+
             ENDIF
-         enddo ! k, Loop over the sides of each element
-        
-      enddo ! iEl, Loop over the elements in the mesh
 
+         ENDDO ! k, Loop over the faces of each element
+        
+      ENDDO! iEl, Loop over the elements in the mesh
       CALL FaceTable % Trash( )
       myHexMesh % nFaces = nFaces
 
-     ! do FaceID = 1, nFaces
-      
-     !    CALL myHexMesh % GetFacePrimaryElementID( FaceID, e1 )
-     !    CALL myHexMesh % GetFacePrimaryElementSide( FaceID, s1 )
-     !    CALL myHexMesh % GetFaceSecondaryElementID( FaceID, e2 )
-     !    CALL myHexMesh % GetFaceSecondaryElementSide( FaceID, s2 )
-         
-     !    PRINT*, FaceID, e1, s1, e2, s2
-     ! enddo
+
  END SUBROUTINE ConstructFaces_HexMesh
 !
 !

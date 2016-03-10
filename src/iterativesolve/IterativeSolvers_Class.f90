@@ -125,6 +125,12 @@ IMPLICIT NONE
      PROCEDURE :: Solve => Solve_ConjugateGradient
   END TYPE ConjugateGradient
 
+  TYPE, ABSTRACT, EXTENDS(IterativeSolver) :: GMRES
+     INTEGER :: mInnerIters
+     CONTAINS
+     PROCEDURE :: Solve => Solve_GMRES
+  END TYPE GMRES
+
  CONTAINS
 !
 !
@@ -301,7 +307,7 @@ IMPLICIT NONE
       
       CALL this % CopyTo( this % sol ) ! Copy the data-structure to the array "this % sol"
       r = this % Residual( this % sol )
-      r0 = DOT_PRODUCT( r, r ) 
+      r0 = sqrt( DOT_PRODUCT( r, r ) ) 
       
       this % resi = ZERO
       this % resi(0) = r0
@@ -324,7 +330,7 @@ IMPLICIT NONE
          
          den = num
 
-         rNorm = DOT_PRODUCT(r,r)
+         rNorm = sqrt( DOT_PRODUCT(r,r) )
          this % resi(iter) = rNorm
          IF( sqrt(rNorm)/r0 < TOL ) then
            EXIT
@@ -347,102 +353,166 @@ IMPLICIT NONE
 !
 !
 !
-! SUBROUTINE Solve_ConjugateGradient( this, ioerr )
-! !  S/R Solve
-! !
-! !  This subroutine solves the system Ax = b using the un-preconditioned conjugate gradient method.
-! !  The matrix action and residual routines are supplied by a non-abstracted type-extension of
-! !  ConjugateGradient. These routines should return an array indexed from 1 to nDOF. Thus,
-! !  in addition to a MatrixAction and Residual, the user should map their data-structure to a 1-D 
-! !  array.  
-! !
-! !  On output ioerr is set to an error checking flag. 
-! !  If ioerr ==  0, the method converged within the maximum number of iterations.
-! !     ioerr == -1, the method did not converge within the maximum number of iterations.
-! !     ioerr == -2, something that is not caught by the current construct happened.
-! !  
-! ! =============================================================================================== !
-! ! DECLARATIONS
-!   IMPLICIT NONE
-!   CLASS( ConjugateGradient ), INTENT(inout) :: this
-!   INTEGER, INTENT(out)                      :: ioerr
-!   ! LOCAL
-!   INTEGER    :: iter
-!   INTEGER    :: nIt
-!   REAL(prec) :: TOL
-!   REAL(prec) :: r(1:this % nDOF )
-!   REAL(prec) :: v(1:this % nDOF )
-!   REAL(prec) :: z(1:this % nDOF )
-!   REAL(prec) :: rNorm
-!   REAL(prec) :: a, b, num, den, r0
+ SUBROUTINE Solve_GMRES( this, ioerr )
+ !  S/R Solve
+ !
+ !  This subroutine solves the system Ax = b using the un-preconditioned GMRES.
+ !  The matrix action and residual routines are supplied by a non-abstracted type-extension of
+ !  GMRES. These routines should return an array indexed from 1 to nDOF. Thus,
+ !  in addition to a MatrixAction and Residual, the user should map their data-structure to a 1-D 
+ !  array.  
+ !
+ !  On output ioerr is set to an error checking flag. 
+ !  If ioerr ==  0, the method converged within the maximum number of iterations.
+ !     ioerr == -1, the method did not converge within the maximum number of iterations.
+ !     ioerr == -2, something that is not caught by the current construct happened.
+ !  
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( GMRES ), INTENT(inout) :: this
+   INTEGER, INTENT(out)                      :: ioerr
+   ! LOCAL
+   INTEGER    :: i, j, k, l
+   INTEGER    :: nIt, m, nr 
+   REAL(prec) :: TOL
+   REAL(prec) :: r(1:this % nDOF )
+   REAL(prec) :: v(1:this % nDOF, 1:this % mInnerIters+1 )
+   REAL(prec) :: w(1:this % nDOF )
+   REAL(prec) :: rho(1:this % mInnerIters, 1:this % mInnerIters)
+   REAL(prec) :: h(1:this % mInnerIters+1, 1:this % mInnerIters)
+   REAL(prec) :: c(1:this % mInnerIters), s(1:this % mInnerIters), bhat(1:this % mInnerIters+1)
+   REAL(prec) :: y(1:this % mInnerIters+1)
+   REAL(prec) :: b, d, g, r0, rc
    
-!      ioerr = -2
-!      nIt = this % maxIters
-!      TOL = this % tolerance
+      ioerr = -2
+      nIt = this % maxIters
+      m   = this % mInnerIters
+      TOL = this % tolerance
       
-!      CALL this % CopyTo( this % sol ) ! Copy the data-structure to the array "z"
-!      r = this % Residual( this % sol )
-!      r0 = DOT_PRODUCT( r, r ) 
+      CALL this % CopyTo( this % sol ) ! Copy the data-structure to the array "this % sol"
+      r = this % Residual( this % sol )
+      r0 = sqrt( DOT_PRODUCT( r, r ) )
+     
+      l = 0 
+      this % resi = ZERO
+      this % resi(l) = r0
       
-!      this % resi = ZERO
-!      this % resi(0) = r0
+      v    = ZERO  
+      rho  = ZERO
+      bhat = ZERO 
+      s    = ZERO
+      c    = ZERO
+      y    = ZERO
+   
+     
+      DO j = 1,nIt
 
-!      ! Apply the preconditioner
-!      z = r
-!      v = z 
-!      num = DOT_PRODUCT( r, z ) ! numerator   r (DOT) (H^(-1)r )
-!      !print*, v
-!      DO iter = 1,nIt ! Loop over the PCG iterates
+         b       = sqrt( DOT_PRODUCT( r, r ) )
+         v(:,1)  = r/b
+         bhat(1) = b
+
+         DO i = 1, m
+            l = l+1
+            nr = i
+            ! The first step in GMRES is to build the orthogonal basis up to order "i"
+            ! with the accompanying upper hessenburg matrix.
+            w = this % MatrixAction( v(:,i) )
+            
+            ! The new basis vector is obtained by multiplying the previous basis vector by the matrix
+            ! and orthogonalizing wrt to all of the previous basis vectors using a Gram-Schmidt process.
+            DO k = 1, i
+               h(k,i) = DOT_PRODUCT( v(:,k), w )
+               w      = w - h(k,i)*v(:,k)
+            ENDDO
+
+            h(i+1,i) = sqrt( DOT_PRODUCT(w,w) )
+
+            IF( AlmostEqual( h(i+1,i), ZERO )  )THEN
+               EXIT
+            ENDIF
+
+            v(:,i+1) = w/h(i+1,i)
+            rho(1,i) = h(1,i)
+
+            ! Givens rotations are applied to the upper hessenburg matrix and to the residual vectors
+            ! that are formed from the orthogonalization process. Here, they are done "on-the-fly"
+            ! as opposed to building the entire upper hessenburg matrix and orthonormal basis
+            ! before performing the rotations. This way, we can also tell if we have found an exact
+            ! solution ( if h(i+1,i) = 0 ) with a smaller subspace than size m.
+            DO k = 2, i
+
+               g          = c(k-1)*rho(k-1,i) + s(k-1)*h(k,i)
+               rho(k,i)   = -s(k-1)*rho(k-1,i) + c(k-1)*h(k,i)
+               rho(k-1,i) = g 
+
+            ENDDO
+
+            ! Here the coefficients of the Givens rotation matrix are computed
+            d = sqrt( rho(i,i)**2 + h(i+1,i)**2 )
+            c(i) = rho(i,i)/d
+            s(i) = h(i+1,i)/d
+
+            rho(i,i) = c(i)*rho(i,i) + s(i)*h(i+1,i)
+            ! And applied to the residual vector
+            bhat(i+1) = -s(i)*bhat(i)
+            bhat(i)   = c(i)*bhat(i)
  
-!         ! Compute z = A*v matrix-vector product
-!         z = this % MatrixAction( v )
-!         !print *, z
-!         ! Compute the search-direction magnitude
-!         den = DOT_PRODUCT( v, z ) ! denominator
-
-!         a = num/den
-
-!         ! Update the solution guess
-!         this % sol = this % sol + a*v
-
-!         ! Update the residual
-!         r = r - a*z
          
-!         rNorm = DOT_PRODUCT( r, r ) 
+            rc = abs( bhat(i+1) )
 
-!         this % resi(iter) = sqrt(rNorm)
+            this % resi(l) = rc
+            
+            IF( rc/r0 <= TOL )THEN
+               EXIT
+            ENDIF
+
+         ENDDO
          
-!         IF( sqrt(rNorm)/r0 < TOL ) then
-!            EXIT
-!            ioerr = 0
-!         ENDIF
+         IF( rc/r0 > TOL )THEN
+            nr = m
+         ENDIF
 
-!         ! Apply the preconditioner to the residual
-!         z = r
+         ! Back-substitution of the tridiagonal matrix that resulted from the rotations
+         y(nr) = bhat(nr)/rho(nr,nr)
+         DO k = nr-1, 1, -1
 
-!         den = num 
+            y(k) = bhat(k)
 
-!         ! Calculate the change in the search direction
-!         num = DOT_PRODUCT( r, z ) 
+            DO i = k+1, nr
+               y(k) = y(k) - rho(k,i)*y(i)
+
+            ENDDO
+
+            y(k) = y(k)/rho(k,k)
+
+         ENDDO
          
-!         ! Update the search direction
-!         b = num/den
+ 
+         DO k = 1,this % nDOF
+            this % sol(k) = this % sol(k) + DOT_PRODUCT( v(k, 1:nr), y(1:nr) )
+         ENDDO
 
-!         v = z + b*v
-         
-!      ENDDO ! iter, loop over the CG iterates 
+         IF( rc/r0 <= TOL )THEN
+            ioerr = 0
+            EXIT
+         ENDIF
 
-!      ! Copy the array storage back to the native storage for file I/O
-!      CALL this % CopyFrom( this % sol )
+         r = this % Residual( this % sol )
+
+      ENDDO 
+
+      ! Copy the array storage back to the native storage for file I/O
+      CALL this % CopyFrom( this % sol )
 
 
-!      IF( SQRT(rNorm) > TOL )THEN
-!         PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
-!         PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
-!         ioerr=-1
-!      ENDIF   
+      IF( rc/r0 > TOL )THEN
+         PRINT*, 'MODULE IterativeSolvers : GMRES failed to converge '
+         PRINT*, 'Last L-2 residual : ', sqrt(DOT_PRODUCT(r,r))
+         ioerr=-1
+      ENDIF   
 
-! END SUBROUTINE Solve_ConjugateGradient
+ END SUBROUTINE Solve_GMRES
 !
 !
 !==================================================================================================!

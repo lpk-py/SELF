@@ -54,6 +54,8 @@ MODULE ModelFlags
    INTEGER, PARAMETER :: NO_NORMAL_FLOW = -100
    INTEGER, PARAMETER :: RADIATION = -101
    INTEGER, PARAMETER :: PRESCRIBED = -102
+   INTEGER, PARAMETER :: InflowOne = -103
+   INTEGER, PARAMETER :: InflowTwo = -104
   !
   !==============================================!
   ! ---------- Continuous Galerkin ------------- !

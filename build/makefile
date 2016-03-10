@@ -11,8 +11,8 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-#OPT=-O3 -fopenmp
-OPT=-O0 -fcheck=all -Wall
+OPT=-O3 -fopenmp
+#OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
 #SRCDIR=/home/joe/Desktop/work/software/SELF/src/
 SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
@@ -67,15 +67,19 @@ IterativeSolvers_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines
 
 # Test programs for the iterative solvers
 IterativeSolversParams_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
-	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/CG/IterativeSolversParams_Class.f90 -o $@
+	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/GMRES/IterativeSolversParams_Class.f90 -o $@
 
 EllipticFV1D_Class.o : ModelPrecision.o ConstantsDictionary.o IterativeSolvers_Class.o \
                        IterativeSolversParams_Class.o
 	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/CG/EllipticFV1D_Class.f90 -o $@
 
+EllipticFV1D_GMRES_Class.o : ModelPrecision.o ConstantsDictionary.o IterativeSolvers_Class.o \
+                       IterativeSolversParams_Class.o
+	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/GMRES/EllipticFV1D_GMRES_Class.f90 -o $@
+
 Driver_EllipticFV1D.o : ModelPrecision.o ConstantsDictionary.o IterativeSolvers_Class.o Timing.o \
-                        IterativeSolversParams_Class.o EllipticFV1D_Class.o
-	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/CG/Driver_EllipticFV1D.f90 -o $@
+                        IterativeSolversParams_Class.o EllipticFV1D_GMRES_Class.o
+	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/GMRES/Driver_EllipticFV1D.f90 -o $@
 
 CGFV1D_OBJS = ModelPrecision.o \
               ConstantsDictionary.o \
@@ -84,7 +88,7 @@ CGFV1D_OBJS = ModelPrecision.o \
               Timing.o \
               IterativeSolversParams_Class.o \
               IterativeSolvers_Class.o \
-              EllipticFV1D_Class.o \
+              EllipticFV1D_GMRES_Class.o \
               Driver_EllipticFV1D.o
 
 solveFV1D : ${CGFV1D_OBJS}
@@ -123,7 +127,7 @@ NodalStorage_1D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Le
 NodalStorage_2D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Legendre.o \
                           Lagrange_1D_Class.o Lagrange_2D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}nodal/NodalStorage_2D_Class.f90 -o $@
-	
+
 NodalStorage_3D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Legendre.o \
                           Lagrange_1D_Class.o Lagrange_3D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}nodal/NodalStorage_3D_Class.f90 -o $@
@@ -241,7 +245,56 @@ ShallowWater_InitialConditions.o : ModelPrecision.o QuadMeshClass.o SWParamsClas
 	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/Testing/ShallowWater_InitialConditions.f90 -o $@
 
 ShallowWater_Driver.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ShallowWaterClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/ShallowWater_Driver.f90 -o $@	
+	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/ShallowWater_Driver.f90 -o $@
+
+
+# ---------------------------------------------------------------------- #
+#                     ~/src/highend/advection2d /                        #
+# ---------------------------------------------------------------------- #
+
+ADVOBJS = ModelPrecision.o \
+          ModelFlags.o \
+          ConstantsDictionary.o \
+          CommonRoutines.o \
+          LinkedListClass.o \
+          HashTableClass.o \
+          Lagrange_1D_Class.o \
+          Lagrange_2D_Class.o \
+          Legendre.o \
+          Chebyshev.o \
+          NodalStorage_2D_Class.o \
+          DGSEMSolutionStorageClass_2D.o \
+          GeometrySupportRoutines.o \
+          CurveClass_2D.o \
+          VectorClass.o \
+          NodeClass_2D.o \
+          EdgeClass.o \
+          MappedGeometryClass_2D.o \
+          QuadElementClass.o \
+          QuadMeshClass.o \
+          AdvectionParamsClass.o \
+          AdvectionClass.o
+
+
+initialize_adv : ${ADVOBJS} Advection_InitialConditions.o
+	${FC} ${OPT} ${ADVOBJS} Advection_InitialConditions.o -o $@
+
+integrate_adv : ${ADVOBJS} Advection_Driver.o
+	${FC} ${OPT} ${ADVOBJS} Advection_Driver.o -o $@
+         
+AdvectionParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
+	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/AdvectionParamsClass.f90 -o $@
+
+AdvectionClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                   Lagrange_2D_Class.o NodalStorage_2D_Class.o DGSEMSolutionStorageClass_2D.o \
+                   EdgeClass.o QuadElementClass.o QuadMeshClass.o AdvectionParamsClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/AdvectionClass.f90 -o $@
+
+Advection_InitialConditions.o : ModelPrecision.o QuadMeshClass.o AdvectionParamsClass.o AdvectionClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/Advection_InitialConditions.f90 -o $@
+
+Advection_Driver.o : ModelPrecision.o QuadMeshClass.o AdvectionParamsClass.o AdvectionClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/Advection_Driver.f90 -o $@
 # ---------------------------------------------------------------------- #
 #                          Other directives                              #
 # ---------------------------------------------------------------------- #
