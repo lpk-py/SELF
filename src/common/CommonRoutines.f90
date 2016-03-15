@@ -22,6 +22,14 @@ IMPLICIT NONE
       MODULE PROCEDURE :: Invert_2x2
    END INTERFACE
 
+   INTERFACE ForwardShift
+      MODULE PROCEDURE :: ForwardShift_Integer
+   END INTERFACE
+
+   INTERFACE CompareArray
+      MODULE PROCEDURE :: CompareArray_Integer
+   END INTERFACE
+
 CONTAINS
 
 
@@ -215,6 +223,62 @@ CONTAINS
 
 
  END SUBROUTINE ReverseArray
+!
+!
+!
+ SUBROUTINE ForwardShift_Integer( myArray, N )
+ !
+ ! Shifts the array entries as follows :
+ !  myArray(1) <-- myArray(N)
+ !  myArray(2) <-- myArray(1)
+ !  myArray(3) <-- myArray(2)
+ !  .
+ !  .
+ !  .
+ !  myArray(N) <-- myArray(N-1)
+ !
+ ! So that entries are shifted to one index higher.
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE  
+   INTEGER, INTENT(in)    :: N
+   INTEGER, INTENT(inout) :: myArray(1:N)
+   ! 
+   INTEGER :: temp(1:N)
+
+      temp = myArray
+      myArray(1)   = temp(N)
+      myArray(2:N) = temp(1:N-1)
+
+ END SUBROUTINE ForwardShift_Integer
+!
+!
+!
+ FUNCTION CompareArray_Integer( arrayOne, arrayTwo, N ) RESULT( shiftAgain )
+ !
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE  
+   INTEGER :: N
+   INTEGER :: arrayOne(1:N), arrayTwo(1:N)
+   INTEGER :: shiftAgain
+   ! Local
+   INTEGER :: i, theSumOfDiffs
+
+      theSumOfDiffs = 0
+
+      DO i = 1, N
+         theSumOfDiffs = theSumOfDiffs + arrayOne(i) - arrayTwo(i)
+      ENDDO
+
+      IF( theSumOfDiffs == 0 )THEN
+         shiftAgain = 0 ! They are the same
+      ELSE
+         shiftAgain = 1 ! They are not the same
+      ENDIF
+
+ END FUNCTION CompareArray_Integer
 !
 !
 !

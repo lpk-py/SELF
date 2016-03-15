@@ -1900,6 +1900,55 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
 !
 !
 !
+ SUBROUTINE DetermineOrientation_HexMesh( myHexMesh, faceID, secondaryNodes ) 
+ ! S/R DetermineOrientation
+ !
+ !  This support routine takes as input the mesh, a face ID number, and a list of node IDs.
+ !  This routine assumes that the primary element information for the given face ID has been
+ !  filled upon issuing a call to this routine. If the primary element shares this face with
+ !  another element, this routine is called and the secondary element node ID's are passed in.
+ !  The order of the secondary node ID's relative to the order of the primary node ID's determines
+ !  the orientation of the secondary element relative to the primary element. We need to know
+ !  if the roles of the computational coordinates are flipped, and (simultaneously) if the 
+ !  incrementing of the computational coordinates are reversed (or not).
+ !  This routine determines the orientation by determining how many times the ordered secondary
+ !  node ID's need to be shifted in order to match the ordered primary node ID's.
+ !  
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( HexMesh ), INTENT(inout) :: myHexMesh
+   INTEGER, INTENT(in)             :: faceID
+   INTEGER, INTENT(in)             :: secondaryNodes(1:nQuadNodes)
+   ! Local
+   INTEGER :: primaryNodes(1:nQuadNodes)
+   INTEGER :: nShifts, shiftInc, i 
+   
+      primaryNodes = myHexMesh % GetFaceNodeIDs( faceID )
+
+      nShifts = 0
+
+      DO i = 1, nQuadNodes
+
+         ! First, we compare the primary and secondary nodes. This routine returns a zero 
+         ! if the arrays match, and a one if they do not match.
+         shiftInc = CompareArray( primaryNodes, secondaryNodes, nQuadNodes )
+         
+         IF( shiftInc == 0 )THEN
+            EXIT
+         ELSE
+            
+      
+
+         
+      ENDDO
+   
+
+ END SUBROUTINE DetermineOrientation_HexMesh
+!
+!
+!
  SUBROUTINE GetNodeToElementConnectivity_HexMesh( myHexMesh )
  ! S/R GetNodeToElementConnectivity
  ! 
