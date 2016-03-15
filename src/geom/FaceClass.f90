@@ -25,12 +25,12 @@ IMPLICIT NONE
 
    TYPE Face
    
-      INTEGER, PRIVATE      :: key               ! The edge key
-      INTEGER, PRIVATE      :: nodeIDs(1:4)      ! Node IDs which start and terminate this edge
-      INTEGER, PRIVATE      :: elementIDs(1:2)   ! Neighboring elements IDs across the edge
-      INTEGER, PRIVATE      :: elementSides(1:2) ! Local side IDs for the neighboring elements
-      INTEGER, PRIVATE      :: iStart, iInc, jStart, jInc        ! Loop start and increment for the secondary element side
-      INTEGER, PRIVATE      :: swapDimensions    ! A flag for swapping the dimensions of the secondary
+      INTEGER      :: key               ! The edge key
+      INTEGER      :: nodeIDs(1:4)      ! Node IDs which start and terminate this edge
+      INTEGER      :: elementIDs(1:2)   ! Neighboring elements IDs across the edge
+      INTEGER      :: elementSides(1:2) ! Local side IDs for the neighboring elements
+      INTEGER      :: iStart, iInc, jStart, jInc        ! Loop start and increment for the secondary element side
+      INTEGER      :: swapDimensions    ! A flag for swapping the dimensions of the secondary
                                                  ! element's boundary solution/flux/etc.
                                                 
       TYPE( Face ), POINTER :: next => NULL( )
@@ -695,7 +695,6 @@ SUBROUTINE Build_Face( myFace )
   INTEGER           :: key, iStart, iInc, jStart, jInc
   INTEGER, OPTIONAL :: inKey
   ! LOCAL
-  LOGICAL               :: isAssigned
   TYPE( Face ), POINTER :: previous
   INTEGER               :: allocationStatus
 

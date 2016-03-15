@@ -87,6 +87,8 @@ MODULE ModelFlags
    INTEGER, PARAMETER :: GAUSS_LOBATTO = -1
    INTEGER, PARAMETER :: DG = 2000
    INTEGER, PARAMETER :: CG = 2001
+   INTEGER, PARAMETER :: LEGENDRE_BASIS = 2100
+   INTEGER, PARAMETER :: CHEBYSHEV_BASIS = 2101
   !
   !==============================================!
   ! ---------------- Geometry ------------------ !

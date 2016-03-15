@@ -347,13 +347,61 @@ END FUNCTION NewUnit
 
      elseif( UpperCase(trim(myChar)) == 'GAUSS LOBATTO'  )then
  
-         outFlag = CONSERVATIVE
+         outFlag = GAUSS_LOBATTO 
      ENDif
 
  END FUNCTION GetFlagForChar
 !
 !
 !
+ FUNCTION GetCharForFlag( myFlag ) RESULT( outChar )
+!
+!
+!
+!================================================================ !
+! DECLARATIONS
+  INTEGER       :: myFlag
+  CHARACTER(25) :: outChar
+
+     if( myFlag == LINEAR )then
+ 
+         outChar = 'LINEAR'
+
+     elseif( myFlag == NONLINEAR )then
+ 
+         outChar = 'NONLINEAR'
+
+     elseif( myFlag == SKEW_SYMMETRIC )then
+ 
+         outChar = 'SKEW-SYMMETRIC'
+
+     elseif( myFlag == CONSERVATIVE )then
+ 
+         outChar = 'CONSERVATIVE'
+
+     elseif( myFlag == GAUSS )then
+ 
+         outChar = 'GAUSS'
+
+     elseif( myFlag == GAUSS_LOBATTO )then
+ 
+         outChar = 'GAUSS LOBATTO'
+
+     elseif( myFlag == CHEBYSHEV_BASIS )then
+
+         outChar = 'CHEBYSHEV'
+
+     elseif( myFlag == LEGENDRE_BASIS )then
+
+         outChar = 'LEGENDRE'
+
+     ENDif
+
+ END FUNCTION GetCharForFlag
+!
+!
+!
+
  FUNCTION UpperCase ( myChar ) Result (myUpperChar)
  !
  !   Changes a string to all upper case letters

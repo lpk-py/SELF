@@ -57,7 +57,7 @@ USE MappedGeometryClass_3D
 IMPLICIT NONE
 
    TYPE HexElement
-      INTEGER                          :: nS, nP, nQ, nmax
+      INTEGER                         :: nS, nP, nQ, nmax
       INTEGER, PRIVATE                :: nodeIDs(1:nHexNodes)   ! Corner Node ID's
       INTEGER, PRIVATE                :: neighbors(1:nHexFaces) ! Elements IDs for the neighbors
       INTEGER, PRIVATE                :: globElID               ! Global Element ID 
@@ -85,7 +85,11 @@ IMPLICIT NONE
       PROCEDURE :: GetEasternNeighbor  => GetEasternNeighbor_HexElement
       PROCEDURE :: SetWesternNeighbor  => SetWesternNeighbor_HexElement
       PROCEDURE :: GetWesternNeighbor  => GetWesternNeighbor_HexElement
-      
+      PROCEDURE :: SetBottomNeighbor   => SetBottomNeighbor_HexElement
+      PROCEDURE :: GetBottomNeighbor   => GetBottomNeighbor_HexElement
+      PROCEDURE :: SetTopNeighbor      => SetTopNeighbor_HexElement
+      PROCEDURE :: GetTopNeighbor      => GetTopNeighbor_HexElement      
+
       ! MappedGeometry_3D Wrapper Routines
       PROCEDURE :: SetNumberOfNodes => SetNumberOfNodes_HexElement
       PROCEDURE :: GetNumberOfNodes => GetNumberOfNodes_HexElement

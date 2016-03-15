@@ -1082,7 +1082,7 @@ SUBROUTINE GenerateBoundaryPositions_MappedGeometry_3D( myGeom, interp, theSurfa
   LOGICAL, INTENT(out), OPTIONAL         :: success
   ! LOCAL
   REAL(prec) :: dr(1:nDims), ds(1:nDims), A(1:nDims,1:nDims), Ainv(1:nDims,1:nDims)
-  REAL(prec) :: thisX, thisY, thisZ, thisS, thisP, thisQ, resi, r0
+  REAL(prec) :: thisX, thisY, thisZ, thisS, thisP, thisQ, resi
   INTEGER    :: i 
 
      thisS = ZERO ! Initial guess is at the origin
@@ -1178,9 +1178,9 @@ SUBROUTINE GenerateBoundaryPositions_MappedGeometry_3D( myGeom, interp, theSurfa
          myGeom % dyds = yScale*( myGeom % dyds )
          myGeom % dydp = yScale*( myGeom % dydp )
          myGeom % dydq = yScale*( myGeom % dydq )
-         myGeom % dzds = yScale*( myGeom % dzds )
-         myGeom % dzdp = yScale*( myGeom % dzdp )
-         myGeom % dzdq = yScale*( myGeom % dzdq )
+         myGeom % dzds = zScale*( myGeom % dzds )
+         myGeom % dzdp = zScale*( myGeom % dzdp )
+         myGeom % dzdq = zScale*( myGeom % dzdq )
           
          myGeom % J = xScale*yScale*zScale*( myGeom % J )
 

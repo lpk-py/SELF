@@ -11,8 +11,8 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-OPT=-O3 -fopenmp
-#OPT=-O0 -fcheck=all -Wall
+#OPT=-O3 -fopenmp
+OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
 #SRCDIR=/home/joe/Desktop/work/software/SELF/src/
 SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
@@ -165,7 +165,35 @@ Geometry3DTest : ${geom3dtestobj}
 TestMappedGeometry_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_3D_Class.o \
                           NodalStorage_3D_Class.o SurfaceClass_3D.o GeometryParamsClass.o MappedGeometryClass_3D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestMappedGeometry_3D.f90 -o $@
-	
+
+hexobjs = ModelPrecision.o \
+          ModelFlags.o \
+          ConstantsDictionary.o \
+          CommonRoutines.o \
+          LinkedListClass.o \
+          KeyRingClass.o \
+          Lagrange_1D_Class.o \
+          Lagrange_2D_Class.o \
+          Lagrange_3D_Class.o \
+          Legendre.o \
+          Chebyshev.o \
+          NodalStorage_3D_Class.o \
+          SurfaceClass_3D.o \
+          VectorClass.o \
+          NodeClass_3D.o \
+          FaceClass.o \
+          MappedGeometryClass_3D.o \
+          HexElementClass.o \
+          HexMeshClass.o \
+          HexMeshParamsClass.o \
+          TestHexMesh.o \
+
+hextest : ${hexobjs}
+	${FC} ${OPT} ${hexobjs} -o $@
+
+TestHexMesh.o : ModelFlags.o NodalStorage_3D_Class.o HexMeshParamsClass.o HexMeshClass.o 
+	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestHexMesh.f90 -o $@
+
 
 # MODULE list #
 NodeClass_1D.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o LinkedListClass.o
@@ -198,6 +226,9 @@ VectorClass.o : ModelPrecision.o ConstantsDictionary.o
 GeometryParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}geom/GeometryParamsClass.f90 -o $@
 
+HexMeshParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
+	${FC} ${OPT} -c ${SRCDIR}geom/Testing/HexMeshParamsClass.f90 -o $@
+
 GeometrySupportRoutines.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o \
                             CurveClass_2D.o CurveClass_3D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/GeometrySupportRoutines.f90 -o $@
@@ -217,6 +248,11 @@ QuadElementClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o \
 HexElementClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o \
                      Lagrange_3D_Class.o SurfaceClass_3D.o MappedGeometryClass_3D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/HexElementClass.f90 -o $@
+
+HexMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o LinkedListClass.o KeyRingClass.o \
+                 Chebyshev.o Lagrange_3D_Class.o MappedGeometryClass_3D.o HexElementClass.o FaceClass.o \
+                 NodeClass_3D.o
+	${FC} ${OPT} -c ${SRCDIR}geom/HexMeshClass.f90 -o $@
 
 QuadMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o LinkedListClass.o HashTableClass.o \
                   Chebyshev.o Lagrange_2D_Class.o CurveClass_2D.o  MappedGeometryClass_2D.o \

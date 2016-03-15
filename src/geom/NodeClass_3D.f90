@@ -44,7 +44,7 @@ IMPLICIT NONE
       PROCEDURE :: GetPosition => GetPosition_Node
       PROCEDURE :: SetPosition => SetPosition_Node
       
-      
+      PROCEDURE :: ScaleNodePosition => ScaleNodePosition_Node
    END TYPE Node
 
    TYPE NodeList      
@@ -69,6 +69,8 @@ IMPLICIT NONE
       PROCEDURE :: MoveToNext => MoveToNext_NodeList
       PROCEDURE :: MoveToTail => MoveToTail_NodeList
       PROCEDURE :: GetCount => GetCount_NodeList
+
+      
 
    END TYPE NodeList
 
@@ -455,7 +457,6 @@ IMPLICIT NONE
   INTEGER           :: nodeType
   INTEGER, OPTIONAL :: inKey
   ! LOCAL
-  LOGICAL               :: isAssigned
   TYPE( Node ), POINTER :: previous
   INTEGER               :: allocationStatus
 
@@ -697,4 +698,28 @@ IMPLICIT NONE
 !     ENDDO
 
 ! END SUBROUTINE PrintList
+!
+!
+!==================================================================================================!
+!--------------------------------- Type-Specific Routines  ----------------------------------------!
+!==================================================================================================!
+!
+!
+ SUBROUTINE ScaleNodePosition_Node( myNode, xScale, yScale, zScale )
+ ! S/R ScaleNode
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( Node ), INTENT(inout) :: myNode
+   REAL(prec), INTENT(in)       :: xScale, yScale, zScale
+
+      myNode % x = xScale*(myNode % x)
+      myNode % y = yScale*(myNode % y)
+      myNode % z = zScale*(myNode % z)
+
+ END SUBROUTINE ScaleNodePosition_Node
+!
+!
+!
 END MODULE NodeClass_3D
