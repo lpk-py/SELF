@@ -160,6 +160,7 @@ IMPLICIT NONE
        PROCEDURE :: GetSwapDimensions => GetSwapDimensions_HexMesh
        
        PROCEDURE :: ConstructFaces => ConstructFaces_HexMesh
+       PROCEDURE :: DetermineOrientation => DetermineOrientation_HexMesh 
        PROCEDURE :: GetNodeToElementConnectivity => GetNodeToElementConnectivity_HexMesh
        PROCEDURE :: ScaleTheMesh => ScaleTheMesh_HexMesh
        PROCEDURE :: LoadDefaultMesh => LoadDefaultMesh_HexMesh
@@ -171,6 +172,7 @@ IMPLICIT NONE
 
  INTEGER, PRIVATE, PARAMETER    :: nXElemDefault = 5
  INTEGER, PRIVATE, PARAMETER    :: nYElemDefault = 5
+ INTEGER, PRIVATE, PARAMETER    :: nZElemDefault = 5
  INTEGER, PRIVATE, PARAMETER    :: BoundaryFlagDefault = NO_NORMAL_FLOW
  REAL(prec), PRIVATE, PARAMETER :: dXDefault = ONE/(nXElemDefault)
  REAL(prec), PRIVATE, PARAMETER :: dYDefault = ONE/(nYElemDefault)
@@ -1738,13 +1740,14 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
    INTEGER :: nEls, nNodes, iEl, nFaces, k, j  
    INTEGER :: locNodeIDs(1:nQuadNodes), globNodeIDs(1:nQuadNodes)
    INTEGER :: keyRingID, globFaceID
-   INTEGER :: e1, e2, s1, s2, FaceID, n1, nID
+   INTEGER :: e1, e2, s1, s2, FaceID, n1, nID, nS, nP, nQ
    LOGICAL :: keyExists
 
       CALL myHexMesh % GetNumberOfNodes( nNodes )   
       CALL myHexMesh % GetNumberOfElements( nEls )
       nFaces = 0
-
+      CALL myHexMesh % GetNumberOfInternalNodes( 1, nS, nP, nQ )
+      
       DO k = 1, nNodes
          CALL keyCabinet(keyRingID) % Build( )
       ENDDO
@@ -1871,7 +1874,7 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
 
                ! First, we store the key-ring information
                nFaces = nFaces + 1
-               CALL KeyCabinet(keyRingID) % AddToList( nFaces, globNodeIDs, nQuadNodes )
+               CALL KeyCabinet(keyRingID) % AddToList( nFaces, globNodeIDs, nS, nQuadNodes )
 
                ! Now, we set the primary element information
                myHexMesh % faces( nFaces ) % key             = nFaces
@@ -1900,7 +1903,7 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
 !
 !
 !
- SUBROUTINE DetermineOrientation_HexMesh( myHexMesh, faceID, secondaryNodes ) 
+ SUBROUTINE DetermineOrientation_HexMesh( myHexMesh, faceID, nS, secondaryNodes ) 
  ! S/R DetermineOrientation
  !
  !  This support routine takes as input the mesh, a face ID number, and a list of node IDs.
@@ -1919,30 +1922,76 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   INTEGER, INTENT(in)             :: faceID
+   INTEGER, INTENT(in)             :: faceID, nS
    INTEGER, INTENT(in)             :: secondaryNodes(1:nQuadNodes)
    ! Local
    INTEGER :: primaryNodes(1:nQuadNodes)
-   INTEGER :: nShifts, shiftInc, i 
+   INTEGER :: nShifts, i
+   LOGICAL :: theyMatch 
    
       primaryNodes = myHexMesh % GetFaceNodeIDs( faceID )
 
       nShifts = 0
-
+      theyMatch = .FALSE.
+      
       DO i = 1, nQuadNodes
 
          ! First, we compare the primary and secondary nodes. This routine returns a zero 
          ! if the arrays match, and a one if they do not match.
-         shiftInc = CompareArray( primaryNodes, secondaryNodes, nQuadNodes )
+         theyMatch = CompareArray( primaryNodes, secondaryNodes, nQuadNodes )
          
-         IF( shiftInc == 0 )THEN
+         IF( theyMatch )THEN
             EXIT
          ELSE
             
-      
-
+         nShifts = nShifts + 1
+         CALL ForwardShift( primaryNodes, nQuadNodes )
+         
+         ENDIF
          
       ENDDO
+      
+      IF( theyMatch )THEN
+      
+         SELECT CASE ( nShifts )
+         
+            CASE (0)
+               myHexMesh % faces( faceID ) % iStart          = 1
+               myHexMesh % faces( faceID ) % iInc            = 1
+               myHexMesh % faces( faceID ) % jStart          = 1
+               myHexMesh % faces( faceID ) % jInc            = 1
+               myHexMesh % faces( faceID ) % swapDimensions  = 0
+            CASE (1)
+               myHexMesh % faces( faceID ) % iStart          = nS
+               myHexMesh % faces( faceID ) % iInc            = -1
+               myHexMesh % faces( faceID ) % jStart          = 1
+               myHexMesh % faces( faceID ) % jInc            = 1
+               myHexMesh % faces( faceID ) % swapDimensions  = 1
+            CASE (2)
+               myHexMesh % faces( faceID ) % iStart          = nS
+               myHexMesh % faces( faceID ) % iInc            = -1
+               myHexMesh % faces( faceID ) % jStart          = nS
+               myHexMesh % faces( faceID ) % jInc            = -1
+               myHexMesh % faces( faceID ) % swapDimensions  = 0
+            CASE (3)
+               myHexMesh % faces( faceID ) % iStart          = 1
+               myHexMesh % faces( faceID ) % iInc            = 1
+               myHexMesh % faces( faceID ) % jStart          = nS
+               myHexMesh % faces( faceID ) % jInc            = -1
+               myHexMesh % faces( faceID ) % swapDimensions  = 1
+            CASE DEFAULT
+               PRINT*, 'Module HexMeshClass : S/R DetermineOrientation : Did not catch a match. Revise this subroutine. '
+               PRINT*, 'Also, this is a reminder to add an exception-handler. Stopping. '
+               STOP
+               
+         END SELECT
+      ELSE
+      
+         PRINT*, 'Module HexMeshClass : S/R DetermineOrientation : Did not catch a match. Revise this subroutine. '
+         PRINT*, 'Also, this is a reminder to add an exception-handler. Stopping. '
+         STOP
+         
+      ENDIF
    
 
  END SUBROUTINE DetermineOrientation_HexMesh
@@ -2036,7 +2085,7 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
 !
 !
 !
- SUBROUTINE LoadDefaultMesh_HexMesh( myHexMesh, interp, nXelem, nYelem  )
+ SUBROUTINE LoadDefaultMesh_HexMesh( myHexMesh, interp, nXelem, nYelem, nZelem  )
  ! S/R LoadDefaultMesh
  !  
  !     Builds a square mesh with 5x5 elements. The side lengths are 1 unit.
@@ -2045,19 +2094,19 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( HexMesh ), INTENT(inout)  :: myHexMesh
-   TYPE( Lagrange_2D ), INTENT(in)   :: interp
-   INTEGER, INTENT(in)               :: nXelem, nYelem
+   TYPE( Lagrange_3D ), INTENT(in)  :: interp
+   INTEGER, INTENT(in)              :: nXelem, nYelem, nZelem
    ! LOCAL
-   TYPE( Curve_2D ) :: elBoundCurves(1:4)
+   TYPE( Surface_3D ) :: boundSurfs(1:nHexFaces)
 
-   REAL(prec) :: x, y, z, dxElem, dyElem
+   REAL(prec) :: x, y, z, dxElem, dyElem, dzElem
    REAL(prec) :: x1, x2, y1, y2, a, b, c
-   REAL(prec), ALLOCATABLE :: xc(:), yc(:), s(:)
+   REAL(prec), ALLOCATABLE :: xc(:), yc(:), zc(:), s(:), p(:)
 
    INTEGER :: nNodes, nElems, nFaces, gPolyDeg
-   INTEGER :: bFlags(1:4), nodes(1:4)
+   INTEGER :: bFlags(1:nHexFaces), nodes(1:nHexNodes)
    INTEGER :: e1, e2, s1, s2, n1, n2, n(1:2), e(1:2), si(1:2)
-   INTEGER :: iFace, iNode, iEl, iSide, iX, iY
+   INTEGER :: iFace, iNode, iEl, iSide, iX, iY, iZ
    INTEGER :: fUnit, iC, jC
 
    CHARACTER(20) :: ISMversion
@@ -2066,11 +2115,12 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
       
       dxElem = ONE/nXElem
       dyElem = ONE/nYElem
+      dzElem = ONE/nZElem
       
       ! ** "Hard-wired" values for a structured mesh with no holes ** !
-      nNodes   = (nXElem+1)*(nYElem+1)
-      nElems   = (nXElem)*(nYElem)
-      nFaces   = (nXElem)*(nYElem+1) + (nXElem+1)*(nYElem)
+      nNodes   = (nXElem+1)*(nYElem+1)*(nZElem+1)
+      nElems   = (nXElem)*(nYElem)*(nZElem)
+      nFaces   = (nXElem)*(nYElem)*(nZElem+1) + (nXElem)*(nZElem)*(nYElem+1) + (nYElem)*(nZElem)*(nXElem+1)
       gPolyDeg = 1
       ! ************************************************************************* !
 
@@ -2082,60 +2132,60 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
       ! These are the points used to define the parametric
       ! curves for the element boundaries
 
-      ALLOCATE( s(0:gPolyDeg), xc(0:gPolyDeg), yc(0:gPolyDeg) )
+      ALLOCATE( s(0:gPolyDeg), xc(0:gPolyDeg), yc(0:gPolyDeg), zc(0:gPolyDeg) )
       CALL ChebyshevGaussLobatto( gPolyDeg, s, xc ) ! ** x is a placeholder here only. 
-
+      p = s
       ! ---- Build the quadrature mesh (empty) ---- !
   
       CALL myHexMesh % Build( nNodes, nElems, nFaces, interp % nS ) 
       
       
       ! ---- Read in the corner nodes ---- !
-    !  a = 2.5_prec
-    !  b = -3.0_prec*HALF*a
-    !  c = ONE-(a+b)
-      DO iY = 1, nYElem+1
-      
-         y = dYElem*(REAL(iY-1,prec))
-    !     y = a*y**3 + b*y**2 + c*y
-         DO iX = 1, nXElem+1
-            
-            iNode = iX + (iY-1)*(nXElem+1)
-            x = dXElem*(REAL(iX-1,prec))
-            CALL myHexMesh % SetNodePosition( iNode, x, y )
-            
+      DO iZ = 1, nZElem + 1
+         z = dZElem*(REAL(iZ-1,prec))
+         DO iY = 1, nYElem+1
+            y = dYElem*(REAL(iY-1,prec))
+            DO iX = 1, nXElem+1
+               iNode = iX + (iY-1)*(nXElem+1) + (iZ-1)*(nXElem+1)*(nYElem+1)
+               x = dXElem*(REAL(iX-1,prec))
+               CALL myHexMesh % SetNodePosition( iNode, x, y, z )
+            ENDDO
          ENDDO
-         
       ENDDO
   
       ! Do the element information
  
       xc = ZERO
       yc = ZERO
+      zc = ZERO
       ! Do the initial build for the parametric curves
-      DO iSide = 1, 4
-         CALL elBoundCurves(iSide) % Build( xc, yc, s ) 
+      DO iSide = 1, nHexFaces
+         CALL boundSurfs(iSide) % Build( xc, yc, zc, s, p ) 
       ENDDO
    
-     
-      DO iY = 1, nYElem
-         DO iX = 1, nXElem
+      DO iZ = 1, nZElem
+         DO iY = 1, nYElem
+            DO iX = 1, nXElem
 
-            iEl = iX + (iY-1)*(nXElem)
-            ! Calculate the global node IDs for this element.
-            nodes(1) = iX + (iY-1)*(nXElem+1)    ! Southwest
-            nodes(2) = iX + 1 + (iY-1)*(nXElem+1)! SouthEast
-            nodes(3) = iX + 1 + (iY)*(nXElem+1)  ! NorthEast
-            nodes(4) = iX + (iY)*(nXElem+1)      ! NorthWest
+               iEl = iX + (iY-1)*(nXElem) + (iZ-1)*(nXElem)*(nYElem)
+               ! Calculate the global node IDs for this element.
+               nodes(1) = iX + (iY-1)*(nXElem+1) + (iZ-1)*(nXElem+1)*(nYElem+1)    ! Southwest
+               nodes(2) = iX + 1 + (iY-1)*(nXElem+1) + (iZ-1)*(nXElem+1)*(nYElem+1)! SouthEast
+               nodes(3) = iX + 1 + (iY)*(nXElem+1) + (iZ-1)*(nXElem+1)*(nYElem+1)  ! NorthEast
+               nodes(4) = iX + (iY)*(nXElem+1) + (iZ-1)*(nXElem+1)*(nYElem+1)      ! NorthWest
+               nodes(5) = iX + (iY-1)*(nXElem+1) + (iZ)*(nXElem+1)*(nYElem+1)      ! Southwest
+               nodes(6) = iX + 1 + (iY-1)*(nXElem+1) + (iZ)*(nXElem+1)*(nYElem+1)  ! SouthEast
+               nodes(7) = iX + 1 + (iY)*(nXElem+1) + (iZ)*(nXElem+1)*(nYElem+1)    ! NorthEast
+               nodes(8) = iX + (iY)*(nXElem+1) + (iZ)*(nXElem+1)*(nYElem+1)        ! NorthWest
          
-            DO iSide = 1, 4 ! Loop over the sides of the quads
+               DO iSide = 1, nHexFaces ! Loop over the sides of the quads
 
-               ! Build a straight curve for this side
-               n1 = nodes( myHexMesh % faceMap(1,iSide) )
-               n2 = nodes( myHexMesh % faceMap(2,iSide) )
+                  ! Build a flat face for this side
+                  n1 = nodes( myHexMesh % faceMap(1,iSide) )
+                  n2 = nodes( myHexMesh % faceMap(2,iSide) )
 
-               CALL myHexMesh % GetNodePosition( n1, x1, y1 )
-               CALL myHexMesh % GetNodePosition( n2, x2, y2 )
+                  CALL myHexMesh % GetNodePosition( n1, x1, y1 )
+                  CALL myHexMesh % GetNodePosition( n2, x2, y2 )
                
                DO iNode = 0, gPolyDeg
                   xc(iNode) = x1 + (x2-x1)*HALF*( s(iNode) + ONE )

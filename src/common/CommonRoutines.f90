@@ -254,7 +254,7 @@ CONTAINS
 !
 !
 !
- FUNCTION CompareArray_Integer( arrayOne, arrayTwo, N ) RESULT( shiftAgain )
+ FUNCTION CompareArray_Integer( arrayOne, arrayTwo, N ) RESULT( arraysMatch )
  !
  ! 
  ! =============================================================================================== !
@@ -262,7 +262,7 @@ CONTAINS
    IMPLICIT NONE  
    INTEGER :: N
    INTEGER :: arrayOne(1:N), arrayTwo(1:N)
-   INTEGER :: shiftAgain
+   LOGICAL :: arraysMatch
    ! Local
    INTEGER :: i, theSumOfDiffs
 
@@ -273,9 +273,9 @@ CONTAINS
       ENDDO
 
       IF( theSumOfDiffs == 0 )THEN
-         shiftAgain = 0 ! They are the same
+         arraysMatch = .TRUE. ! They are the same
       ELSE
-         shiftAgain = 1 ! They are not the same
+         arraysMatch = .FALSE. ! They are not the same
       ENDIF
 
  END FUNCTION CompareArray_Integer
