@@ -1,5 +1,6 @@
 &SPACE_MANAGEMENT
-polyDeg = 10,
+SpecMeshFile = 'MeshFiles/CircleFlow.mesh',
+polyDeg = 6,
 nPlot = 10,
 xScale = 1.0,
 yScale = 1.0,

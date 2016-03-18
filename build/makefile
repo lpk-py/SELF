@@ -138,13 +138,13 @@ NodalStorage_3D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Le
 # ---------------------------------------------------------------------- #
 
 # MODULE list #
-DGSEMSolutionStorageClass_1D.o : ModelPrecision.o ConstantsDictionary.o
+DGSEMSolutionStorageClass_1D.o : ModelPrecision.o ConstantsDictionary.o NodalStorage_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}dgsem/DGSEMSolutionStorageClass_1D.f90 -o $@
 
-DGSEMSolutionStorageClass_2D.o : ModelPrecision.o ConstantsDictionary.o
+DGSEMSolutionStorageClass_2D.o : ModelPrecision.o ConstantsDictionary.o NodalStorage_2D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}dgsem/DGSEMSolutionStorageClass_2D.f90 -o $@
 	
-DGSEMSolutionStorageClass_3D.o : ModelPrecision.o ConstantsDictionary.o
+DGSEMSolutionStorageClass_3D.o : ModelPrecision.o ConstantsDictionary.o NodalStorage_3D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}dgsem/DGSEMSolutionStorageClass_3D.f90 -o $@
 	
 # ---------------------------------------------------------------------- #
@@ -331,6 +331,55 @@ Advection_InitialConditions.o : ModelPrecision.o QuadMeshClass.o AdvectionParams
 
 Advection_Driver.o : ModelPrecision.o QuadMeshClass.o AdvectionParamsClass.o AdvectionClass.o
 	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/Advection_Driver.f90 -o $@
+
+# ---------------------------------------------------------------------- #
+#                     ~/src/highend/advection3d /                        #
+# ---------------------------------------------------------------------- #
+
+ADV3DOBJS = ModelPrecision.o \
+          ModelFlags.o \
+          ConstantsDictionary.o \
+          CommonRoutines.o \
+          Timing.o \
+          LinkedListClass.o \
+          KeyRingClass.o \
+          Lagrange_1D_Class.o \
+          Lagrange_2D_Class.o \
+          Lagrange_3D_Class.o \
+          Legendre.o \
+          Chebyshev.o \
+          NodalStorage_3D_Class.o \
+          DGSEMSolutionStorageClass_3D.o \
+          SurfaceClass_3D.o \
+          VectorClass.o \
+          NodeClass_3D.o \
+          FaceClass.o \
+          MappedGeometryClass_3D.o \
+          HexElementClass.o \
+          HexMeshClass.o \
+          Advection3DParamsClass.o \
+          Advection3DClass.o
+
+
+initialize_adv3d : ${ADV3DOBJS} Advection3D_InitialConditions.o
+	${FC} ${OPT} ${ADV3DOBJS} Advection3D_InitialConditions.o -o $@
+
+integrate_adv3d : ${ADV3DOBJS} Advection3D_Driver.o
+	${FC} ${OPT} ${ADV3DOBJS} Advection3D_Driver.o -o $@
+         
+Advection3DParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
+	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3DParamsClass.f90 -o $@
+
+Advection3DClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Timing.o \
+                   Lagrange_3D_Class.o NodalStorage_3D_Class.o DGSEMSolutionStorageClass_3D.o \
+                   FaceClass.o HexElementClass.o HexMeshClass.o Advection3DParamsClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3DClass.f90 -o $@
+
+Advection3D_InitialConditions.o : ModelPrecision.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_InitialConditions.f90 -o $@
+
+Advection3D_Driver.o : ModelPrecision.o Timing.o HexClass.o Advection3DParamsClass.o Advection3DClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_Driver.f90 -o $@
 # ---------------------------------------------------------------------- #
 #                          Other directives                              #
 # ---------------------------------------------------------------------- #

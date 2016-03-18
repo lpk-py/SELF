@@ -11,9 +11,11 @@ FCUNI=gfortran
 LIB=-L/usr/local/lapack -llapack -lrefblas
 INC=
 #OPT=-O3 -fOPENmp
-OPT=-Og -fcheck=all 
+OPT=-O0 -fcheck=all 
 WFLAGS= 
-SRCDIR=/home/joe/Desktop/work/software/SELF/src/
+#SRCDIR=/home/joe/Desktop/work/software/SELF/src/
+SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
+
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -177,6 +179,11 @@ meshtestobj=ModelPrecision.o \
             TestQuadMesh.o
             
 
+quadmesh : ${meshtestobj}
+	${FC} ${OPT} ${meshtestobj} -o $@
+
+TestQuadMesh.o : ModelPrecision.o ConstantsDictionary.o NodalStorage_2D_Class.o QuadMeshClass.o GeometryParamsClass.o 
+	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestQuadMesh.f90 -o $@
 
 # MODULE list #
 NodeClass_1D.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o LinkedListClass.o

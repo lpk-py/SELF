@@ -11,10 +11,10 @@ FCUNI=gfortran
 LIB=-L/usr/local/lapack -llapack -lrefblas
 INC=
 #OPT=-O3 -fopenmp
-OPT=-Og -fcheck=all 
+OPT=-O0 -fcheck=all 
 WFLAGS= 
-SRCDIR=/home/joe/Desktop/work/software/SEM_v2.0/src_2.1/
-
+#SRCDIR=/home/joe/Desktop/work/software/SEM_v2.0/src_2.1/
+SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
 INIDIR=${DIR}/init/
@@ -70,10 +70,18 @@ LagInterp1DTest : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o Legend
 	${FC} ${OPT} ModelPrecision.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
                 Lagrange_1D_Class.o TestLagrangeInterpolation_1D.o -o $@
                    
-                  
+N2M : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
+      Lagrange_1D_Class.o NodalToModal.o
+	${FC} ${OPT} ModelPrecision.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
+                Lagrange_1D_Class.o NodalToModal.o -o $@ 
+
 # Test program list #
 TestLagrangeInterpolation_1D.o : ModelPrecision.o CommonRoutines.o Legendre.o Lagrange_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}interp/Testing/TestLagrangeInterpolation_1D.f90 -o $@
+
+NodalToModal.o : ModelPrecision.o CommonRoutines.o Legendre.o Lagrange_1D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}interp/Testing/NodalToModal.f90 -o $@
+
 
 # Module list #
 Chebyshev.o : ModelPrecision.o ConstantsDictionary.o

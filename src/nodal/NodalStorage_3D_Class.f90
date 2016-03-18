@@ -48,6 +48,18 @@ IMPLICIT NONE
       PROCEDURE :: SetQuadratureWeights => SetQuadratureWeights_NodalStorage_3D
       PROCEDURE :: GetQuadratureWeights => GetQuadratureWeights_NodalStorage_3D
       PROCEDURE :: GetDerivativeMatrix => GetDerivativeMatrix_NodalStorage_3D
+      PROCEDURE :: SetEasternInterpolants => SetEasternInterpolants_NodalStorage_3D
+      PROCEDURE :: GetEasternInterpolants => GetEasternInterpolants_NodalStorage_3D
+      PROCEDURE :: SetWesternInterpolants => SetWesternInterpolants_NodalStorage_3D
+      PROCEDURE :: GetWesternInterpolants => GetWesternInterpolants_NodalStorage_3D
+      PROCEDURE :: SetSouthernInterpolants => SetSouthernInterpolants_NodalStorage_3D
+      PROCEDURE :: GetSouthernInterpolants => GetSouthernInterpolants_NodalStorage_3D
+      PROCEDURE :: SetNorthernInterpolants => SetNorthernInterpolants_NodalStorage_3D
+      PROCEDURE :: GetNorthernInterpolants => GetNorthernInterpolants_NodalStorage_3D
+      PROCEDURE :: SetBottomInterpolants => SetBottomInterpolants_NodalStorage_3D
+      PROCEDURE :: GetBottomInterpolants => GetBottomInterpolants_NodalStorage_3D
+      PROCEDURE :: SetTopInterpolants => SetTopInterpolants_NodalStorage_3D
+      PROCEDURE :: GetTopInterpolants => GetTopInterpolants_NodalStorage_3D
 
       ! Type-Specific
       PROCEDURE :: GenerateMappingMatrix => GenerateMappingMatrix_NodalStorage_3D
@@ -431,6 +443,210 @@ IMPLICIT NONE
       derMatQ = myNodal % dMatQ
 
  END SUBROUTINE GetDerivativeMatrix_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE SetEasternInterpolants_NodalStorage_3D( myNodal, lEast )
+ ! S/R SetEasternInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(inout) :: myNodal
+   REAL(prec), INTENT(in)                :: lEast(0:myNodal % nS)
+    
+      myNodal % lagEast = lEast
+
+ END SUBROUTINE SetEasternInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE GetEasternInterpolants_NodalStorage_3D( myNodal, lEast )
+ ! S/R GetEasternInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(in) :: myNodal
+   REAL(prec), INTENT(out)            :: lEast(0:myNodal % nS)
+    
+      lEast = myNodal % lagEast
+
+ END SUBROUTINE GetEasternInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE SetWesternInterpolants_NodalStorage_3D( myNodal, lWest )
+ ! S/R SetWesternInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(inout) :: myNodal
+   REAL(prec), INTENT(in)                :: lWest(0:myNodal % nS)
+    
+      myNodal % lagWest = lWest
+
+ END SUBROUTINE SetWesternInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE GetWesternInterpolants_NodalStorage_3D( myNodal, lWest )
+ ! S/R GetWesternInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(in) :: myNodal
+   REAL(prec), INTENT(out)            :: lWest(0:myNodal % nS)
+    
+      lWest = myNodal % lagWest
+
+ END SUBROUTINE GetWesternInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE SetNorthernInterpolants_NodalStorage_3D( myNodal, lNorth )
+ ! S/R SetNorthernInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(inout) :: myNodal
+   REAL(prec), INTENT(in)                :: lNorth(0:myNodal % nP)
+    
+      myNodal % lagNorth = lNorth
+
+ END SUBROUTINE SetNorthernInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE GetNorthernInterpolants_NodalStorage_3D( myNodal, lNorth )
+ ! S/R GetNorthernInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(in) :: myNodal
+   REAL(prec), INTENT(out)            :: lNorth(0:myNodal % nP)
+    
+      lNorth = myNodal % lagNorth
+
+ END SUBROUTINE GetNorthernInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE SetSouthernInterpolants_NodalStorage_3D( myNodal, lSouth )
+ ! S/R SetSouthernInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(inout) :: myNodal
+   REAL(prec), INTENT(in)                :: lSouth(0:myNodal % nP)
+    
+      myNodal % lagSouth = lSouth
+
+ END SUBROUTINE SetSouthernInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE GetSouthernInterpolants_NodalStorage_3D( myNodal, lSouth )
+ ! S/R GetSouthernInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(in) :: myNodal
+   REAL(prec), INTENT(out)            :: lSouth(0:myNodal % nP)
+    
+      lSouth = myNodal % lagSouth
+
+ END SUBROUTINE GetSouthernInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE SetBottomInterpolants_NodalStorage_3D( myNodal, lBottom )
+ ! S/R SetBottomInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(inout) :: myNodal
+   REAL(prec), INTENT(in)                :: lBottom(0:myNodal % nQ)
+    
+      myNodal % lagBottom = lBottom
+
+ END SUBROUTINE SetBottomInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE GetBottomInterpolants_NodalStorage_3D( myNodal, lBottom )
+ ! S/R GetBottomInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(in) :: myNodal
+   REAL(prec), INTENT(out)            :: lBottom(0:myNodal % nQ)
+    
+      lBottom = myNodal % lagBottom
+
+ END SUBROUTINE GetBottomInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE SetTopInterpolants_NodalStorage_3D( myNodal, lTop )
+ ! S/R SetTopInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(inout) :: myNodal
+   REAL(prec), INTENT(in)                :: lTop(0:myNodal % nP)
+    
+      myNodal % lagTop = lTop
+
+ END SUBROUTINE SetTopInterpolants_NodalStorage_3D
+!
+!
+!
+ SUBROUTINE GetTopInterpolants_NodalStorage_3D( myNodal, lTop )
+ ! S/R GetTopInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_3D), INTENT(in) :: myNodal
+   REAL(prec), INTENT(out)            :: lTop(0:myNodal % nP)
+    
+      lTop = myNodal % lagTop
+
+ END SUBROUTINE GetTopInterpolants_NodalStorage_3D
 !
 !
 !==================================================================================================!

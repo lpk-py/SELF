@@ -42,9 +42,9 @@ PROGRAM TestQuadMesh
     CALL mesh % Trash( )
     
     ! Test the Default mesh
-    CALL mesh % LoadDefaultMesh( nodal % interp )
-    CALL mesh % WriteTecplot('DefaultMesh')
-    CALL mesh % Trash( )
+    !CALL mesh % LoadDefaultMesh( nodal % interp )
+    !CALL mesh % WriteTecplot('DefaultMesh')
+    !CALL mesh % Trash( )
     
 
  

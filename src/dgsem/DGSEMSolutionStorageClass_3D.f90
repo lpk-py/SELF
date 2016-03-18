@@ -9,10 +9,11 @@ MODULE DGSEMSolutionStorageClass_3D
 !
 !  
 ! =======================================================================================
-USE ConstantsDictionary
 USE ModelPrecision
+USE ConstantsDictionary
+USE ModelFlags
 
-
+USE NodalStorage_3D_Class
 IMPLICIT NONE
 
 
@@ -67,9 +68,12 @@ IMPLICIT NONE
       PROCEDURE :: SetBoundaryFlux => SetBoundaryFlux_DGSEM_3D
       PROCEDURE :: GetBoundaryFluxAtBoundary => GetBoundaryFluxAtBoundary_DGSEM_3D
       PROCEDURE :: SetBoundaryFluxAtBoundary => SetBoundaryFluxAtBoundary_DGSEM_3D
+      PROCEDURE :: GetBoundaryFluxAtBoundaryNode => GetBoundaryFluxAtBoundaryNode_DGSEMSolution_3D
+      PROCEDURE :: SetBoundaryFluxAtBoundaryNode => SetBoundaryFluxAtBoundaryNode_DGSEMSolution_3D
       PROCEDURE :: GetBoundaryFluxAtBoundaryWithVarID => GetBoundaryFluxAtBoundaryWithVarID_DGSEM_3D
       PROCEDURE :: SetBoundaryFluxAtBoundaryWithVarID => SetBoundaryFluxAtBoundaryWithVarID_DGSEM_3D 
       
+      PROCEDURE :: CalculateSolutionAtBoundaries => CalculateSolutionAtBoundaries_DGSEMSolution_3D
     END TYPE DGSEMSolution_3D
 
  
@@ -90,11 +94,19 @@ IMPLICIT NONE
    IMPLICIT NONE
    CLASS(DGSEMSolution_3D), INTENT(inout) :: myDGS
    INTEGER, INTENT(in)                    :: nS, nP, nQ, nEq
+   ! Local
+   INTEGER :: nMax
       
+      myDGS % nS = nS
+      myDGS % nP = nP
+      myDGS % nQ = nQ
+      myDGS % nMax = max(nS, nP, nQ)
+      nMax = myDGS % nMax
+
       ALLOCATE( myDGS % solution(0:nS,0:nP,0:nQ,1:nEq) )
       ALLOCATE( myDGS % tendency(0:nS,0:nP,0:nQ,1:nEq) )
-      ALLOCATE( myDGS % boundarySolution(0:max(nS,nP,nQ),0:max(nS,nP,nQ),1:nEq,1:4) ) 
-      ALLOCATE( myDGS % boundaryFlux(0:max(nS,nP,nQ),0:max(nS,nP,nQ),1:nEq,1:4) ) 
+      ALLOCATE( myDGS % boundarySolution(0:nMax,0:nMax,1:nEq,1:nHexFaces) ) 
+      ALLOCATE( myDGS % boundaryFlux(0:nMax,0:nMax,1:nEq,1:nHexFaces) ) 
 
       
       myDGS % solution = ZERO
@@ -651,6 +663,41 @@ SUBROUTINE GetBoundaryFlux_DGSEM_3D( myDGS, theFlux  )
 !
 !
 !
+ SUBROUTINE GetBoundaryFluxAtBoundaryNode_DGSEMSolution_3D( myDGS, boundary, i, j, theFlux  )
+ ! S/R GetBoundaryFluxAtBoundaryNode
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(DGSEMSolution_3D), INTENT(in) :: myDGS
+   INTEGER, INTENT(in)                 :: boundary, i, j
+   REAL(prec), INTENT(out)             :: theFlux(1:myDGS % nEq)
+
+      theFlux = myDGS % boundaryFlux(i,j,1:myDGS % nEq,boundary)
+
+ END SUBROUTINE GetBoundaryFluxAtBoundaryNode_DGSEMSolution_3D
+!
+!
+!
+ SUBROUTINE SetBoundaryFluxAtBoundaryNode_DGSEMSolution_3D( myDGS, boundary, i, j, theFlux  )
+ ! S/R SetBoundaryFluxAtBoundaryNode
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(DGSEMSolution_3D), INTENT(inout) :: myDGS
+   INTEGER, INTENT(in)                    :: boundary, i, j
+   REAL(prec), INTENT(in)                 :: theFlux(1:myDGS % nEq)
+   ! LOCAL
+
+      myDGS % boundaryFlux(i,j,1:myDGS % nEq,boundary) = theFlux
+
+ END SUBROUTINE SetBoundaryFluxAtBoundaryNode_DGSEMSolution_3D
+!
+!
+!
  SUBROUTINE GetBoundaryFluxAtBoundaryWithVarID_DGSEM_3D( myDGS, boundary, varID, theFlux  )
  ! S/R GetBoundaryFlux
  !  
@@ -683,6 +730,91 @@ SUBROUTINE GetBoundaryFlux_DGSEM_3D( myDGS, theFlux  )
       myDGS % boundaryFlux(0:myDGS % nMax, 0:myDGS % nMax, varID, boundary) = theFlux
 
  END SUBROUTINE SetBoundaryFluxAtBoundaryWithVarID_DGSEM_3D
+!
+!
+!==================================================================================================!
+!--------------------------------- Type Specific Routines -----------------------------------------!
+!==================================================================================================!
+!
+!
+ SUBROUTINE CalculateSolutionAtBoundaries_DGSEMSolution_3D( myDGS, dgStorage )
+ ! S/R CalculateSolutionAtBoundaries
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(DGSEMSolution_3D), INTENT(inout) :: myDGS
+   TYPE(NodalStorage_3D), INTENT(in)      :: dgStorage
+   ! LOCAL
+   INTEGER :: iS, iP, iQ, iEq, nS, nP, nQ, nEq
+   REAL(prec) :: lagSouth(0:myDGS % nP)
+   REAL(prec) :: lagNorth(0:myDGS % nP)
+   REAL(prec) :: lagWest(0:myDGS % nS)
+   REAL(prec) :: lagEast(0:myDGS % nS)
+   REAL(prec) :: lagBottom(0:myDGS % nQ)
+   REAL(prec) :: lagTop(0:myDGS % nQ)
+   
+      CALL myDGS % GetNumberOfEquations( nEq )
+      CALL myDGS % GetNumberOfNodes( nS, nP, nQ )
+       
+      CALL dgStorage % GetSouthernInterpolants( lagSouth )
+      CALL dgStorage % GetEasternInterpolants( lagEast )
+      CALL dgStorage % GetNorthernInterpolants( lagNorth )
+      CALL dgStorage % GetWesternInterpolants( lagWest )
+      CALL dgStorage % GetBottomInterpolants( lagBottom )
+      CALL dgStorage % GetTopInterpolants( lagTop )
+       
+      DO iQ = 0, nQ 
+         DO iP = 0, nP
+            DO iEq = 1, nEq 
+          
+               ! Setting the "west boundary"
+               myDGS % boundarySolution(iP,iQ,iEq,west) = DOT_PRODUCT( lagWest, &
+                                                          myDGS % solution(:,iP,iQ,iEq) )
+
+               ! Setting the "east boundary"
+               myDGS % boundarySolution(iP,iQ,iEq,east) = DOT_PRODUCT( lagEast, &
+                                                          myDGS % solution(:,iP,iQ,iEq) )
+
+            ENDDO 
+         ENDDO 
+         
+
+         DO iS = 0, nS 
+            DO iEq = 1, nEq 
+
+               ! Setting the "south boundary"
+               myDGS % boundarySolution(iS,iQ,iEq,south)  = DOT_PRODUCT( lagSouth, &
+                                                            myDGS % solution(iS,:,iQ,iEq) )
+
+               ! Setting the "north boundary"
+               myDGS % boundarySolution(iS,iQ,iEq,north)  = DOT_PRODUCT( lagNorth, &
+                                                            myDGS % solution(iS,:,iQ,iEq) )
+
+            ENDDO 
+         ENDDO
+      ENDDO
+
+      DO iP = 0, nP 
+         DO iS = 0, nS 
+            DO iEq = 1, nEq 
+          
+               ! Setting the "bottom boundary"
+               myDGS % boundarySolution(iS,iP,iEq,bottom) = DOT_PRODUCT( lagBottom, &
+                                                          myDGS % solution(iS,iP,:,iEq) )
+ 
+               ! Setting the "top boundary"
+               myDGS % boundarySolution(iS,iP,iEq,top) = DOT_PRODUCT( lagTop, &
+                                                          myDGS % solution(iS,iP,:,iEq) )
+
+            ENDDO
+         ENDDO 
+         
+
+      ENDDO
+   
+ END SUBROUTINE CalculateSolutionAtBoundaries_DGSEMSolution_3D
 !
 !
 !
