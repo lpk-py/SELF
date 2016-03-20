@@ -1886,9 +1886,9 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
                ! Now we default the secondary element information and the swap flag
                myHexMesh % faces( nFaces ) % elementIDs(2)   = BoundaryFlagDefault
                myHexMesh % faces( nFaces ) % elementSides(2) = k
-               myHexMesh % faces( nFaces ) % iStart          = 1
+               myHexMesh % faces( nFaces ) % iStart          = 0
                myHexMesh % faces( nFaces ) % iInc            = 1
-               myHexMesh % faces( nFaces ) % jStart          = 1
+               myHexMesh % faces( nFaces ) % jStart          = 0
                myHexMesh % faces( nFaces ) % jInc            = 1
                myHexMesh % faces( nFaces ) % swapDimensions  = 0
 
@@ -1960,13 +1960,13 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
          SELECT CASE ( nShifts )
          
             CASE (0)
-               myHexMesh % faces( faceID ) % iStart          = 1
+               myHexMesh % faces( faceID ) % iStart          = 0
                myHexMesh % faces( faceID ) % iInc            = 1
-               myHexMesh % faces( faceID ) % jStart          = 1
+               myHexMesh % faces( faceID ) % jStart          = 0
                myHexMesh % faces( faceID ) % jInc            = 1
                myHexMesh % faces( faceID ) % swapDimensions  = 0
             CASE (1)
-               myHexMesh % faces( faceID ) % iStart          = 1
+               myHexMesh % faces( faceID ) % iStart          = 0
                myHexMesh % faces( faceID ) % iInc            = 1
                myHexMesh % faces( faceID ) % jStart          = nS
                myHexMesh % faces( faceID ) % jInc            = -1
@@ -1980,7 +1980,7 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
             CASE (3)
                myHexMesh % faces( faceID ) % iStart          = nS
                myHexMesh % faces( faceID ) % iInc            = -1
-               myHexMesh % faces( faceID ) % jStart          = 1
+               myHexMesh % faces( faceID ) % jStart          = 0
                myHexMesh % faces( faceID ) % jInc            = 1
                myHexMesh % faces( faceID ) % swapDimensions  = 1
             CASE DEFAULT

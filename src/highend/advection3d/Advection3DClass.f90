@@ -1078,6 +1078,7 @@ SUBROUTINE GetTendencyWithVarID_Advection( myDGSEM, iEl, varID, theTend  )
    REAL(prec) :: flux(1:myDGSEM % nEq)
    REAL(prec) :: inState(0:myDGSEM % nS,0:myDGSEM % nP, 1:myDGSEM % nEq)
    REAL(prec) :: exState(0:myDGSEM % nS,0:myDGSEM % nP, 1:myDGSEM % nEq)
+   REAL(prec) :: inS(1:myDGSEM % nEq), outS(1:myDGSEM % nEq)
    REAL(prec) :: x, y, z
    REAL(prec) :: u(0:myDGSEM % nS, 0:myDGSEM % nP)
    REAL(prec) :: v(0:myDGSEM % nS, 0:myDGSEM % nP) 
@@ -1087,7 +1088,7 @@ SUBROUTINE GetTendencyWithVarID_Advection( myDGSEM, iEl, varID, theTend  )
       nEQ = myDGSEM % params % nTracers
 
       CALL myDGSEM % dgStorage % GetNumberOfNodes( nS, nP, nQ )
-
+      
       CALL myDGSEM % mesh % GetFacePrimaryElementID( iFace, e1 )
       CALL myDGSEM % mesh % GetFacePrimaryElementSide( iFace, s1 )
       CALL myDGSEM % mesh % GetFaceSecondaryElementID( iFace, e2 )
@@ -1108,26 +1109,31 @@ SUBROUTINE GetTendencyWithVarID_Advection( myDGSEM, iEl, varID, theTend  )
          CALL myDGSEM % GetBoundarySolutionAtBoundary( e2, s2, exState )
         
      
-         k = iStart*(1-swapDim) + jStart*(swapDim)
-         l = iStart*(swapDim) + jStart*(1-swapDim)
- 
+         k = (iStart-iInc)*(1-swapDim) + (jStart-jInc)*(swapDim)
+         l = (iStart-iInc)*(swapDim) + (jStart-jInc)*(1-swapDim)
+         !print*, k,l
          DO j = 0, nS ! Loop over the nodes
-            DO i = 0, nP
+         
+            k = (k + (jInc)*(swapDim))*(swapDim) + (iStart-iInc)*(1-swapDim)
+            l = (l + (jInc)*(1-swapDim))*(1-swapDim) + (iStart-iInc)*(swapDim)
             
+            DO i = 0, nP
+               k = k + (iInc)*(1-swapDim)
+               l = l + (iInc)*(swapDim)
+              
                CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, i, j, s1 ) ! Get nHat
 
-
-               flux = RiemannSolver( inState(i,j,:), exState(k,l,:), &
+               inS  = inState(i,j,1:nEq)
+               outS = exState(k,l,1:nEq)
+               flux = RiemannSolver( inS, outS, &
                                      u(i,j), v(i,j), w(i,j), &
                                      nHat, nEq )*nHatLength
 
                ! Store the flux for the elements which share this edge
                CALL myDGSEM % SetBoundaryFluxAtBoundaryNode( e1, s1, i, j, flux )
                CALL myDGSEM % SetBoundaryFluxAtBoundaryNode( e2, s2, k, l, -flux )
-             
-               k = (k + iInc)*(1-swapDim) + (k + jInc)*(swapDim)
-               l = (l + iInc)*(swapDim) + (l + jInc)*(1-swapDim)
 
+               
             ENDDO ! i, 
          ENDDO ! j, loop over the nodes
          
@@ -1135,17 +1141,19 @@ SUBROUTINE GetTendencyWithVarID_Advection( myDGSEM, iEl, varID, theTend  )
 
          DO j = 0, nS ! loop over the nodes
             DO i = 0, nP
-       
+               
                CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, i, j, s1 ) ! Get nHat
             
                ! Get the boundary point locations
                CALL myDGSEM % mesh % GetBoundaryLocationAtNode( e1, x, y, z, i, j, s1 )
 
                ! Calculate the external state
-               exState(i,j,1:nEq) = GetExternalState( nEq, x, y, z, tn, e2, inState(i,j,1:nEq))
+               inS = inState(i,j,1:nEq)
+               exState(i,j,1:nEq) = GetExternalState( nEq, x, y, z, tn, e2, inS)
  
                ! Calculate the RIEMANN flux
-               flux = RiemannSolver( inState(i,j,1:nEq), exState(i,j,1:nEq), &
+               outS = exState(i,j,1:nEq)
+               flux = RiemannSolver( inS, outS, &
                                      u(i,j), v(i,j), w(i,j), &
                                      nHat, nEq )*nHatLength
  

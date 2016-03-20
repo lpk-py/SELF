@@ -8,7 +8,7 @@ USE Timing
 ! src/geom/
 USE HexMeshClass
 ! src/highend/shallowwater
-USE Advection3DParamsClass
+USE AdvectionParamsClass
 USE Advection3DClass
 
  IMPLICIT NONE
@@ -35,8 +35,8 @@ USE Advection3DClass
 
       CALL myAdv % clocks % StartThisTimer( 0 )
          CALL myAdv % WriteTecplot( 'Advection.'//iterChar )
-      CALL myDGSEM % clocks % StopThisTimer( 0 )
-      CALL myDGSEM % clocks % AccumulateTimings( ) 
+      CALL myAdv % clocks % StopThisTimer( 0 )
+      CALL myAdv % clocks % AccumulateTimings( ) 
 
 
       DO iT = iter0, iter0+nT-1 ! Loop over time-steps
@@ -49,8 +49,8 @@ USE Advection3DClass
              WRITE(iterChar,'(I10.10)') iT+1
              CALL myAdv % clocks % StartThisTimer( 0 )
                 CALL myAdv % WriteTecplot( 'Advection.'//iterChar )
-             CALL myDGSEM % clocks % StopThisTimer( 0 )
-             CALL myDGSEM % clocks % AccumulateTimings( ) 
+             CALL myAdv % clocks % StopThisTimer( 0 )
+             CALL myAdv % clocks % AccumulateTimings( ) 
 
           ENDIF
 
