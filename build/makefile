@@ -11,11 +11,11 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-#OPT=-O3 -fopenmp
-OPT=-O0 -fcheck=all -Wall
+OPT=-O3
+#OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
-#SRCDIR=/home/joe/Desktop/work/software/SELF/src/
-SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
+SRCDIR=/home/joe/Desktop/work/software/SELF/src/
+#SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -132,6 +132,23 @@ NodalStorage_3D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Le
                           Lagrange_1D_Class.o Lagrange_3D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}nodal/NodalStorage_3D_Class.f90 -o $@
 
+# ---------------------------------------------------------------------- #
+#                          ~/src/filters/                                #
+# ---------------------------------------------------------------------- #
+
+testfilter1D : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
+               Lagrange_1D_Class.o NodalStorage_1D_Class.o AdaptiveFilterStorage1D_Class.o \
+               TestFilter_1D.o
+	${FC} ${OPT} ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
+                Lagrange_1D_Class.o NodalStorage_1D_Class.o AdaptiveFilterStorage1D_Class.o \
+                TestFilter_1D.o -o $@
+                
+TestFilter_1D.o : ModelPrecision.o ModelFlags.o NodalStorage_1D_Class.o AdaptiveFilterStorage1D_Class.o 
+	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_1D.f90 -o $@
+
+AdaptiveFilterStorage1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                                  Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}filters/AdaptiveFilterStorage1D_Class.f90 -o $@
 
 # ---------------------------------------------------------------------- #
 #                            ~/src/dgsem/                                #
@@ -378,7 +395,7 @@ Advection3DClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonR
 Advection3D_InitialConditions.o : ModelPrecision.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
 	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_InitialConditions.f90 -o $@
 
-Advection3D_Driver.o : ModelPrecision.o Timing.o HexClass.o Advection3DParamsClass.o Advection3DClass.o
+Advection3D_Driver.o : ModelPrecision.o Timing.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
 	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_Driver.f90 -o $@
 # ---------------------------------------------------------------------- #
 #                          Other directives                              #
