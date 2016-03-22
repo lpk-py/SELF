@@ -1,0 +1,67 @@
+\begin{ControlInput}
+
+   \begin{RunParameters}
+      mesh file name   = "MeshFiles/CircleFlow.mesh"
+      plot file name   = "PlotFiles/CircleFlow.tec"
+      stats file name  = "Statistics/CircleFlow.txt"
+      mesh file format = "ISM-V2"
+      polynomial order = 6
+   \end{RunParameters}
+
+   \begin{MeshParameters}
+      mesh type            = "conforming"
+      background grid size = [0.2,0.2,0.2]
+   \end{MeshParameters}
+
+   \begin{SpringSmoother}
+      smoothing            = "ON"
+      smoothing type       = "LinearAndCrossBarSpring"
+      spring constant      = 1.0
+      mass                 = 1.0
+      rest length          = 0.0
+      damping coefficient  = 3.0
+      number of iterations = 25
+      time step            = 0.1
+   \end{SpringSmoother}
+
+\end{ControlInput}
+
+\begin{Model}
+\begin{OuterBoundary}
+      \begin{ParametricEquationCurve}
+	 name = ""
+	 xEqn = "f(t) =  5.0*t"
+	 yEqn = "f(t) =  0.0"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "DIRICHLET"
+	 xEqn = "f(t) =  5.0"
+	 yEqn = "f(t) =  t"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "DIRICHLET"
+	 xEqn = "f(t) =  5.0*(1.0-t)"
+	 yEqn = "f(t) =  1.0"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+      \begin{ParametricEquationCurve}
+	 name = "DIRICHLET"
+	 xEqn = "f(t) =  0.0"
+	 yEqn = "f(t) =  (1.0-t)"
+	 zEqn = "f(t) =  0.0"
+      \end{ParametricEquationCurve}
+\end{OuterBoundary}
+
+\begin{InnerBoundaries}
+
+   \begin{ParametricEquationCurve}
+      name = "NEUMANN"
+      xEqn = "f(t) = 2.5 + 0.2*cos(2.0*pi*t)"
+      yEqn = "f(t) = 0.5 + 0.2*sin(2.0*pi*t)"
+      zEqn = "f(t) = 0.0"
+   \end{ParametricEquationCurve}
+\end{InnerBoundaries}
+\end{Model}
+\end{File}

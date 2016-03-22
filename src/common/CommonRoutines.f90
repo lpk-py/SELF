@@ -624,5 +624,54 @@ END FUNCTION UpperCase
       Ainv(3,3) = detSubmat/detA
 
  END FUNCTION Invert_3x3 
- 
+!
+!
+! 
+ FUNCTION Map3Dto1D( array3D, N, M, P, N1D ) RESULT( array1D )
+ ! 
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   INTEGER    :: N, M, P, N1D
+   REAL(prec) :: array3D(0:N,0:M,0:P)
+   REAL(prec) :: array1D(1:N1D)
+   ! Local
+   INTEGER    :: i, j, k, ind1D
+
+      DO k = 0, P
+         DO j = 0, M
+            DO i = 0, N
+               ind1D = i + 1 + (j + k*(M+1))*(N+1)
+               array1D(ind1D) = array3D(i,j,k)
+            ENDDO
+         ENDDO
+      ENDDO
+            
+ END FUNCTION Map3Dto1D
+!
+!
+! 
+ FUNCTION Map1Dto3D( array1D, N, M, P, N1D ) RESULT( array3D )
+ ! 
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   INTEGER    :: N, M, P, N1D
+   REAL(prec) :: array1D(1:N1D)
+   REAL(prec) :: array3D(0:N,0:M,0:P)
+   ! Local
+   INTEGER    :: i, j, k, ind1D
+
+      DO k = 0, P
+         DO j = 0, M
+            DO i = 0, N
+               ind1D = i + 1 + (j + k*(M+1))*(N+1)
+               array3D(i,j,k) = array1D(ind1D)
+            ENDDO
+         ENDDO
+      ENDDO
+            
+ END FUNCTION Map1Dto3D 
 END MODULE COMMONROUTINES
