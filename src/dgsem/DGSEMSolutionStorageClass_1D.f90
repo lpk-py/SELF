@@ -12,6 +12,7 @@ MODULE DGSEMSolutionStorageClass_1D
 USE ConstantsDictionary
 USE ModelPrecision
 
+USE NodalStorage_1D_Class
 
 IMPLICIT NONE
 
@@ -73,6 +74,7 @@ IMPLICIT NONE
       PROCEDURE :: GetBoundaryFluxAtBoundaryWithVarID => GetBoundaryFluxAtBoundaryWithVarID_DGSEM_1D
       PROCEDURE :: SetBoundaryFluxAtBoundaryWithVarID => SetBoundaryFluxAtBoundaryWithVarID_DGSEM_1D 
       
+      PROCEDURE :: CalculateSolutionAtBoundaries => CalculateSolutionAtBoundaries_DGSEMSolution_1D
     END TYPE DGSEMSolution_1D
 
  
@@ -753,6 +755,44 @@ SUBROUTINE GetBoundaryFluxWithVarID_DGSEM_1D( myDGS, varID, theFlux  )
  END SUBROUTINE SetBoundaryFluxAtBoundaryWithVarID_DGSEM_1D
 !
 !
+!==================================================================================================!
+!--------------------------------- Type Specific Routines -----------------------------------------!
+!==================================================================================================!
 !
+!
+ SUBROUTINE CalculateSolutionAtBoundaries_DGSEMSolution_1D( myDGS, dgStorage )
+ ! S/R CalculateSolutionAtBoundaries
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(DGSEMSolution_1D), INTENT(inout) :: myDGS
+   TYPE(NodalStorage_1D), INTENT(in)      :: dgStorage
+   ! LOCAL
+   INTEGER :: iS, iEq, nS,  nEq
+   REAL(prec) :: lagWest(0:myDGS % nS)
+   REAL(prec) :: lagEast(0:myDGS % nS)
+   
+      CALL myDGS % GetNumberOfEquations( nEq )
+      CALL myDGS % GetNumberOfNodes( nS )
+      
+      CALL dgStorage % GetEasternInterpolants( lagEast )
+      CALL dgStorage % GetWesternInterpolants( lagWest )
+       
+      DO iEq = 1, nEq ! Loop over the number of equations
+          
+         ! Setting the "west boundary"
+         myDGS % boundarySolution(iEq,1) = DOT_PRODUCT( lagWest, myDGS % solution(:,iEq) )
 
+         ! Setting the "east boundary"
+         myDGS % boundarySolution(iEq,2) = DOT_PRODUCT( lagEast, myDGS % solution(:,iEq) )
+
+       ENDDO 
+         
+   
+ END SUBROUTINE CalculateSolutionAtBoundaries_DGSEMSolution_1D
+!
+!
+!
 END MODULE DGSEMSolutionStorageClass_1D

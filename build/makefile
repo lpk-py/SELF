@@ -14,8 +14,8 @@ INC=
 OPT=-O3
 #OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
-SRCDIR=/home/joe/Desktop/work/software/SELF/src/
-#SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
+#SRCDIR=/home/joe/Desktop/work/software/SELF/src/
+SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -137,18 +137,40 @@ NodalStorage_3D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Le
 # ---------------------------------------------------------------------- #
 
 testfilter1D : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
-               Lagrange_1D_Class.o NodalStorage_1D_Class.o AdaptiveFilterStorage1D_Class.o \
+               Lagrange_1D_Class.o NodalStorage_1D_Class.o RollOffFilter1D_Class.o \
                TestFilter_1D.o
 	${FC} ${OPT} ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
-                Lagrange_1D_Class.o NodalStorage_1D_Class.o AdaptiveFilterStorage1D_Class.o \
+                Lagrange_1D_Class.o NodalStorage_1D_Class.o RollOffFilter1D_Class.o \
                 TestFilter_1D.o -o $@
+
+testfilter3D : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
+               Lagrange_1D_Class.o Lagrange_3D_Class.o NodalStorage_3D_Class.o RollOffFilter3D_Class.o \
+               TestFilter_3D.o
+	${FC} ${OPT} ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Legendre.o \
+                Lagrange_1D_Class.o Lagrange_3D_Class.o NodalStorage_3D_Class.o RollOffFilter3D_Class.o \
+                TestFilter_3D.o -o $@
+
                 
-TestFilter_1D.o : ModelPrecision.o ModelFlags.o NodalStorage_1D_Class.o AdaptiveFilterStorage1D_Class.o 
+#TestFilter_1D.o : ModelPrecision.o ModelFlags.o NodalStorage_1D_Class.o ModalCutoffFilter1D_Class.o 
+#	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_1D.f90 -o $@
+
+TestFilter_1D.o : ModelPrecision.o ModelFlags.o NodalStorage_1D_Class.o RollOffFilter1D_Class.o 
 	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_1D.f90 -o $@
 
-AdaptiveFilterStorage1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+TestFilter_3D.o : ModelPrecision.o ModelFlags.o NodalStorage_3D_Class.o RollOffFilter3D_Class.o 
+	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_3D.f90 -o $@
+
+ModalCutoffFilter1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
                                   Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
-	${FC} ${OPT} -c ${SRCDIR}filters/AdaptiveFilterStorage1D_Class.f90 -o $@
+	${FC} ${OPT} -c ${SRCDIR}filters/ModalCutoffFilter1D_Class.f90 -o $@
+
+RollOffFilter1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                          Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter1D_Class.f90 -o $@
+
+RollOffFilter3D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                          Legendre.o Lagrange_3D_Class.o NodalStorage_3D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter3D_Class.f90 -o $@
 
 # ---------------------------------------------------------------------- #
 #                            ~/src/dgsem/                                #
@@ -300,6 +322,42 @@ ShallowWater_InitialConditions.o : ModelPrecision.o QuadMeshClass.o SWParamsClas
 ShallowWater_Driver.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ShallowWaterClass.o
 	${FC} ${OPT} -c ${SRCDIR}highend/shallowwater/ShallowWater_Driver.f90 -o $@
 
+# ---------------------------------------------------------------------- #
+#                     ~/src/highend/Burgers1D/                           #
+# ---------------------------------------------------------------------- #
+
+BUROBJS = ModelPrecision.o \
+          ModelFlags.o \
+          ConstantsDictionary.o \
+          CommonRoutines.o \
+          Lagrange_1D_Class.o \
+          Legendre.o \
+          NodalStorage_1D_Class.o \
+          DGSEMSolutionStorageClass_1D.o \
+          RollOffFilter1D_Class.o \
+          BurgersParamsClass.o \
+          BurgersClass.o
+
+
+initialize_burger : ${BUROBJS} Burgers_InitialConditions.o
+	${FC} ${OPT} ${BUROBJS} Burgers_InitialConditions.o -o $@
+
+integrate_burger : ${BUROBJS} Burgers_Driver.o
+	${FC} ${OPT} ${BUROBJS} Burgers_Driver.o -o $@
+         
+BurgersParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
+	${FC} ${OPT} -c ${SRCDIR}highend/burgers1D/BurgersParamsClass.f90 -o $@
+
+BurgersClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                   Lagrange_1D_Class.o NodalStorage_1D_Class.o DGSEMSolutionStorageClass_1D.o \
+                   RollOffFilter1D_Class.o BurgersParamsClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/burgers1D/BurgersClass.f90 -o $@
+
+Burgers_InitialConditions.o : ModelPrecision.o BurgersParamsClass.o BurgersClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/burgers1D/Burgers_InitialConditions.f90 -o $@
+
+Burgers_Driver.o : ModelPrecision.o BurgersParamsClass.o BurgersClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/burgers1D/Burgers_Driver.f90 -o $@
 
 # ---------------------------------------------------------------------- #
 #                     ~/src/highend/advection2d /                        #
@@ -367,6 +425,7 @@ ADV3DOBJS = ModelPrecision.o \
           Chebyshev.o \
           NodalStorage_3D_Class.o \
           DGSEMSolutionStorageClass_3D.o \
+          RollOffFilter3D_Class.o \
           SurfaceClass_3D.o \
           VectorClass.o \
           NodeClass_3D.o \

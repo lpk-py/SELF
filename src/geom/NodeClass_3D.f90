@@ -27,7 +27,7 @@ IMPLICIT NONE
       INTEGER, PRIVATE           :: key
       INTEGER, PRIVATE           :: nodeType      ! An INTEGER flag for INTERIOR or BOUNDARY
       REAL(prec), PRIVATE        :: x, y, z
-      TYPE( LinkedList ), PUBLIC :: nodeToElement ! A linked list of element IDs which share this node.
+    !  TYPE( LinkedList ), PUBLIC :: nodeToElement ! A linked list of element IDs which share this node.
       TYPE( Node ), POINTER      :: next
 
       CONTAINS
@@ -101,7 +101,7 @@ IMPLICIT NONE
       
       CALL thisNode % SetType( INTERIOR )
       
-      CALL thisNode % nodeToElement % Build( )
+     ! CALL thisNode % nodeToElement % Build( )
       
       thisNode % next => NULL(  )
       
@@ -118,7 +118,7 @@ IMPLICIT NONE
    IMPLICIT NONE
    CLASS( Node ), INTENT(inout) :: thisNode
 
-      CALL thisNode % nodeToElement % Trash( )
+     ! CALL thisNode % nodeToElement % Trash( )
 
  END SUBROUTINE Trash_Node
 !

@@ -57,6 +57,8 @@ USE Lagrange_3D_Class
 ! src/nodal/
 USE NodalStorage_3D_Class
 USE DGSEMSolutionStorageClass_3D
+! src/filters/
+USE RollOffFilter3D_Class
 ! src/geometry/
 USE FaceClass
 USE HexElementClass  
@@ -76,14 +78,10 @@ IMPLICIT NONE
      
 
 ! ================================================================================================ !
-!     The Advection is based on the DGSEM_3D framework. Additional routines are added for 
-!     calculating tracer gradients so that Laplacian Diffusion can be added. 
-!     Future development will include options for:
-!     (1) Flux Dealiasing (global) [Kirby and Karniadakis (2003)]
-!     (2) Adaptive Filtering [ Flad, Beck, and Munz (2016) ] (Useful for variable flow)
-!     (3) Legendre Basis solution filtering to limit oscillations near sharp fronts.
-!     These additions are meant to provide schemes that maintain stability even with the development
-!     of sharp fronts.
+!     The Advection is based on the DGSEM_3D framework. An Adaptive Roll-off Filter (ARF) is applied
+!     to prevent the buildup of aliasing errors that can lead to spurious numerical oscillations 
+!     and possibly instability. The adaptive algorithm is similar to [ Flad, Beck, and Munz (2016) ] 
+!     but has been modified to use a roll-off filter and is applied to a passive tracer.
 ! ================================================================================================ !  
 
     TYPE Advection
@@ -94,6 +92,9 @@ IMPLICIT NONE
       TYPE( DGSEMSolution_3D ), ALLOCATABLE :: velocity(:)
       TYPE( DGSEMSolution_3D ), ALLOCATABLE :: relax(:)
       TYPE( DGSEMSolution_3D ), ALLOCATABLE :: relaxFactor(:)
+      TYPE( RollOffFilter3D )               :: modalFilter
+      REAL(prec), ALLOCATABLE               :: E1(:,:), E2(:,:), lim(:,:,:)
+      REAL(prec), ALLOCATABLE               :: dE1(:,:), dE2(:,:)
       TYPE( AdvectionParams )               :: params
       TYPE( MultiTimers )                   :: clocks
       REAL(prec), ALLOCATABLE               :: plMatS(:,:), plMatP(:,:), plMatQ(:,:)
@@ -107,6 +108,8 @@ IMPLICIT NONE
       ! DGSEMSolution_2DStorage_Class Wrapper Routines
       PROCEDURE :: GetSolution => GetSolution_Advection
       PROCEDURE :: SetSolution => SetSolution_Advection
+      PROCEDURE :: GetSolutionWithVarID => GetSolutionWithVarID_Advection
+      PROCEDURE :: SetSolutionWithVarID => SetSolutionWithVarID_Advection
       PROCEDURE :: GetSolutionAtNode => GetSolutionAtNode_Advection
       PROCEDURE :: SetSolutionAtNode => SetSolutionAtNode_Advection
       PROCEDURE :: GetSolutionAtNodeWithVarID => GetSolutionAtNodeWithVarID_Advection
@@ -142,6 +145,7 @@ IMPLICIT NONE
       
        ! Type Specific Routines
       PROCEDURE :: GlobalTimeDerivative => GlobalTimeDerivative_Advection
+      PROCEDURE :: DoTheAdaptiveFiltering => DoTheAdaptiveFiltering_Advection
       PROCEDURE :: ForwardStepRK3 => ForwardStepRK3_Advection
       PROCEDURE :: EdgeFlux => EdgeFlux_Advection
       PROCEDURE :: MappedTimeDerivative => MappedTimeDerivative_Advection 
@@ -182,6 +186,24 @@ IMPLICIT NONE
 
       CALL myDGSEM % params % Build( )
 
+      !  /////// Clock setup //////// !
+      CALL myDGSEM % clocks % Build( )
+
+      tID = 1
+      CALL myDGSEM % clocks % AddTimer( 'DoTheAdaptiveFilter', tID )
+      tID = tID + 1
+
+      CALL myDGSEM % clocks % AddTimer( 'CalculateSolutionAtBoundaries', tID )
+      tID = tID + 1
+
+      CALL myDGSEM % clocks % AddTimer( 'EdgeFlux', tID )
+      tID = tID + 1
+      
+      CALL myDGSEM % clocks % AddTimer( 'MappedTimeDerivative', tID )
+      tID = tID + 1
+
+      CALL myDGSEM % clocks % AddTimer( 'File-I/O', 0 )
+      ! ///////////////////////////// !
 
       nS = myDGSEM % params % polyDeg
       nP = nS
@@ -193,22 +215,30 @@ IMPLICIT NONE
       myDGSEM % nPlot   = myDGSEM % params % nPlot
       
       nPlot = myDGSEM % params % nPlot
-      
+
       ALLOCATE( sNew(0:nPlot) )
       CALL myDGSEM % dGStorage % Build( nS, nP, nQ, GAUSS, DG )
- 
+      CALL myDGSEM % modalFilter % Build( myDGSEM % dgStorage, &
+                                          myDGSEM % params % nCutoff ) 
+
       CALL myDGSEM % BuildHexMesh( )
-      
-      PRINT*, 'S/R Build : BuildHexMesh complete '
 
       ! Set up the solution, relaxation fields, bathymetry, and vorticity
       ALLOCATE( myDGSEM % sol(1:myDGSEM % mesh % nElems) )
       ALLOCATE( myDGSEM % relax(1:myDGSEM % mesh % nElems) )
       ALLOCATE( myDGSEM % relaxFactor(1:myDGSEM % mesh % nElems) )
       ALLOCATE( myDGSEM % velocity(1:myDGSEM % mesh % nElems) )
-
-      PRINT*, 'S/R Build : Allocating space begins '
-
+      ALLOCATE( myDGSEM % E1(1:myDGSEM % mesh % nElems,1:myDGSEM % nEq) )
+      ALLOCATE( myDGSEM % E2(1:myDGSEM % mesh % nElems,1:myDGSEM % nEq) )
+      ALLOCATE( myDGSEM % dE1(1:myDGSEM % mesh % nElems,1:myDGSEM % nEq) )
+      ALLOCATE( myDGSEM % dE2(1:myDGSEM % mesh % nElems,1:myDGSEM % nEq) )
+      ALLOCATE( myDGSEM % lim(1:myDGSEM % nEq,1:myDGSEM % mesh % nElems,1:3) )
+      myDGSEM % E1  = ZERO
+      myDGSEM % E2  = ZERO
+      myDGSEM % dE1 = ZERO
+      myDGSEM % dE2 = ZERO 
+      myDGSEM % lim = ZERO
+ 
       ! Build and initialize the solution and the relaxation fields to zero
       DO iEl = 1, myDGSEM % mesh % nElems
          CALL myDGSEM % sol(iEl) % Build( nS, nP, nQ, myDGSEM % nEq )
@@ -245,21 +275,6 @@ IMPLICIT NONE
       DEALLOCATE(sNew)
 
       
-      !  /////// Clock setup //////// !
-      CALL myDGSEM % clocks % Build( )
-
-      tID = 1
-      CALL myDGSEM % clocks % AddTimer( 'CalculateSolutionAtBoundaries', tID )
-      tID = tID + 1
-
-      CALL myDGSEM % clocks % AddTimer( 'EdgeFlux', tID )
-      tID = tID + 1
-      
-      CALL myDGSEM % clocks % AddTimer( 'MappedTimeDerivative', tID )
-      tID = tID + 1
-
-      CALL myDGSEM % clocks % AddTimer( 'File-I/O', 0 )
-      ! ///////////////////////////// !
       
  END SUBROUTINE Build_Advection
 !
@@ -284,15 +299,21 @@ IMPLICIT NONE
         CALL myDGSEM % relaxFactor(iEl) % Trash( )
         CALL myDGSEM % velocity(iEl) % Trash( )
      ENDDO
-
+    
      CALL myDGSEM % dGStorage % Trash( )
+     
      CALL myDGSEM % mesh % Trash( )
+     
      CALL myDGSEM % clocks % Trash( )
-
+     CALL myDGSEM % modalFilter % Trash( )
+     
      DEALLOCATE( myDGSEM % sol ) 
      DEALLOCATE( myDGSEM % relax )
      DEALLOCATE( myDGSEM % relaxFactor )
      DEALLOCATE( myDGSEM % velocity )
+     DEALLOCATE( myDGSEM % E1, myDGSEM % E2 )
+     DEALLOCATE( myDGSEM % lim )
+     DEALLOCATE( myDGSEM % dE1, myDGSEM % dE2 )
      DEALLOCATE( myDGSEM % plMatS, myDGSEM % plMatP, myDGSEM % plMatQ )
 
  END SUBROUTINE Trash_Advection
@@ -366,6 +387,40 @@ IMPLICIT NONE
       CALL myDGSEM % sol(iEl) % SetSolution( theSolution )
 
  END SUBROUTINE SetSolution_Advection
+!
+!
+!
+ SUBROUTINE GetSolutionWithVarID_Advection( myDGSEM, iEl, varID, theSolution  )
+ ! S/R GetSolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(Advection), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)          :: iEl, varID
+   REAL(prec), INTENT(out)      :: theSolution(0:myDGSEM % nS, 0:myDGSEM % nP, 0:myDGSEM % nQ)
+
+      CALL myDGSEM % sol(iEl) % GetSolutionWithVarID( varID, theSolution )
+
+ END SUBROUTINE GetSolutionWithVarID_Advection
+!
+!
+!
+ SUBROUTINE SetSolutionWithVarID_Advection( myDGSEM, iEl, varID, theSolution  )
+ ! S/R SetSolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(Advection), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl, varID
+   REAL(prec), INTENT(in)          :: theSolution(0:myDGSEM % nS, 0:myDGSEM % nP, 0:myDGSEM % nQ)
+
+      CALL myDGSEM % sol(iEl) % SetSolutionWithVarID( varID, theSolution )
+
+ END SUBROUTINE SetSolutionWithVarID_Advection
 !
 !
 !
@@ -979,7 +1034,7 @@ SUBROUTINE GetTendencyWithVarID_Advection( myDGSEM, iEl, varID, theTend  )
 
         t = tn + rk3_b(m)*dt
         ! Calculate the tendency
-        CALL myDGSEM % GlobalTimeDerivative( t )
+        CALL myDGSEM % GlobalTimeDerivative( t, m )
         
         DO iEl = 1, myDGSEM % mesh % nElems ! Loop over all of the elements
 
@@ -998,7 +1053,7 @@ SUBROUTINE GetTendencyWithVarID_Advection( myDGSEM, iEl, varID, theTend  )
 !
 !
 !
- SUBROUTINE GlobalTimeDerivative_Advection( myDGSEM, tn ) 
+ SUBROUTINE GlobalTimeDerivative_Advection( myDGSEM, tn, m ) 
  ! S/R GlobalTimeDerivative_Advection
  ! 
  !
@@ -1007,15 +1062,29 @@ SUBROUTINE GetTendencyWithVarID_Advection( myDGSEM, iEl, varID, theTend  )
    IMPLICIT NONE
    CLASS(Advection), INTENT(inout) :: myDGSEM
    REAL(prec), INTENT(in)          :: tn
+   INTEGER, INTENT(in)             :: m
    ! Local
    INTEGER :: iEl, iFace, tID
 
       ! CALL myDGSEM % LoadVelocityField( tn )
 
 !$OMP PARALLEL
-      ! Calculate the solution at the boundaries
+
 !$OMP DO
       tID = 1
+      CALL myDGSEM % clocks % StartThisTimer( tID )
+      DO iEl = 1, myDGSEM % mesh % nElems
+         CALL myDGSEM % DoTheAdaptiveFiltering( iEl, m ) 
+      ENDDO 
+      CALL myDGSEM % clocks % StopThisTimer( tID )
+      CALL myDGSEM % clocks % AccumulateTimings( )
+      tID = tID + 1
+!$OMP END DO 
+!$OMP FLUSH( myDGSEM )
+
+
+      ! Calculate the solution at the boundaries
+!$OMP DO
       CALL myDGSEM % clocks % StartThisTimer( tID )
       DO iEl = 1, myDGSEM % mesh % nElems
 
@@ -1060,6 +1129,118 @@ SUBROUTINE GetTendencyWithVarID_Advection( myDGSEM, iEl, varID, theTend  )
 !
 !
 ! 
+SUBROUTINE DoTheAdaptiveFiltering_Advection( myDGSEM, iEl, m )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(Advection), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl, m
+   ! Local
+   REAL(prec) :: sol(0:myDGSEM % nS, &
+                     0:myDGSEM % nP, &
+                     0:myDGSEM % nQ, &
+                     1:myDGSEM % nEq)
+   REAL(prec) :: solf(0:myDGSEM % nS, &
+                      0:myDGSEM % nP, &
+                      0:myDGSEM % nQ)
+   REAL(prec) :: c1(0:myDGSEM % nS, &
+                    0:myDGSEM % nP, &
+                    0:myDGSEM % nQ)
+   REAL(prec) :: c2(0:myDGSEM % nS, &
+                    0:myDGSEM % nP, &
+                    0:myDGSEM % nQ)
+   REAL(prec) :: J(0:myDGSEM % nS, &
+                   0:myDGSEM % nP, &
+                   0:myDGSEM % nQ )
+   REAL(prec) :: temp(0:myDGSEM % nS)
+   REAL(prec) :: wS(0:myDGSEM % nS), wP(0:myDGSEM % nP), wQ(0:myDGSEM % nQ)
+   REAL(prec) :: E1prior, E2prior, E1, E2, dE2, dE1, xi
+   INTEGER    :: iS, iP, iQ, iEq
+
+
+      CALL myDGSEM % GetSolution( iEl, sol )
+      CALL myDGSEM % dgStorage % GetQuadratureWeights( wS, wP, wQ )
+      CALL myDGSEM % mesh % GetJacobian( iEl, J )
+
+      ! The first step in the process is to apply the filter to obtain the well resolved solution
+      DO iEq = 1, myDGSEM % nEq
+         solf = myDGSEM % modalFilter % ApplyFilter( sol(:,:,:,iEq) )
+      
+      ! This filtered solution is subtracted from the full solution to obtain the marginally-resolved
+      ! portion of the solution
+         c2 = (sol(:,:,:,iEq) - solf)**2 ! c2 is the energy in the marginally resolved modes
+         c1 = solf**2         ! c1 is the energy in the well resolved modes
+
+      
+      ! Now that we have the two distinct components of the Legendre spectra, we want to calculate
+      ! the energy in each component, and the change in the energy of each component from the 
+      ! previous model state. 
+      ! If the small scale (marginally resolved) exhibits a growth in energy, this should be balanced
+      ! by a decay in the small scale energy. Aliasing errors may cause unphysical growth in the 
+      ! energy associated with the marginally resolved. In this case, the solution is assigned to the
+      ! filtered solution, effectively implying dissipation.
+     
+         E1prior = myDGSEM % E1(iEl,iEq)
+         E2prior = myDGSEM % E2(iEl,iEq)
+
+         E1 = ZERO
+         E2 = ZERO
+
+         ! For quicker volume integration the energies are pre-multiplied by the Jacobian.
+         c1 = c1*J !
+         c2 = c2*J
+      ! Volume integration of the energy of the resolved and marginally resolved fields is done here
+      
+         DO iQ = 0, myDGSEM % nQ
+            DO iP = 0, myDGSEM % nP
+               temp = c1(:,iP,iQ)
+               E1 = E1 + DOT_PRODUCT( temp, wS )*wP(iP)*wQ(iQ)
+               temp = c2(:,iP,iQ)
+               E2 = E2 + DOT_PRODUCT( temp, wS )*wP(iP)*wQ(iQ)
+            ENDDO
+         ENDDO
+
+         myDGSEM % E1(iEl,iEq) = E1 
+         myDGSEM % E2(iEl,iEq) = E2
+      
+         dE1 = E1-E1prior
+         dE2 = E2-E2prior
+
+         myDGSEM % dE1(iEl,iEq) = dE1
+         myDGSEM % dE2(iEl,iEq) = dE2
+
+         xi = (E2/E1)
+  
+         IF( dE2 > ZERO .AND. abs(dE1)/dE2 > ONE )THEN ! The energy in the small scales is growing faster than the large scale is giving it up
+                            
+            myDGSEM % lim(iEq,iEl,m) = xi
+   
+         ELSEIF( dE2 < ZERO )THEN
+  
+            myDGSEM % lim(iEq,iEl,m) = xi
+
+         ELSE
+         
+            IF( m > 1)THEN
+               myDGSEM % lim(iEq,iEl,m) = myDGSEM % lim(iEq,iEl,m-1)
+            ENDIF
+
+         ENDIF
+
+
+         IF( xi > 1.05_prec*myDGSEM % lim(iEq,iEl,m) )THEN
+            CALL myDGSEM % SetSolutionWithVarID( iEl, iEq, solf )
+         !   PRINT*, 'Filtered!'
+         ENDIF
+
+      ENDDO
+
+ END SUBROUTINE DoTheAdaptiveFiltering_Advection
+!
+!
+!
  SUBROUTINE EdgeFlux_Advection( myDGSEM, iFace, tn )
  ! S/R EdgeFlux
  ! 

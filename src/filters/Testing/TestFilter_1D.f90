@@ -6,12 +6,12 @@ USE ModelPrecision
 USE ModelFlags
 
 USE NodalStorage_1D_Class
-USE AdaptiveFilterStorage1D_Class
+USE RollOffFilter1D_Class
 
 IMPLICIT NONE
 
- TYPE(NodalStorage_1D)          :: dgStorage
- TYPE(AdaptiveFilterStorage_1D) :: filter
+ TYPE(NodalStorage_1D)   :: dgStorage
+ TYPE(RollOffFilter1D)   :: filter
  REAL(prec), ALLOCATABLE :: f(:), fPlot(:), sUni(:), s(:)
  REAL(prec), ALLOCATABLE :: Tplot(:,:)
  REAL(prec) :: Lnorm, L, Ls
@@ -38,6 +38,8 @@ IMPLICIT NONE
    f = ZERO
    DO i = 0, M
       IF( s(i) < ZERO )THEN
+         f(i) = -ONE
+      ELSE
          f(i) = ONE
       ENDIF
    ENDDO

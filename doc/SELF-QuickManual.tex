@@ -1,0 +1,99 @@
+\documentclass[12pt]{softwaremanual}
+
+
+\author{Joseph Schoonover}
+\title{}
+\date{}
+
+
+\begin{document}
+
+% Doing a custom title-page
+\begin{titlingpage}
+    
+        \vspace*{2cm}
+        
+     \begin{flushright}
+        {\fontfamily{cmss}\selectfont
+        \HUGE{\textbf{ Spectral Element Method }}\\
+        }
+       
+        \vspace{1cm}
+        
+        \huge{
+        \textbf{
+        \textit{
+        \textcolor{blue}{
+           Support Modules
+        }}}}
+        
+     \end{flushright}
+         
+        \vspace{2cm}
+        
+     \begin{center}
+     
+        %Do a subtitle here if you like
+        {\fontfamily{cmss}\selectfont
+        \huge{
+           Quick Reference Manual
+        }
+        
+        \vspace{1.5cm}
+        
+        % Enter the author's name
+        \textbf{
+        \large{
+           \theauthor 
+         }}}
+        
+        \vfill
+        
+        
+        \vspace{0.8cm}
+        
+     \end{center}
+        
+    
+\end{titlingpage}
+
+
+
+\tableofcontents
+
+\pagestyle{myheadings}
+\chapter{Software Overview}
+The Spectral Element Libraries in Fortran (SELF) provide supporting data-structures for implementing spectral element methods (SEMs) to solve partial differential equations (PDEs) in multiple dimensions. The focus of the libraries is particularly on Legendre-Galerkin type methods. Legendre-Galerkin methods solve PDEs by approximating the solution and geometry by interpolating polynomials. Discrete equations are formed by solving the weak form of the PDE in which the integrals are approximated by discrete Gauss or Gauss-Lobatto quadrature. Underneath the umbrella of ``Legendre-Galerkin'' are Continuous Galerkin (CG) and Discontinuous Galerkin (DG) methods. CG methods are primarily used for elliptic or parabolic PDEs while DG methods are focused on hyperbolic systems.
+
+The software is broken into the following components :
+\begin{enumerate}
+\item Commonly used routines and dictionaries,
+\item Interpolation and Quadrature,
+\item Spectral Operator storage structures,
+\item Spectral filters,
+\item Solution storage data structures,
+\item Geometry,
+\item High end solvers for particular PDEs
+\end{enumerate}
+
+This first chapter is focused on getting you working with the high end solvers. The high end solvers follow two generic structures, one for CG methods and another for DG methods. Currently, the DG method templates are available for one, two, and three dimensions while CG is only available in one and two dimensions. Underneath the \texttt{src/highend/} directory, you will see a set of subdirectories for each of the provided high-end solvers. The \texttt{examples/} directory is where you will find test-cases of each of the high-end solvers that are ``ready-to-go''.
+
+ Underneath a given example, you will find a \texttt{build/} directory, \texttt{localmods/} directory, and a \texttt{run/} directory.
+
+\chapter{Modules}
+This chapter describes in more detail the modules that are provided in each sub-directory, including a description of the data-structures and associated procedures. This provides the necessary information for developing your own ``highend'' solvers from scratch. Coincidentally, a few of the highend solvers are described here to provide examples of how the support libraries can be used to solve PDE's on complex geometry.
+
+\section{Interpolation (interp)}
+\section{Spectral Operator Storage (nodal)}
+\section{Solution Storage (dgsem/cgsem)}
+\section{Iterative Solvers (iterativesolve) }
+\section{Geometry (geom)}
+\section{Filters (filters) }
+\section{Provided High-End Solvers (highend)}
+
+
+
+
+
+
+\end{document}

@@ -31,7 +31,7 @@ USE Advection3DClass
       deltaT = myAdv % params % dt
 
       WRITE( iterChar, '(I10.10)') iter0   
-      CALL myAdv % GlobalTimeDerivative( ZERO )   
+      CALL myAdv % GlobalTimeDerivative( ZERO, 1 )   
 
       CALL myAdv % clocks % StartThisTimer( 0 )
          CALL myAdv % WriteTecplot( 'Advection.'//iterChar )

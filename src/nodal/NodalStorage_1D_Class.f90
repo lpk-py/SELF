@@ -39,6 +39,10 @@ IMPLICIT NONE
       PROCEDURE :: SetQuadratureWeights => SetQuadratureWeights_NodalStorage_1D
       PROCEDURE :: GetQuadratureWeights => GetQuadratureWeights_NodalStorage_1D
       PROCEDURE :: GetDerivativeMatrix => GetDerivativeMatrix_NodalStorage_1D
+      PROCEDURE :: SetEasternInterpolants => SetEasternInterpolants_NodalStorage_1D
+      PROCEDURE :: GetEasternInterpolants => GetEasternInterpolants_NodalStorage_1D
+      PROCEDURE :: SetWesternInterpolants => SetWesternInterpolants_NodalStorage_1D
+      PROCEDURE :: GetWesternInterpolants => GetWesternInterpolants_NodalStorage_1D
 
       ! Type-Specific
       PROCEDURE :: GenerateMappingMatrix => GenerateMappingMatrix_NodalStorage_1D
@@ -328,6 +332,74 @@ IMPLICIT NONE
       derMat = myNodal % dMat
 
  END SUBROUTINE GetDerivativeMatrix_NodalStorage_1D
+!
+!
+!
+ SUBROUTINE SetEasternInterpolants_NodalStorage_1D( myNodal, lEast )
+ ! S/R SetEasternInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_1D), INTENT(inout) :: myNodal
+   REAL(prec), INTENT(in)                :: lEast(0:myNodal % nS)
+    
+      myNodal % lagEast = lEast
+
+ END SUBROUTINE SetEasternInterpolants_NodalStorage_1D
+!
+!
+!
+ SUBROUTINE GetEasternInterpolants_NodalStorage_1D( myNodal, lEast )
+ ! S/R GetEasternInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_1D), INTENT(in) :: myNodal
+   REAL(prec), INTENT(out)            :: lEast(0:myNodal % nS)
+    
+      lEast = myNodal % lagEast
+
+ END SUBROUTINE GetEasternInterpolants_NodalStorage_1D
+!
+!
+!
+ SUBROUTINE SetWesternInterpolants_NodalStorage_1D( myNodal, lWest )
+ ! S/R SetWesternInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_1D), INTENT(inout) :: myNodal
+   REAL(prec), INTENT(in)                :: lWest(0:myNodal % nS)
+    
+      myNodal % lagWest = lWest
+
+ END SUBROUTINE SetWesternInterpolants_NodalStorage_1D
+!
+!
+!
+ SUBROUTINE GetWesternInterpolants_NodalStorage_1D( myNodal, lWest )
+ ! S/R GetWesternInterpolants
+ !
+ !    
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(NodalStorage_1D), INTENT(in) :: myNodal
+   REAL(prec), INTENT(out)            :: lWest(0:myNodal % nS)
+    
+      lWest = myNodal % lagWest
+
+ END SUBROUTINE GetWesternInterpolants_NodalStorage_1D
 !
 !
 !==================================================================================================!

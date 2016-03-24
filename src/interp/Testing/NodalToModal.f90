@@ -63,13 +63,24 @@ IMPLICIT NONE
    fNodal = ZERO
    DO i = 0,M
       IF( s(i) < ZERO )THEN
+         fNodal(i) = -ONE
+      ELSE
          fNodal(i) = ONE
       ENDIF
+     ! fNodal(i) = tanh( s(i)/0.2_prec)
    ENDDO
 
    fPlot = MATMUL( Tplot, fNodal )
 
-   fModal = MATMUL( V, fNodal ) ! Obtain the modal coefficients
+   fModal = MATMUL( V, fNodal ) ! Obtain the modal coefficients 
+
+   OPEN( UNIT=NewUnit(fUnit), FILE='fModal.curve')
+   WRITE( fUnit, * ) '#f'
+   DO i = 0, M 
+      WRITE(fUnit, *) i, fModal(i)**2
+   ENDDO
+
+
    fModal = MATMUL( P, fModal ) ! Apply the filter
    fFiltered = MATMUL( Vinv, fModal ) ! Apply the inverse of nodal-to-modal (wouldn't that be "modal-to-nodal" :P)
 
@@ -88,11 +99,7 @@ IMPLICIT NONE
 
    CLOSE( fUnit )
 
-   OPEN( UNIT=NewUnit(fUnit), FILE='fModal.curve')
-   WRITE( fUnit, * ) '#f'
-   DO i = 0, M 
-      WRITE(fUnit, *) i, fModal(i)**2
-   ENDDO
+
    CLOSE( fUnit )
 
 

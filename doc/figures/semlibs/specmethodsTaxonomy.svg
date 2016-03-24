@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="specmethodsTaxonomy.svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.7"
+     inkscape:cx="722.74761"
+     inkscape:cy="387.67478"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="true"
+     inkscape:window-width="1280"
+     inkscape:window-height="1000"
+     inkscape:window-x="0"
+     inkscape:window-y="24"
+     inkscape:window-maximized="1">
+    <inkscape:grid
+       type="xygrid"
+       id="grid2985" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g3765"
+       transform="translate(346.69085,91.516476)">
+      <rect
+         y="-71.993034"
+         x="-87.212349"
+         height="125.85327"
+         width="242.99612"
+         id="rect2987"
+         style="fill:none;stroke:#000000;stroke-width:2.003865;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <flowRoot
+         transform="translate(769.0279,282.91324)"
+         style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         id="flowRoot3757"
+         xml:space="preserve"><flowRegion
+           id="flowRegion3759"><rect
+             style="text-align:center;text-anchor:middle"
+             y="-341.92352"
+             x="-905.71429"
+             height="117.14286"
+             width="340"
+             id="rect3761" /></flowRegion><flowPara
+           id="flowPara3763">Spectral Methods</flowPara></flowRoot>    </g>
+    <g
+       transform="translate(203.03045,1.7284426)"
+       id="g3827-3-1">
+      <rect
+         y="179.40625"
+         x="30.066906"
+         height="80.630768"
+         width="295.75842"
+         id="rect2987-3-3-6"
+         style="fill:none;stroke:#000000;stroke-width:1.76951993;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <flowRoot
+         transform="translate(913.42073,536.70128)"
+         style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         id="flowRoot3757-6-5-1"
+         xml:space="preserve"><flowRegion
+           id="flowRegion3759-8-5-7"><rect
+             style="text-align:center;text-anchor:middle"
+             y="-341.92352"
+             x="-905.71429"
+             height="117.14286"
+             width="340"
+             id="rect3761-8-2-0" /></flowRegion><flowPara
+           id="flowPara3763-0-7-3">Basis Function</flowPara></flowRoot>    </g>
+    <g
+       transform="translate(203.03045,215.72844)"
+       id="g3827-3-1-1">
+      <rect
+         y="179.40625"
+         x="30.066906"
+         height="80.630768"
+         width="295.75842"
+         id="rect2987-3-3-6-3"
+         style="fill:none;stroke:#000000;stroke-width:1.76951993;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <flowRoot
+         transform="translate(913.42073,536.70128)"
+         style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         id="flowRoot3757-6-5-1-5"
+         xml:space="preserve"><flowRegion
+           id="flowRegion3759-8-5-7-9"><rect
+             style="text-align:center;text-anchor:middle"
+             y="-341.92352"
+             x="-905.71429"
+             height="117.14286"
+             width="340"
+             id="rect3761-8-2-0-3" /></flowRegion><flowPara
+           id="flowPara3763-0-7-3-7">PDE Form</flowPara></flowRoot>    </g>
+    <g
+       id="g4755"
+       transform="translate(-1.0876465,0)">
+      <rect
+         y="109.6931"
+         x="609.60193"
+         height="65.189209"
+         width="261.74542"
+         id="rect2987-3-5"
+         style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <flowRoot
+         transform="translate(1470.7188,460.41673)"
+         style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         id="flowRoot3757-6-6"
+         xml:space="preserve"><flowRegion
+           id="flowRegion3759-8-7"><rect
+             style="text-align:center;text-anchor:middle"
+             y="-341.92352"
+             x="-905.71429"
+             height="239.85603"
+             width="349.99554"
+             id="rect3761-8-8" /></flowRegion><flowPara
+           style="font-size:36px"
+           id="flowPara3935">Fourier</flowPara></flowRoot>      <rect
+         y="189.6931"
+         x="609.60193"
+         height="65.189209"
+         width="261.74542"
+         id="rect2987-3-5-0"
+         style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <flowRoot
+         transform="translate(1470.7188,540.41672)"
+         style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         id="flowRoot3757-6-6-8"
+         xml:space="preserve"><flowRegion
+           id="flowRegion3759-8-7-5"><rect
+             style="text-align:center;text-anchor:middle"
+             y="-341.92352"
+             x="-905.71429"
+             height="239.85603"
+             width="349.99554"
+             id="rect3761-8-8-6" /></flowRegion><flowPara
+           style="font-size:36px"
+           id="flowPara3935-9">Chebyshev</flowPara></flowRoot>      <rect
+         y="267.69308"
+         x="609.60193"
+         height="65.189209"
+         width="261.74542"
+         id="rect2987-3-5-0-2"
+         style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <flowRoot
+         transform="translate(1470.7188,618.41671)"
+         style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         id="flowRoot3757-6-6-8-8"
+         xml:space="preserve"><flowRegion
+           id="flowRegion3759-8-7-5-7"><rect
+             style="text-align:center;text-anchor:middle"
+             y="-341.92352"
+             x="-905.71429"
+             height="239.85603"
+             width="349.99554"
+             id="rect3761-8-8-6-9" /></flowRegion><flowPara
+           style="font-size:36px"
+           id="flowPara3935-9-2">Legendre</flowPara></flowRoot>    </g>
+    <g
+       id="g4899">
+      <g
+         transform="translate(0,69.999985)"
+         id="g4792">
+        <rect
+           style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+           id="rect2987-3-5-1"
+           width="172.07977"
+           height="59.809235"
+           x="653.34711"
+           y="370.54547" />
+        <flowRoot
+           xml:space="preserve"
+           id="flowRoot3757-6-6-4"
+           style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+           transform="translate(1470.5541,719.9255)"><flowRegion
+             id="flowRegion3759-8-7-2"><rect
+               id="rect3761-8-8-7"
+               width="349.99554"
+               height="239.85603"
+               x="-905.71429"
+               y="-341.92352"
+               style="text-align:center;text-anchor:middle" /></flowRegion><flowPara
+             id="flowPara3935-2"
+             style="font-size:36px">Weak</flowPara><flowPara
+             id="flowPara4049"
+             style="font-size:36px" /></flowRoot>      </g>
+      <g
+         transform="translate(0,-70.000015)"
+         id="g4784">
+        <rect
+           style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+           id="rect2987-3-5-1-6"
+           width="172.07977"
+           height="59.809235"
+           x="653.34711"
+           y="440.54547" />
+        <flowRoot
+           xml:space="preserve"
+           id="flowRoot3757-6-6-4-6"
+           style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+           transform="translate(1470.5541,789.9255)"><flowRegion
+             id="flowRegion3759-8-7-2-2"><rect
+               id="rect3761-8-8-7-9"
+               width="349.99554"
+               height="239.85603"
+               x="-905.71429"
+               y="-341.92352"
+               style="text-align:center;text-anchor:middle" /></flowRegion><flowPara
+             id="flowPara3935-2-2"
+             style="font-size:36px">Strong</flowPara><flowPara
+             id="flowPara4049-7"
+             style="font-size:36px" /></flowRoot>      </g>
+    </g>
+    <g
+       id="g5031"
+       transform="translate(-0.25006102,0)">
+      <g
+         transform="translate(-4.5482178,0)"
+         id="g5015">
+        <rect
+           style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+           id="rect2987-3-5-1-5-1"
+           width="266.81659"
+           height="61.943748"
+           x="610.77698"
+           y="631.89795" />
+        <flowRoot
+           xml:space="preserve"
+           id="flowRoot3757-6-6-4-3-7"
+           style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+           transform="translate(1474.6843,982.34525)"><flowRegion
+             id="flowRegion3759-8-7-2-0-9"><rect
+               id="rect3761-8-8-7-2-9"
+               width="349.99554"
+               height="239.85603"
+               x="-905.71429"
+               y="-341.92352"
+               style="text-align:center;text-anchor:middle" /></flowRegion><flowPara
+             id="flowPara4049-8-9"
+             style="font-size:36px">Multi-Domain</flowPara><flowPara
+             id="flowPara4148-0"
+             style="font-size:36px" /></flowRoot>      </g>
+      <g
+         id="g5023">
+        <flowRoot
+           xml:space="preserve"
+           id="flowRoot3757-6-6-4-3"
+           style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+           transform="translate(1470.7162,900.01591)"><flowRegion
+             id="flowRegion3759-8-7-2-0"><rect
+               id="rect3761-8-8-7-2"
+               width="349.99554"
+               height="239.85603"
+               x="-905.71429"
+               y="-341.92352"
+               style="text-align:center;text-anchor:middle" /></flowRegion><flowPara
+             id="flowPara4049-8"
+             style="font-size:36px">Single Domain</flowPara><flowPara
+             id="flowPara4148"
+             style="font-size:36px" /></flowRoot>        <rect
+           style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+           id="rect2987-3-5-1-5-1-4"
+           width="266.81659"
+           height="61.943748"
+           x="606.22876"
+           y="553.05786" />
+      </g>
+    </g>
+    <rect
+       style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       id="rect2987-3-5-1-3-6"
+       width="172.07977"
+       height="59.809235"
+       x="1011.3471"
+       y="620.92969" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3757-6-6-4-9-2"
+       style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       transform="translate(1828.5541,970.30972)"><flowRegion
+         id="flowRegion3759-8-7-2-5-7"><rect
+           id="rect3761-8-8-7-26-8"
+           width="349.99554"
+           height="239.85603"
+           x="-905.71429"
+           y="-341.92352"
+           style="text-align:center;text-anchor:middle" /></flowRegion><flowPara
+         id="flowPara3935-2-4-4"
+         style="font-size:36px">Galerkin</flowPara><flowPara
+         id="flowPara4049-1-9"
+         style="font-size:36px" /></flowRoot>    <rect
+       style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       id="rect2987-3-5-1-6-9-1"
+       width="313.33102"
+       height="59.631905"
+       x="940.7215"
+       y="550.16119" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3757-6-6-4-6-4-0"
+       style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       transform="translate(1828.0178,899.80975)"><flowRegion
+         id="flowRegion3759-8-7-2-2-3-2"><rect
+           id="rect3761-8-8-7-9-2-1"
+           width="349.99554"
+           height="239.85603"
+           x="-905.71429"
+           y="-341.92352"
+           style="text-align:center;text-anchor:middle" /></flowRegion><flowPara
+         style="font-size:36px"
+         id="flowPara4449-2">Spectral Method</flowPara><flowPara
+         id="flowPara4049-7-2-5"
+         style="font-size:36px" /></flowRoot>    <g
+       id="g5167"
+       transform="translate(30,0)">
+      <g
+         transform="translate(-2,0)"
+         id="g5159">
+        <rect
+           style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+           id="rect2987-3-5-1-3"
+           width="172.07977"
+           height="59.809235"
+           x="971.34711"
+           y="440.92969" />
+        <flowRoot
+           xml:space="preserve"
+           id="flowRoot3757-6-6-4-9"
+           style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+           transform="translate(1788.5541,790.30972)"><flowRegion
+             id="flowRegion3759-8-7-2-5"><rect
+               id="rect3761-8-8-7-26"
+               width="349.99554"
+               height="239.85603"
+               x="-905.71429"
+               y="-341.92352"
+               style="text-align:center;text-anchor:middle" /></flowRegion><flowPara
+             id="flowPara3935-2-4"
+             style="font-size:36px">Galerkin</flowPara><flowPara
+             id="flowPara4049-1"
+             style="font-size:36px" /></flowRoot>      </g>
+      <g
+         id="g5151">
+        <flowRoot
+           xml:space="preserve"
+           id="flowRoot3757-6-6-4-6-4"
+           style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+           transform="translate(1785.2268,718.30973)"><flowRegion
+             id="flowRegion3759-8-7-2-2-3"><rect
+               id="rect3761-8-8-7-9-2"
+               width="349.99554"
+               height="239.85603"
+               x="-905.71429"
+               y="-341.92352"
+               style="text-align:center;text-anchor:middle" /></flowRegion><flowPara
+             style="font-size:36px"
+             id="flowPara4449">Pseudo-</flowPara><flowPara
+             id="flowPara4049-7-2"
+             style="font-size:36px" /></flowRoot>        <rect
+           style="fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+           id="rect2987-3-5-1-3-0"
+           width="172.07977"
+           height="59.809235"
+           x="969.34711"
+           y="368.92969" />
+      </g>
+    </g>
+  </g>
+</svg>

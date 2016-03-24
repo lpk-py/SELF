@@ -161,7 +161,7 @@ IMPLICIT NONE
        
        PROCEDURE :: ConstructFaces => ConstructFaces_HexMesh
        PROCEDURE :: DetermineOrientation => DetermineOrientation_HexMesh 
-       PROCEDURE :: GetNodeToElementConnectivity => GetNodeToElementConnectivity_HexMesh
+      ! PROCEDURE :: GetNodeToElementConnectivity => GetNodeToElementConnectivity_HexMesh
        PROCEDURE :: ScaleTheMesh => ScaleTheMesh_HexMesh
        PROCEDURE :: LoadDefaultMesh => LoadDefaultMesh_HexMesh
        
@@ -299,11 +299,12 @@ IMPLICIT NONE
     DO iEl = 1, myHexMesh % nElems
        CALL myHexMesh % elements(iEl) % TRASH( )
     ENDDO
-
-    DO iNode = 1, myHexMesh % nNodes
-       CALL myHexMesh % nodes(iNode) % TRASH( )
-    ENDDO
-
+     
+    !DO iNode = 1, myHexMesh % nNodes
+    !   CALL myHexMesh % nodes(iNode) % TRASH( )
+    !   PRINT*, iNode
+    !ENDDO
+     
     DEALLOCATE( myHexMesh % nodes, myHexMesh % elements, myHexMesh % Faces )
       
 
@@ -2002,35 +2003,35 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
 !
 !
 !
- SUBROUTINE GetNodeToElementConnectivity_HexMesh( myHexMesh )
- ! S/R GetNodeToElementConnectivity
- ! 
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( HexMesh ), INTENT(inout) :: myHexMesh
-   ! LOCAL
-   INTEGER :: nEls, nNodes, iEl, nFaces, k  
-   INTEGER :: nID
+! SUBROUTINE GetNodeToElementConnectivity_HexMesh( myHexMesh )
+! ! S/R GetNodeToElementConnectivity
+! ! 
+! ! =============================================================================================== !
+! ! DECLARATIONS
+!   IMPLICIT NONE
+!   CLASS( HexMesh ), INTENT(inout) :: myHexMesh
+!   ! LOCAL
+!   INTEGER :: nEls, nNodes, iEl, nFaces, k  
+!   INTEGER :: nID
 
-      CALL myHexMesh % GetNumberOfNodes( nNodes )   
-      CALL myHexMesh % GetNumberOfElements( nEls )
-      nFaces = 0
+!      CALL myHexMesh % GetNumberOfNodes( nNodes )   
+!      CALL myHexMesh % GetNumberOfElements( nEls )
+!      nFaces = 0
 
-      DO iEl = 1, nEls ! Loop over the elements in the mesh
+!      DO iEl = 1, nEls ! Loop over the elements in the mesh
 
-         DO k = 1, nHexNodes ! Loop over the nodes
+!         DO k = 1, nHexNodes ! Loop over the nodes
 
-            ! Add element to corner-node connectivity list
-            nID = myHexMesh % GetElementNodeID( iEl, k )
-            CALL myHexMesh % nodes(nID) % nodeToElement % AddToList( iEl, k ) ! the key is  the local node ID, the data is the element ID
+!            ! Add element to corner-node connectivity list
+!            nID = myHexMesh % GetElementNodeID( iEl, k )
+!            CALL myHexMesh % nodes(nID) % nodeToElement % AddToList( iEl, k ) ! the key is  the local node ID, the data is the element ID
 
-         ENDDO ! k, Loop over the nodes
+!         ENDDO ! k, Loop over the nodes
         
-      ENDDO ! iEl, Loop over the elements in the mesh
+!      ENDDO ! iEl, Loop over the elements in the mesh
 
      
- END SUBROUTINE GetNodeToElementConnectivity_HexMesh
+! END SUBROUTINE GetNodeToElementConnectivity_HexMesh
 !
 !
 !
@@ -2224,7 +2225,7 @@ SUBROUTINE SetFaceKey_HexMesh( myHexMesh, iFace, key )
       nFaces = myHexMesh % nFaces
       PRINT*, 'nFaces    : ', nFaces
       
-      CALL myHexMesh % GetNodeToElementConnectivity( )
+    !  CALL myHexMesh % GetNodeToElementConnectivity( )
 
       ! Clear up memory
       DEALLOCATE( s, p, xc, yc, zc )

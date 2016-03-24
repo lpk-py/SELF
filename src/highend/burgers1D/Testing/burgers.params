@@ -1,0 +1,13 @@
+&TimeManagement
+dt = 0.001,
+iterInit = 0,
+nTimeSteps = 8000,
+dumpFreq = 20,
+/
+&SpaceManagement
+polyDeg = 15,
+nCutoff = 10,
+nElems = 10
+dx = 1.0,
+nPlot = 30,
+/

@@ -35,6 +35,7 @@ MODULE AdvectionParamsClass
        ! SpaceManagement
        CHARACTER(50) :: SpecMeshFile
        INTEGER       :: polyDeg
+       INTEGER       :: nCutoff
        INTEGER       :: nXElem
        INTEGER       :: nYElem
        INTEGER       :: nZElem 
@@ -76,6 +77,7 @@ MODULE AdvectionParamsClass
        ! SpaceManagement
        CHARACTER(50) :: SpecMeshFile
        INTEGER       :: polyDeg
+       INTEGER       :: nCutoff
        INTEGER       :: nXElem
        INTEGER       :: nYElem
        INTEGER       :: nZElem
@@ -86,7 +88,7 @@ MODULE AdvectionParamsClass
        
       NAMELIST / TracerSetup / nTracers
       NAMELIST / TimeManagement / dt, iterInit, nTimeSteps, dumpFreq
-      NAMELIST / SpaceManagement / SpecMeshFile, polyDeg, nXElem, nYElem, nZElem, &
+      NAMELIST / SpaceManagement / SpecMeshFile, polyDeg, nCutoff, nXElem, nYElem, nZElem, &
                                    nPlot, xScale, yScale, zScale
       
       ! TracerSetup
@@ -99,6 +101,7 @@ MODULE AdvectionParamsClass
       ! SpaceManagement
       SpecMeshFile = nada
       polyDeg = 5
+      nCutoff = 3
       nXElem = 2
       nYElem = 2
       nZElem = 2
@@ -131,6 +134,7 @@ MODULE AdvectionParamsClass
       ! Plotting is defaulted to 10 evenly spaced points
       thisParam % SpecMeshFile = SpecMeshFile
       thisParam % polyDeg = polyDeg
+      thisParam % nCutoff = nCutoff
       thisParam % nXElem = nXElem
       thisParam % nYElem = nYElem 
       thisParam % nZElem = nZElem
