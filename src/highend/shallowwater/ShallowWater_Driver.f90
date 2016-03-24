@@ -33,7 +33,7 @@ USE ShallowWaterClass
       CALL mysw % GlobalTimeDerivative( ZERO )   
       CALL mysw % WriteTecplot( 'ShallowWater.'//iterChar )
       
-      DO iT = iter0, iter0+nT ! Loop over time-steps
+      DO iT = iter0, iter0+nT-1 ! Loop over time-steps
 
           tn = real( iT, prec )*deltaT ! time at the beginning of this timestep          
           CALL mysw % ForwardStepRK3( tn ) ! Forward Step
@@ -47,7 +47,7 @@ USE ShallowWaterClass
 
        ENDDO
     
-    CALL mysw % WritePickup( iT ) 
+    CALL mysw % WritePickup(iter0+nT) 
     CALL mysw % mesh % WriteTecplot( )
     
     CALL mysw % Trash( )

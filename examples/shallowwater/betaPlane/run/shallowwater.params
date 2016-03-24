@@ -1,0 +1,27 @@
+&MODEL_FORM
+ModelFormulation = 'Linear',
+/
+&TIME_MANAGEMENT
+dt = 1.0,
+iterInit = 100000,
+nTimeSteps = 50000,
+dumpFreq = 1000,
+/
+&SPACE_MANAGEMENT
+polyDeg = 10,
+nPlot = 10,
+nXelem = 15,
+nYelem = 15
+xScale = 1000000.0,
+yScale = 1000000.0,
+/
+&PHYSICAL_PARAMETERS
+g = 9.81,
+h0 = 1000.0,
+f0 = 1.0E-4,
+betaX = 0.0,
+betaY = 1.0E-10,
+linearDrag = 1.0E-5,
+wEk = 1.0E-5,
+sourceLFac = 0.01,
+/
