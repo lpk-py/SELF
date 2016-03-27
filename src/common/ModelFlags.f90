@@ -7,6 +7,8 @@ MODULE ModelFlags
   ! assigning boundary edge and face ordering of an element     !
   !                                                             !
   ! ------------------------------------------------------------!
+    INTEGER, PARAMETER :: left   = 1
+    INTEGER, PARAMETER :: right  = 1
     INTEGER, PARAMETER :: south  = 1
     INTEGER, PARAMETER :: east   = 2
     INTEGER, PARAMETER :: north  = 3

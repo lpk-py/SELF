@@ -11,11 +11,10 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-OPT=-O3
-#OPT=-O0 -fcheck=all -Wall
+#OPT=-O3
+OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
-#SRCDIR=/home/joe/Desktop/work/software/SELF/src/
-SRCDIR=/nh/nest/u/jschoonover/Software/SELF/src/
+SRCDIR=../src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
@@ -234,6 +233,14 @@ TestHexMesh.o : ModelFlags.o NodalStorage_3D_Class.o HexMeshParamsClass.o HexMes
 	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestHexMesh.f90 -o $@
 
 
+segtest : ModelPrecision.o ModelFlags.o CommonRoutines.o ConstantsDictionary.o NodalStorage_1D_Class.o \
+          Legendre.o Lagrange_1D_Class.o MappedGeometryClass_1D.o SegmentMeshClass.o TestSegmentMesh.o 
+	${FC} ${OPT} ModelPrecision.o ModelFlags.o CommonRoutines.o ConstantsDictionary.o NodalStorage_1D_Class.o \
+          Legendre.o Lagrange_1D_Class.o MappedGeometryClass_1D.o SegmentMeshClass.o TestSegmentMesh.o -o $@
+           
+TestSegmentMesh.o : ModelPrecision.o ModelFlags.o NodalStorage_1D_Class.o SegmentMeshClass.o 
+	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestSegmentMesh.f90 -o $@
+
 # MODULE list #
 NodeClass_1D.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o LinkedListClass.o
 	${FC} ${OPT} -c ${SRCDIR}geom/NodeClass_1D.f90 -o $@
@@ -271,7 +278,11 @@ HexMeshParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Commo
 GeometrySupportRoutines.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o \
                             CurveClass_2D.o CurveClass_3D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/GeometrySupportRoutines.f90 -o $@
-	
+
+MappedGeometryClass_1D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o CommonRoutines.o \
+                           Lagrange_1D_Class.o 
+	${FC} ${OPT} -c ${SRCDIR}geom/MappedGeometryClass_1D.f90 -o $@
+
 MappedGeometryClass_2D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o CommonRoutines.o \
                            Lagrange_2D_Class.o CurveClass_2D.o VectorClass.o GeometrySupportRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}geom/MappedGeometryClass_2D.f90 -o $@
@@ -297,6 +308,10 @@ QuadMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o LinkedList
                   Chebyshev.o Lagrange_2D_Class.o CurveClass_2D.o  MappedGeometryClass_2D.o \
                   QuadElementClass.o EdgeClass.o NodeClass_2D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/QuadMeshClass.f90 -o $@	
+
+SegmentMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o \
+                     Lagrange_1D_Class.o MappedGeometryClass_1D.o 
+	${FC} ${OPT} -c ${SRCDIR}geom/SegmentMeshClass.f90 -o $@
 
 # ---------------------------------------------------------------------- #
 #                     ~/src/highend/shallowwater/                        #

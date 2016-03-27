@@ -609,7 +609,7 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
   REAL(prec), ALLOCATABLE, INTENT(out)    :: dMat(:,:)
   TYPE(Lagrange_1D), INTENT(in), OPTIONAL :: otherInterpolant
   ! LOCAL
-  REAL(prec) :: temp1, temp2, thisW, thatW, thisX, thatX
+  REAL(prec) :: thisX
   REAL(prec) :: x(0:myPoly % nNodes), w(0:myPoly % nNodes)
   INTEGER    :: kP, jP, nP, mP
   REAL(prec), ALLOCATABLE :: temp(:) !offDiags(0:myPoly%nNodes,0:myPoly%nNodes), temp(0:myPoly%nNodes)
@@ -685,7 +685,7 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
   REAL(prec), INTENT(in)         :: zNew(0:nNew)
   REAL(prec), INTENT(out)        :: T(0:nNew,0:oldPoly % nNodes)
   ! LOCAL
-  REAL(prec) :: temp1, temp2, newX, oldX, newW, oldW
+  REAL(prec) :: temp1, temp2
   REAL(prec) :: x(0:oldPoly % nNodes), w(0:oldPoly % nNodes)
   INTEGER :: kP, jP,  oldnP
   LOGICAL :: rowHasMatch 
