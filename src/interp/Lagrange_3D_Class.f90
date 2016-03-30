@@ -281,7 +281,7 @@ SUBROUTINE SetNodesLagrange_3D( myPoly, xIn, yIn, zIn )
 
        CALL myPoly % sInterp % SetWeight(iX, wsIn)
        CALL myPoly % pInterp % SetWeight(iY, wpIn)  
-       CALL myPoly % qInterp % SetWeight(iY, wqIn)    
+       CALL myPoly % qInterp % SetWeight(iZ, wqIn)    
 
  END SUBROUTINE SetWeightLagrange_3D
 !
@@ -301,7 +301,7 @@ SUBROUTINE SetNodesLagrange_3D( myPoly, xIn, yIn, zIn )
 
        CALL myPoly % sInterp % GetWeight(iX, wsOut)
        CALL myPoly % pInterp % GetWeight(iY, wpOut)  
-       CALL myPoly % qInterp % GetWeight(iY, wqOut)    
+       CALL myPoly % qInterp % GetWeight(iZ, wqOut)    
 
  END SUBROUTINE GetWeightLagrange_3D
 !
@@ -418,6 +418,7 @@ SUBROUTINE SetNodesLagrange_3D( myPoly, xIn, yIn, zIn )
    REAL(prec)  :: lS(0:myPoly % nS)
    REAL(prec)  :: lP(0:myPoly % nP)
    REAL(prec)  :: lQ(0:myPoly % nQ)
+   REAL(prec)  :: thisf(0:myPoly % nS), thatf(0:myPoly % nP), theotherf(0:myPoly % nQ)
    INTEGER     :: jS, jP, jQ
    INTEGER     :: nS, nP, nQ
  
@@ -435,8 +436,8 @@ SUBROUTINE SetNodesLagrange_3D( myPoly, xIn, yIn, zIn )
         DO jQ = 0, nQ ! Loop over q-points
 
            ! Evaluate s-derivative
-                                   
-           gradF(1) = gradF(1) + myPoly % sInterp % EvaluateDerivative(xEval, f(0:nP,jP,jQ))*lP(jP)*lQ(jQ)
+           thisf = f(0:nS,jP,jQ)
+           gradF(1) = gradF(1) + myPoly % sInterp % EvaluateDerivative(xEval, thisf)*lP(jP)*lQ(jQ)
 
         ENDDO
 
@@ -448,7 +449,8 @@ SUBROUTINE SetNodesLagrange_3D( myPoly, xIn, yIn, zIn )
         DO jQ = 0, nQ ! Loop over q-points
 
            ! Evaluate p-derivative
-           gradF(2) = gradF(2) + myPoly % pInterp % EvaluateDerivative(yEval, f(jS,0:nP,jQ))*lS(jS)*lQ(jQ)
+           thatf = f(jS,0:nP,jQ)
+           gradF(2) = gradF(2) + myPoly % pInterp % EvaluateDerivative(yEval, thatf)*lS(jS)*lQ(jQ)
 
         ENDDO
 
@@ -460,7 +462,8 @@ SUBROUTINE SetNodesLagrange_3D( myPoly, xIn, yIn, zIn )
         DO jP = 0, nP ! Loop over p-points
 
            ! Evaluate q-derivative
-           gradF(3) = gradF(3) + myPoly % qInterp % EvaluateDerivative(zEval, f(jS,jP,0:nQ))*lS(jS)*lP(jP)
+           theotherf = f(jS,jP,0:nQ)
+           gradF(3) = gradF(3) + myPoly % qInterp % EvaluateDerivative(zEval, theotherf)*lS(jS)*lP(jP)
 
         ENDDO
 

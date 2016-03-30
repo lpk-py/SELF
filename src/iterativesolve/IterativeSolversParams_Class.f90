@@ -1,5 +1,5 @@
 
-MODULE IterativeSolversParamsClass
+MODULE IterativeSolversParams_Class
 
 
  USE ModelPrecision
@@ -15,6 +15,7 @@ MODULE IterativeSolversParamsClass
        ! MODEL_FORM
        INTEGER       :: MaximumIterates
        REAL(prec)    :: tolerance
+       INTEGER       :: nDOF
 
 
        CONTAINS
@@ -39,16 +40,18 @@ MODULE IterativeSolversParamsClass
    ! MODEL_FORM
    INTEGER    :: MaximumIterates
    REAL(prec) :: tolerance
+   INTEGER    :: nDOF
 
 
       ! Set the namelists
-      NAMELIST / SolverCriteria / MaximumIterates, tolerance
+      NAMELIST / SolverCriteria / MaximumIterates, tolerance, nDOF
       
  
       ! Set the default parameters
       ! SolverCriteria
       MaximumIterates = 1000   ! Max number of conjugate gradient iterations
       tolerance = 10.0_prec**(-8) ! conjugate gradient residual tolerance
+      nDOF = 1
 
       ! Reading in the namelist FILE
 
@@ -62,10 +65,11 @@ MODULE IterativeSolversParamsClass
       ! Fill in the data structure
       thisParam % MaximumIterates = MaximumIterates
       thisParam % tolerance       = tolerance
+      thisParam % nDOF            = nDOF
       
       
 
 
  END SUBROUTINE BuildParams
 
-END MODULE IterativeSolversParamsClass
+END MODULE IterativeSolversParams_Class

@@ -310,8 +310,6 @@ MODULE KeyRingClass
  ! DECLARATIONS
    CLASS( NotchedKey ), INTENT(inout) :: myKey
    INTEGER, INTENT(in)                :: notches(1:myKey % nNotches)
-   ! LOCAL
-   LOGICAL :: keyMatches
 
     myKey % notches = notches
     
@@ -327,8 +325,6 @@ MODULE KeyRingClass
  ! DECLARATIONS
    CLASS( NotchedKey ), INTENT(in) :: myKey
    INTEGER, INTENT(out)            :: notches(1:myKey % nNotches)
-   ! LOCAL
-   LOGICAL :: keyMatches
 
     notches = myKey % notches
     
@@ -471,7 +467,6 @@ MODULE KeyRingClass
    INTEGER          :: nNotches
    INTEGER          :: inNotches(1:nNotches)
    ! LOCAL
-   LOGICAL :: isAssigned
    TYPE( NotchedKey ), POINTER :: previous
    INTEGER :: allocationStatus
 

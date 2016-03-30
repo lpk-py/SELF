@@ -45,6 +45,7 @@ IMPLICIT NONE
  ! 
  !------------------------------------------------------------------------
  ! DECLARATIONS
+   IMPLICIT NONE
    INTEGER       :: nP
    REAL(prec)    :: x
    REAL(prec)    :: lAtX, dLdxAtX
@@ -110,6 +111,7 @@ SUBROUTINE LegendreQandL(nP, x, q, qprime, lN)
  ! 
  !------------------------------------------------------------------------
  ! DECLARATIONS
+   IMPLICIT NONE
    INTEGER       :: nP
    REAL(prec)    :: x
    REAL(prec)    :: lN, q, qprime
@@ -219,6 +221,7 @@ SUBROUTINE LegendreQandL(nP, x, q, qprime, lN)
  !    REAL(prec) :: weights(0:nP) - the associated quadrature weights
  ! 
  !------------------------------------------------------------------------
+  IMPLICIT NONE
   INTEGER :: nP
   REAL(prec)    :: xNodes(0:nP)
   REAL(prec)    :: weights(0:nP)
@@ -314,11 +317,11 @@ SUBROUTINE LegendreQandL(nP, x, q, qprime, lN)
  !    REAL(prec) :: weights(0:nP) - the associated quadrature weights
  ! 
  !------------------------------------------------------------------------
+  IMPLICIT NONE
   INTEGER :: nP
   REAL(prec)    :: xNodes(0:nP)
   REAL(prec)    :: weights(0:nP)
   ! LOCAL
-  REAL(prec)    :: lNp1, dlNp1  ! Legendre polynomial and derivative
   REAL(prec)    :: delta, q, qprime, lN
   INTEGER :: jX, kIt ! Loop counter 
  
@@ -411,11 +414,11 @@ SUBROUTINE LegendreQandL(nP, x, q, qprime, lN)
  !    REAL(prec) :: weights(0:nP) - the associated quadrature weights
  ! 
  !------------------------------------------------------------------------
+  IMPLICIT NONE
   INTEGER :: nP
   REAL(prec)    :: xNodes(0:nP)
   REAL(prec)    :: weights(0:nP)
   ! LOCAL
-  REAL(prec)    :: lNp1, dlNp1  ! Legendre polynomial and derivative
   REAL(prec)    :: delta, dLdx, lN, q, qprime
   INTEGER :: jX, kIt ! Loop counter 
 

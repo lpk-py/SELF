@@ -1,0 +1,6 @@
+\contentsline {chapter}{Contents}{i}
+\contentsline {chapter}{\chapternumberline {1}Overview and Motivation}{1}
+\contentsline {chapter}{\chapternumberline {2}QuickStart}{3}
+\contentsline {chapter}{\chapternumberline {3}The DGSEM\_ShallowWater Class}{7}
+\contentsline {section}{\numberline {3.1}The Data Structure}{7}
+\contentsline {section}{\numberline {3.2}Routines}{7}

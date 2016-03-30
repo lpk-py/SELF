@@ -60,7 +60,7 @@ IMPLICIT NONE
     TYPE HexMesh 
        INTEGER                          :: nElems, nNodes, nFaces
        TYPE( HexElement ), ALLOCATABLE  :: elements(:)
-       TYPE( Node ), ALLOCATABLE        :: nodes(:)  
+       TYPE( Node_3D ), ALLOCATABLE     :: nodes(:)  
        TYPE( Face ), ALLOCATABLE        :: faces(:)
        INTEGER                          :: cornerMap(1:3,1:nHexNodes) 
        INTEGER                          :: sideMap(1:nHexFaces) 
@@ -300,10 +300,10 @@ IMPLICIT NONE
        CALL myHexMesh % elements(iEl) % TRASH( )
     ENDDO
      
-    !DO iNode = 1, myHexMesh % nNodes
-    !   CALL myHexMesh % nodes(iNode) % TRASH( )
+    DO iNode = 1, myHexMesh % nNodes
+       CALL myHexMesh % nodes(iNode) % TRASH( )
     !   PRINT*, iNode
-    !ENDDO
+    ENDDO
      
     DEALLOCATE( myHexMesh % nodes, myHexMesh % elements, myHexMesh % Faces )
       

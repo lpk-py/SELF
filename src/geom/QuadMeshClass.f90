@@ -59,7 +59,7 @@ IMPLICIT NONE
     TYPE QuadMesh 
        INTEGER                          :: nElems, nNodes, nEdges
        TYPE( QuadElement ), ALLOCATABLE :: elements(:)
-       TYPE( Node ), ALLOCATABLE        :: nodes(:)  
+       TYPE( Node_2D ), ALLOCATABLE     :: nodes(:)  
        TYPE( Edge ), ALLOCATABLE        :: edges(:)
        INTEGER                          :: cornerMap(1:2,1:4) 
        INTEGER                          :: sideMap(1:4) 
@@ -1467,7 +1467,7 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
    TYPE( HashTable ) :: edgeTable
    INTEGER :: nEls, nNodes, iEl, nEdges, k  
    INTEGER :: l1, l2, startID, endID, key1, key2
-   INTEGER :: e1, e2, s1, s2, edgeID, n1, nID
+   INTEGER :: e1, s1, edgeID, n1
 
       CALL myQuadMesh % GetNumberOfNodes( nNodes )   
       CALL myQuadMesh % GetNumberOfElements( nEls )
@@ -1601,13 +1601,11 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
    IMPLICIT NONE
    CLASS( QuadMesh ), INTENT(inout) :: myQuadMesh
    ! LOCAL
-   INTEGER :: nEls, nNodes, iEl, nEdges, k  
-   INTEGER :: l1, l2, startID, endID, key1, key2
-   INTEGER :: e1, e2, s1, s2, edgeID, n1, nID
+   INTEGER :: nEls, nNodes, iEl, k  
+   INTEGER :: nID
 
       CALL myQuadMesh % GetNumberOfNodes( nNodes )   
       CALL myQuadMesh % GetNumberOfElements( nEls )
-      nEdges = 0
 
       DO iEl = 1, nEls ! Loop over the elements in the mesh
 
@@ -1694,19 +1692,14 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
    ! LOCAL
    TYPE( Curve_2D ) :: elBoundCurves(1:4)
 
-   REAL(prec) :: x, y, z, dxElem, dyElem
-   REAL(prec) :: x1, x2, y1, y2, a, b, c
+   REAL(prec) :: x, y, dxElem, dyElem
+   REAL(prec) :: x1, x2, y1, y2
    REAL(prec), ALLOCATABLE :: xc(:), yc(:), s(:)
 
    INTEGER :: nNodes, nElems, nEdges, gPolyDeg
-   INTEGER :: bFlags(1:4), nodes(1:4)
-   INTEGER :: e1, e2, s1, s2, n1, n2, n(1:2), e(1:2), si(1:2)
+   INTEGER :: nodes(1:4)
+   INTEGER :: s2, n1, n2
    INTEGER :: iEdge, iNode, iEl, iSide, iX, iY
-   INTEGER :: fUnit, iC, jC
-
-   CHARACTER(20) :: ISMversion
-   CHARACTER(40) :: edgeNames
-   CHARACTER(40) :: thisEdge
       
       dxElem = ONE/nXElem
       dyElem = ONE/nYElem
@@ -1847,7 +1840,7 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
 
    INTEGER :: nNodes, nElems, nEdges, gPolyDeg
    INTEGER :: bFlags(1:4), nodes(1:4)
-   INTEGER :: e1, e2, s1, s2, n1, n2, n(1:2), e(1:2), si(1:2)
+   INTEGER :: e1, s1, s2, n1, n2, n(1:2), e(1:2), si(1:2)
    INTEGER :: iEdge, iNode, iEl, iSide
    INTEGER :: fUnit, iC, jC
    INTEGER, ALLOCATABLE :: sideFlags(:,:)

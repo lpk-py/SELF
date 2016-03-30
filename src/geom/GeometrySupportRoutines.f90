@@ -123,16 +123,16 @@ CONTAINS
      CALL curves(3) % Evaluate( ONE, c4(1), c4(2) ) ! northeast
  
    ! Do the derivative wrt the first computational space variable
-     P1 = UnidirectionalDerivative( westCurve, eastCurve, a )
-     Psouth = UnidirectionalDerivative( c1, c2, a )
-     Pnorth = UnidirectionalDerivative( c3, c4, a )
+     P1 = UnidirectionalDerivative( westCurve, eastCurve )
+     Psouth = UnidirectionalDerivative( c1, c2 )
+     Pnorth = UnidirectionalDerivative( c3, c4 )
 
      metricTensor(1:2,1) = P1 + Unidirectional( dSouth - Psouth, dNorth - Pnorth, b ) ! dxds, dyds
 
   ! Do the derivative wrt the second computational space variable 
-     P2 = UnidirectionalDerivative( southCurve, northCurve, b )
-     Pwest = UnidirectionalDerivative( c1, c3, b )
-     Peast = UnidirectionalDerivative( c2, c4, b )
+     P2 = UnidirectionalDerivative( southCurve, northCurve )
+     Pwest = UnidirectionalDerivative( c1, c3 )
+     Peast = UnidirectionalDerivative( c2, c4 )
 
      metricTensor(1:2,2) = P2 + Unidirectional( dWest - Pwest, dEast - Peast, a ) ! dxdp, dydp
 
@@ -186,13 +186,12 @@ CONTAINS
 !
 !
 !
- FUNCTION UnidirectionalDerivative_2D( valLeft, valRight, a ) RESULT( P )
+ FUNCTION UnidirectionalDerivative_2D( valLeft, valRight ) RESULT( P )
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    REAL(prec) :: valLeft(1:2), valRight(1:2)
-   REAL(prec) :: a
    REAL(prec) :: P(1:2)
 
        P = HALF*( valRight - valLeft )
@@ -201,13 +200,12 @@ CONTAINS
 !
 !
 !
- FUNCTION UnidirectionalDerivative_3D( valLeft, valRight, a ) RESULT( P )
+ FUNCTION UnidirectionalDerivative_3D( valLeft, valRight ) RESULT( P )
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    REAL(prec) :: valLeft(1:3), valRight(1:3)
-   REAL(prec) :: a
    REAL(prec) :: P(1:3)
 
        P = HALF*( valRight - valLeft )

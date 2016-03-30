@@ -23,6 +23,7 @@
     INTEGER, PARAMETER :: kItMax = 50 ! Max iterations for Newton's method.
                                       ! USEd in : MODULE LEGENDRE.f90, S/R LEG_GAUSSQUAD
     REAL(prec), PARAMETER :: fillValue = -9999.99_prec
+    INTEGER, PARAMETER    :: fillValueInt = -99999
   !*************************************************************!
   ! ----------------- ROOT FINDER CONSTANTS --------------------!
   ! ************************************************************!

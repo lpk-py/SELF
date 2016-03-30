@@ -120,10 +120,29 @@ IMPLICIT NONE
      END SUBROUTINE CopyFromType
   END INTERFACE
 
+! //////////////////// Conjugate Gradient ////////////////////////// !
+
   TYPE, ABSTRACT, EXTENDS(IterativeSolver) :: ConjugateGradient
      CONTAINS
      PROCEDURE :: Solve => Solve_ConjugateGradient
   END TYPE ConjugateGradient
+
+! ////////////////////////////////////////////////////////////////// !
+
+! ///////////// Pre-Conditioned ConjugateGradient ////////////////// !
+
+  TYPE, ABSTRACT, EXTENDS(IterativeSolver) :: PCConjugateGradient
+     INTEGER :: mInnerIters
+     CONTAINS
+     PROCEDURE :: Solve => Solve_PCConjugateGradient
+ 
+     PROCEDURE (InvertThePreconditionerCG), DEFERRED :: PreConditionInvert  
+  END TYPE PCConjugateGradient
+
+
+! ////////////////////////////////////////////////////////////////// !
+
+! /////////////////////////// GMRES //////////////////////////////// !
 
   TYPE, ABSTRACT, EXTENDS(IterativeSolver) :: GMRES
      INTEGER :: mInnerIters
@@ -131,6 +150,42 @@ IMPLICIT NONE
      PROCEDURE :: Solve => Solve_GMRES
   END TYPE GMRES
 
+! ////////////////////////////////////////////////////////////////// !
+
+
+! ////////////////// Pre-Conditioned GMRES ///////////////////////// !
+
+  TYPE, ABSTRACT, EXTENDS(IterativeSolver) :: PCGMRES
+     INTEGER :: mInnerIters
+     CONTAINS
+     PROCEDURE :: Solve => Solve_PCGMRES
+ 
+     PROCEDURE (InvertThePreconditionerGM), DEFERRED :: PreConditionInvert  
+  END TYPE PCGMRES
+
+
+! ////////////////////////////////////////////////////////////////// !
+
+
+  ABSTRACT INTERFACE
+     FUNCTION InvertThePreconditionerCG( this, s )
+        USE ModelPrecision
+        IMPORT PCConjugateGradient
+        CLASS(PCConjugateGradient) :: this
+        REAL(prec)                 :: s(1:this % nDOF)
+        REAL(prec)                 :: InvertThePreconditionerCG(1:this % nDOF)
+     END FUNCTION InvertThePreconditionerCG
+  END INTERFACE
+
+  ABSTRACT INTERFACE
+     FUNCTION InvertThePreconditionerGM( this, s )
+        USE ModelPrecision
+        IMPORT PCGMRES
+        CLASS(PCGMRES) :: this
+        REAL(prec)     :: s(1:this % nDOF)
+        REAL(prec)     :: InvertThePreconditionerGM(1:this % nDOF)
+     END FUNCTION InvertThePreconditionerGM
+  END INTERFACE
  CONTAINS
 !
 !
@@ -245,7 +300,7 @@ IMPLICIT NONE
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( IterativeSolver ), INTENT(inout) :: this
-   REAL(prec), INTENT(in)                   :: tol
+   REAL(prec), INTENT(in)                  :: tol
    
     this % tolerance = tol
     
@@ -353,6 +408,90 @@ IMPLICIT NONE
 !
 !
 !
+SUBROUTINE Solve_PCConjugateGradient( this, ioerr )
+ !  S/R Solve
+ !
+ !  This subroutine solves the system Ax = b using the preconditioned conjugate gradient method.
+ !  The matrix action, residual, preconditioning routines are supplied by a non-abstracted 
+ !  type-extension of PCConjugateGradient. These routines should return an array indexed from 1 to 
+ !  nDOF. Thus, in addition to a MatrixAction and Residual, the user should map their data-structure
+ !  to a 1-D array.  
+ !
+ !  On output ioerr is set to an error checking flag. 
+ !  If ioerr ==  0, the method converged within the maximum number of iterations.
+ !     ioerr == -1, the method did not converge within the maximum number of iterations.
+ !     ioerr == -2, something that is not caught by the current construct happened.
+ !  
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( PCConjugateGradient ), INTENT(inout) :: this
+   INTEGER, INTENT(out)                        :: ioerr
+   ! LOCAL
+   INTEGER    :: iter
+   INTEGER    :: nIt
+   REAL(prec) :: TOL
+   REAL(prec) :: r(1:this % nDOF )
+   REAL(prec) :: v(1:this % nDOF )
+   REAL(prec) :: z(1:this % nDOF )
+   REAL(prec) :: w(1:this % nDOF )
+   REAL(prec) :: rNorm
+   REAL(prec) :: a, b, num, den, r0
+   
+      ioerr = -2
+      nIt = this % maxIters
+      TOL = this % tolerance
+      
+      CALL this % CopyTo( this % sol ) ! Copy the data-structure to the array "this % sol"
+      r = this % Residual( this % sol )
+      r0 = sqrt( DOT_PRODUCT( r, r ) ) 
+      
+      this % resi = ZERO
+      this % resi(0) = r0
+ 
+      DO iter = 1,nIt ! Loop over the CG iterates
+ 
+         w = this % PreConditionInvert( r )
+
+         num = DOT_PRODUCT( r, w )
+
+         IF( iter == 1) THEN
+            v = w
+         ELSE
+            b = num/den
+            v = w + b*v
+         ENDIF
+
+         z = this % MatrixAction( v )
+         a = num/DOT_PRODUCT( v, z )
+         this % sol = this % sol + a*v
+         r = r - a*z
+         
+         den = num
+
+         rNorm = sqrt( DOT_PRODUCT(r,r) )
+         this % resi(iter) = rNorm
+         IF( sqrt(rNorm)/r0 < TOL ) then
+           EXIT
+           ioerr = 0
+         ENDIF
+
+      ENDDO ! iter, loop over the CG iterates 
+
+      ! Copy the array storage back to the native storage for file I/O
+      CALL this % CopyFrom( this % sol )
+
+
+      IF( SQRT(rNorm) > TOL )THEN
+         PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
+         PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
+         ioerr=-1
+      ENDIF   
+
+ END SUBROUTINE Solve_PCConjugateGradient
+!
+!
+!
  SUBROUTINE Solve_GMRES( this, ioerr )
  !  S/R Solve
  !
@@ -377,7 +516,7 @@ IMPLICIT NONE
    INTEGER    :: nIt, m, nr 
    REAL(prec) :: TOL
    REAL(prec) :: r(1:this % nDOF )
-   REAL(prec) :: v(1:this % nDOF, 1:this % mInnerIters+1 )
+   REAL(prec) :: v(1:this % nDOF, 1:this % mInnerIters+1)
    REAL(prec) :: w(1:this % nDOF )
    REAL(prec) :: rho(1:this % mInnerIters, 1:this % mInnerIters)
    REAL(prec) :: h(1:this % mInnerIters+1, 1:this % mInnerIters)
@@ -513,6 +652,176 @@ IMPLICIT NONE
       ENDIF   
 
  END SUBROUTINE Solve_GMRES
+!
+!
+!
+ SUBROUTINE Solve_PCGMRES( this, ioerr )
+ !  S/R Solve
+ !
+ !  This subroutine solves the system Ax = b using the preconditioned GMRES.
+ !  The matrix action, residual, and preconditioning routines are supplied by a non-abstracted 
+ !  type-extension of PCGMRES. These routines should return an array indexed from 1 to 
+ !  nDOF. Thus, in addition to a MatrixAction and Residual, the user should map their data-structure
+ !  to a 1-D array so that communication to this routine is possible.  
+ !
+ !  The flavor of GMRES implemented here is the "Flexible GMRES with variable right preconditioning".
+ !  See pp.74-76 of "Iterative Krylov Methods for Large Linear Systems" by Henk A. van der Vorst
+ !
+ !  On output ioerr is set to an error checking flag. 
+ !  If ioerr ==  0, the method converged within the maximum number of iterations.
+ !     ioerr == -1, the method did not converge within the maximum number of iterations.
+ !     ioerr == -2, something that is not caught by the current construct happened.
+ !  
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( PCGMRES ), INTENT(inout) :: this
+   INTEGER, INTENT(out)            :: ioerr
+   ! LOCAL
+   INTEGER    :: i, j, k, l
+   INTEGER    :: nIt, m, nr 
+   REAL(prec) :: TOL
+   REAL(prec) :: r(1:this % nDOF)
+   REAL(prec) :: v(1:this % nDOF, 1:this % mInnerIters+1)
+   REAL(prec) :: w(1:this % nDOF)
+   REAL(prec) :: z(1:this % nDOF, 1:this % mInnerIters+1)
+   REAL(prec) :: rho(1:this % mInnerIters, 1:this % mInnerIters)
+   REAL(prec) :: h(1:this % mInnerIters+1, 1:this % mInnerIters)
+   REAL(prec) :: c(1:this % mInnerIters), s(1:this % mInnerIters), bhat(1:this % mInnerIters+1)
+   REAL(prec) :: y(1:this % mInnerIters+1)
+   REAL(prec) :: b, d, g, r0, rc
+   
+      ioerr = -2
+      nIt = this % maxIters
+      m   = this % mInnerIters
+      TOL = this % tolerance
+      
+      CALL this % CopyTo( this % sol ) ! Copy the data-structure to the array "this % sol"
+      r = this % Residual( this % sol )
+      r0 = sqrt( DOT_PRODUCT( r, r ) )
+     
+      l = 0 
+      this % resi = ZERO
+      this % resi(l) = r0
+      
+      v    = ZERO  
+      rho  = ZERO
+      bhat = ZERO 
+      s    = ZERO
+      c    = ZERO
+      y    = ZERO
+   
+     
+      DO j = 1,nIt
+
+         b       = sqrt( DOT_PRODUCT( r, r ) )
+         v(:,1)  = r/b
+         bhat(1) = b
+
+         DO i = 1, m
+            l = l+1
+            nr = i
+
+            ! Applying the precondtioner 
+            z(:,i) = this % PreconditionInvert( v(:,i) )
+            ! The first step in GMRES is to build the orthogonal basis up to order "i"
+            ! with the accompanying upper hessenburg matrix.
+            w = this % MatrixAction( z(:,i) )
+            
+            ! The new basis vector is obtained by multiplying the previous basis vector by the matrix
+            ! and orthogonalizing wrt to all of the previous basis vectors using a Gram-Schmidt process.
+            DO k = 1, i
+               h(k,i) = DOT_PRODUCT( v(:,k), w )
+               w      = w - h(k,i)*v(:,k)
+            ENDDO
+
+            h(i+1,i) = sqrt( DOT_PRODUCT(w,w) )
+
+            IF( AlmostEqual( h(i+1,i), ZERO )  )THEN
+               EXIT
+            ENDIF
+
+            v(:,i+1) = w/h(i+1,i)
+            rho(1,i) = h(1,i)
+
+            ! Givens rotations are applied to the upper hessenburg matrix and to the residual vectors
+            ! that are formed from the orthogonalization process. Here, they are done "on-the-fly"
+            ! as opposed to building the entire upper hessenburg matrix and orthonormal basis
+            ! before performing the rotations. This way, we can also tell if we have found an exact
+            ! solution ( if h(i+1,i) = 0 ) with a smaller subspace than size m.
+            DO k = 2, i
+
+               g          = c(k-1)*rho(k-1,i) + s(k-1)*h(k,i)
+               rho(k,i)   = -s(k-1)*rho(k-1,i) + c(k-1)*h(k,i)
+               rho(k-1,i) = g 
+
+            ENDDO
+
+            ! Here the coefficients of the Givens rotation matrix are computed
+            d = sqrt( rho(i,i)**2 + h(i+1,i)**2 )
+            c(i) = rho(i,i)/d
+            s(i) = h(i+1,i)/d
+
+            rho(i,i) = c(i)*rho(i,i) + s(i)*h(i+1,i)
+            ! And applied to the residual vector
+            bhat(i+1) = -s(i)*bhat(i)
+            bhat(i)   = c(i)*bhat(i)
+ 
+         
+            rc = abs( bhat(i+1) )
+
+            this % resi(l) = rc
+            
+            IF( rc/r0 <= TOL )THEN
+               EXIT
+            ENDIF
+
+         ENDDO
+         
+         IF( rc/r0 > TOL )THEN
+            nr = m
+         ENDIF
+
+         ! Back-substitution of the tridiagonal matrix that resulted from the rotations
+         y(nr) = bhat(nr)/rho(nr,nr)
+         DO k = nr-1, 1, -1
+
+            y(k) = bhat(k)
+
+            DO i = k+1, nr
+               y(k) = y(k) - rho(k,i)*y(i)
+
+            ENDDO
+
+            y(k) = y(k)/rho(k,k)
+
+         ENDDO
+         
+ 
+         DO k = 1,this % nDOF
+            this % sol(k) = this % sol(k) + DOT_PRODUCT( z(k, 1:nr), y(1:nr) )
+         ENDDO
+
+         IF( rc/r0 <= TOL )THEN
+            ioerr = 0
+            EXIT
+         ENDIF
+
+         r = this % Residual( this % sol )
+
+      ENDDO 
+
+      ! Copy the array storage back to the native storage for file I/O
+      CALL this % CopyFrom( this % sol )
+
+
+      IF( rc/r0 > TOL )THEN
+         PRINT*, 'MODULE IterativeSolvers : GMRES failed to converge '
+         PRINT*, 'Last L-2 residual : ', sqrt(DOT_PRODUCT(r,r))
+         ioerr=-1
+      ENDIF   
+
+ END SUBROUTINE Solve_PCGMRES
 !
 !
 !==================================================================================================!

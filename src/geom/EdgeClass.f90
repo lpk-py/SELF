@@ -652,7 +652,6 @@ SUBROUTINE Build_Edge( myEdge )
   INTEGER           :: key, start, inc
   INTEGER, OPTIONAL :: inKey
   ! LOCAL
-  LOGICAL               :: isAssigned
   TYPE( Edge ), POINTER :: previous
   INTEGER               :: allocationStatus
 

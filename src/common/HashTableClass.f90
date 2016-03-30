@@ -144,7 +144,7 @@ MODULE HashTableClass
      IF(  myTable % list(i) % ListIsEmpty() )THEN ! this table entry is not pointing to a linked list
         PRINT*, 'MODULE HASHTABLE_CLASS : S/R GetDataForKeys :'
         PRINT*, 'List ', i,' is empty.'
-        outData = fillValue
+        outData = fillValueInt
         RETURN
      ENDIF
 

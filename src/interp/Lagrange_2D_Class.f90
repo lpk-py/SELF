@@ -482,8 +482,7 @@ SUBROUTINE TrashLagrange_2D(myPoly)
 
   ! LOCAL
   REAL(prec) :: fInt(0:nSnew,0:oldPoly % nP) 
-  INTEGER :: j, nSold, nPold, nXnew, nYnew
-  INTEGER :: kP
+  INTEGER :: j, nSold, nPold
 
     CALL oldPoly % GetNumberOfNodes( nSold, nPold )
        

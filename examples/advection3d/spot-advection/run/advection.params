@@ -1,0 +1,20 @@
+&TracerSetup
+nTracers = 2,
+/
+&TimeManagement
+dt = 0.0001,
+iterInit = 0,
+nTimeSteps = 2,
+dumpFreq = 500,
+/
+&SpaceManagement
+polyDeg = 8,
+nCutoff = 6,
+nXElem = 2
+nYElem = 2,
+nZElem = 2
+nPlot = 10,
+xScale = 1.0,
+yScale = 1.0,
+zScale = 1.0,
+/

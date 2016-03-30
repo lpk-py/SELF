@@ -859,7 +859,7 @@ IMPLICIT NONE
   LOGICAL, INTENT(out), OPTIONAL         :: success
   ! LOCAL
   REAL(prec) :: dr(1:2), ds(1:2), A(1:2,1:2), Ainv(1:2,1:2)
-  REAL(prec) :: thisX, thisY, thisS, thisP, resi, r0
+  REAL(prec) :: thisX, thisY, thisS, thisP, resi
   INTEGER    :: i 
 
      thisS = ZERO ! Initial guess is at the origin

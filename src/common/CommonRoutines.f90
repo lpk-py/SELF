@@ -93,14 +93,19 @@ CONTAINS
 
     DO i = 2,  N
        j = i
-       DO WHILE( j > 1 .AND. outArray(j-1) > outArray(j) )
-          !Swap outArray(j) outArray(j-1)
-          temp          = outArray(j)
-          outArray(j)   = outArray(j-1)
-          outArray(j-1) = temp 
+       DO WHILE( j > 1 )
+          IF(  outArray(j-1) > outArray(j) )THEN
+             !Swap outArray(j) outArray(j-1)
+             temp          = outArray(j)
+             outArray(j)   = outArray(j-1)
+             outArray(j-1) = temp 
         
-          j = j-1
+             j = j-1
+          ELSE
+             EXIT
+          ENDIF
        ENDDO
+
     ENDDO
 
  END SUBROUTINE InsertionSort

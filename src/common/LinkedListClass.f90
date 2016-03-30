@@ -232,7 +232,6 @@ MODULE LinkedListClass
   INTEGER             :: inData
   INTEGER, OPTIONAL   :: inKey
   ! LOCAL
-  LOGICAL :: isAssigned
   TYPE( Record ), POINTER :: previous
   INTEGER :: allocationStatus
 

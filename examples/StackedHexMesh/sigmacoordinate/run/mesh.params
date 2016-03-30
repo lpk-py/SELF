@@ -1,0 +1,12 @@
+&SpaceManagement
+SpecMeshFile = 'circle.mesh',
+geomPolyDeg = 2,
+polyDeg = 4,
+nXElem = 2,
+nYElem = 2,
+nZElem = 2,
+nPlot = 10,
+xScale = 1.0,
+yScale = 1.0,
+zScale = 1.0,
+/

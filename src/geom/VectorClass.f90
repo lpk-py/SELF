@@ -209,8 +209,6 @@ IMPLICIT NONE
    IMPLICIT NONE
    CLASS(Vector), INTENT(in) :: vec1, vec2
    REAL(prec)               :: vec1DotVec2
-   ! LOCAL
-   INTEGER :: iDimen
    
       vec1DotVec2 = DOT_PRODUCT( vec1 % dir, vec2 % dir )
 
