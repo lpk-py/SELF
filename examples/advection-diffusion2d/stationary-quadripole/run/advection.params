@@ -1,0 +1,18 @@
+&TracerSetup
+nTracers = 4,
+kappa = 0.001,
+/
+&TimeManagement
+dt = 0.0001,
+iterInit = 0,
+nTimeSteps = 10000,
+dumpFreq = 50,
+/
+&SpaceManagement
+polyDeg = 12,
+nXElem = 7
+nYElem = 7,
+nPlot = 20,
+xScale = 1.0,
+yScale = 1.0,
+/

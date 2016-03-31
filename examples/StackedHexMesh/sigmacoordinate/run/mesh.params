@@ -1,7 +1,7 @@
 &SpaceManagement
 SpecMeshFile = 'circle.mesh',
-geomPolyDeg = 2,
-polyDeg = 4,
+geomPolyDeg = 4,
+polyDeg = 6,
 nXElem = 2,
 nYElem = 2,
 nZElem = 2,

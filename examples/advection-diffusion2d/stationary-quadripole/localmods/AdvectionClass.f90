@@ -306,17 +306,6 @@ IMPLICIT NONE
                                                 myDGSEM % params % nXelem, &
                                                 myDGSEM % params % nYelem )
 
-         DO iEdge = 1, myDGSEM % mesh % nEdges
-            CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
-            CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
-            IF( e2 == NO_NORMAL_FLOW )THEN
-               IF( s1 == west .OR. s1 == north )THEN
-                  CALL myDGSEM % mesh % SetEdgeSecondaryElementID( iEdge, InflowOne )
-               ELSEIF( s1 == east .OR. s1 == south)THEN
-                  CALL myDGSEM % mesh % SetEdgeSecondaryElementID( iEdge, InflowTwo )
-               ENDIF
-            ENDIF
-         ENDDO
 
       ELSE
       ! Builds the lateral mesh
@@ -1013,7 +1002,7 @@ SUBROUTINE GetGradientWithVarID_Advection( myDGSEM, iEl, varID, dcdx, dcdy  )
    INTEGER, INTENT(in)          :: iEl
    REAL(prec), INTENT(out)      :: rFac(0:myDGSEM % nS, 0:myDGSEM % nP, 1:myDGSEM % nEq)
 
-      CALL myDGSEM % relax(iEl) % GetSolution( rFac )
+      CALL myDGSEM % relaxFactor(iEl) % GetSolution( rFac )
           
  END SUBROUTINE GetRelaxationFactor_Advection
 !
@@ -1030,7 +1019,7 @@ SUBROUTINE GetGradientWithVarID_Advection( myDGSEM, iEl, varID, dcdx, dcdy  )
    INTEGER, INTENT(in)             :: iEl
    REAL(prec), INTENT(in)          :: rFac(0:myDGSEM % nS, 0:myDGSEM % nP, 1:myDGSEM % nEq)
    
-      CALL myDGSEM % relax(iEl) % SetSolution( rFac )
+      CALL myDGSEM % relaxFactor(iEl) % SetSolution( rFac )
 
  END SUBROUTINE SetRelaxationFactor_Advection
 !
@@ -1047,7 +1036,7 @@ SUBROUTINE GetGradientWithVarID_Advection( myDGSEM, iEl, varID, dcdx, dcdy  )
    INTEGER, INTENT(in)          :: iEl, i, j
    REAL(prec), INTENT(out)      :: rFac(1:myDGSEM % nEq)
  
-      CALL myDGSEM % relax(iEl) % GetSolutionAtNode( i, j, rFac )
+      CALL myDGSEM % relaxFactor(iEl) % GetSolutionAtNode( i, j, rFac )
       
  END SUBROUTINE GetRelaxationFactorAtNode_Advection
 !
@@ -1064,7 +1053,7 @@ SUBROUTINE GetGradientWithVarID_Advection( myDGSEM, iEl, varID, dcdx, dcdy  )
    INTEGER, INTENT(in)             :: iEl, i, j
    REAL(prec), INTENT(in)          :: rFac(1:myDGSEM % nEq)
 
-      CALL myDGSEM % relax(iEl) % SetSolutionAtNode( i, j, rFac )
+      CALL myDGSEM % relaxFactor(iEl) % SetSolutionAtNode( i, j, rFac )
 
  END SUBROUTINE SetRelaxationFactorAtNode_Advection
 !
@@ -1863,15 +1852,7 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
 
        extState = ZERO 
 
-       IF( bcFlag == InflowOne  )THEN
-          
-          extState(1) = tanh(t) 
-             
-       ELSEIF( bcFlag == InflowTwo )THEN
-
-          extState(2) =  tanh(t)
-          
-       ELSEIF( bcFlag == NO_NORMAL_FLOW )THEN
+       IF( bcFlag == NO_NORMAL_FLOW )THEN
       
           extState = ZERO 
   
@@ -2011,7 +1992,7 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
              STATUS='replace')  
     ENDIF
     
-    WRITE(fUnit,*) 'VARIABLES = "X", "Y", "U", "V", "C1", "C2", "dC1dx", "dC1dy", "dC2dx", "dC2dy" '
+    WRITE(fUnit,*) 'VARIABLES = "X", "Y", "U", "V", "C1", "C2", "C3", "C4" '
  
     DO iEl = 1, myDGsem % mesh % nElems
 
@@ -2024,8 +2005,7 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
               WRITE (fUnit,*)  x( iS, iP ), y( iS, iP ), &
                                u(iS,iP), v(iS,iP), &
                                c(iS,iP,1), c(iS,iP,2), &
-                               dcdx(iS,iP,1), dcdy(iS,iP,1), &
-                               dcdx(iS,iP,2), dcdy(iS,iP,2)
+                               c(iS,iP,3), c(iS,iP,4)
            ENDDO
         ENDDO
         

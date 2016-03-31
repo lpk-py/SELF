@@ -20,8 +20,8 @@
       spring constant      = 1.0
       mass                 = 1.0
       rest length          = 0.0
-      damping coefficient  = 5.0
-      number of iterations = 25
+      damping coefficient  = 7.0
+      number of iterations = 40
       time step            = 0.1
    \end{SpringSmoother}
 
