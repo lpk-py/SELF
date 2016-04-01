@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  23 MAR 2016 18:15
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  1 APR 2016 14:00
 entering extended mode
  %&-line parsing enabled.
 **SELF-QuickManual.tex
@@ -1110,10 +1110,7 @@ File: ot1phv.fd 2001/06/04 scalable font definitions for OT1/phv.
 )
 LaTeX Font Info:    Font shape `OT1/phv/bx/n' in size <24.88> not available
 (Font)              Font shape `OT1/phv/b/n' tried instead on input line 65.
- [3] [4]
-LaTeX Font Info:    Font shape `OT1/phv/bx/n' in size <17.28> not available
-(Font)              Font shape `OT1/phv/b/n' tried instead on input line 86.
- [5
+ [3] [4] [5
 
 ]
 \tf@toc=\write7
@@ -1122,11 +1119,11 @@ LaTeX Font Info:    Font shape `OT1/phv/bx/n' in size <17.28> not available
 
 (./SELF-QuickManual.aux) ) 
 Here is how much of TeX's memory you used:
- 22692 strings out of 493848
- 421991 string characters out of 1152823
- 533119 words of memory out of 3000000
- 25521 multiletter control sequences out of 15000+50000
- 17160 words of font info for 52 fonts, out of 3000000 for 9000
+ 22666 strings out of 493848
+ 421667 string characters out of 1152823
+ 532119 words of memory out of 3000000
+ 25504 multiletter control sequences out of 15000+50000
+ 15111 words of font info for 49 fonts, out of 3000000 for 9000
  714 hyphenation exceptions out of 8191
  76i,11n,63p,799b,326s stack positions out of 5000i,500n,10000p,200000b,50000s
 {/usr/share/texmf-texlive/fonts/enc/dvips/base/8r.enc
@@ -1135,11 +1132,11 @@ e/texmf-texlive/fonts/type1/public/amsfonts/cm/cmbxti10.pfb></usr/share/texmf-t
 exlive/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texmf-texlive/fonts
 /type1/public/amsfonts/cm/cmss12.pfb></usr/share/texmf-texlive/fonts/type1/publ
 ic/amsfonts/cm/cmss17.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts
-/cm/cmssbx10.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmtt1
-2.pfb></usr/share/texmf-texlive/fonts/type1/urw/helvetic/uhvb8a.pfb>
-Output written on SELF-QuickManual.pdf (7 pages, 101982 bytes).
+/cm/cmssbx10.pfb></usr/share/texmf-texlive/fonts/type1/urw/helvetic/uhvb8a.pfb>
+
+Output written on SELF-QuickManual.pdf (7 pages, 87149 bytes).
 PDF statistics:
- 137 PDF objects out of 1000 (max. 8388607)
- 23 named destinations out of 1000 (max. 500000)
- 93 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 93 PDF objects out of 1000 (max. 8388607)
+ 16 named destinations out of 1000 (max. 500000)
+ 29 words of extra memory for PDF output out of 10000 (max. 10000000)
 

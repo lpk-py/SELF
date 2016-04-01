@@ -63,6 +63,8 @@ IMPLICIT NONE
       PROCEDURE :: SetBoundarySolutionAtBoundary => SetBoundarySolutionAtBoundary_DGSEM_3D
       PROCEDURE :: GetBoundarySolutionAtBoundaryWithVarID => GetBoundarySolutionAtBoundaryWithVarID_DGSEM_3D
       PROCEDURE :: SetBoundarySolutionAtBoundaryWithVarID => SetBoundarySolutionAtBoundaryWithVarID_DGSEM_3D
+      PROCEDURE :: GetBoundarySolutionAtBoundaryNodeWithVarID => GetBoundarySolutionAtBoundaryNodeWithVarID_DGSEM_3D
+      PROCEDURE :: SetBoundarySolutionAtBoundaryNodeWithVarID => SetBoundarySolutionAtBoundaryNodeWithVarID_DGSEM_3D
 
       PROCEDURE :: GetBoundaryFlux => GetBoundaryFlux_DGSEM_3D
       PROCEDURE :: SetBoundaryFlux => SetBoundaryFlux_DGSEM_3D
@@ -72,7 +74,9 @@ IMPLICIT NONE
       PROCEDURE :: SetBoundaryFluxAtBoundaryNode => SetBoundaryFluxAtBoundaryNode_DGSEMSolution_3D
       PROCEDURE :: GetBoundaryFluxAtBoundaryWithVarID => GetBoundaryFluxAtBoundaryWithVarID_DGSEM_3D
       PROCEDURE :: SetBoundaryFluxAtBoundaryWithVarID => SetBoundaryFluxAtBoundaryWithVarID_DGSEM_3D 
-      
+      PROCEDURE :: GetBoundaryFluxAtBoundaryNodeWithVarID => GetBoundaryFluxAtBoundaryNodeWithVarID_DGSEM_3D
+      PROCEDURE :: SetBoundaryFluxAtBoundaryNodeWithVarID => SetBoundaryFluxAtBoundaryNodeWithVarID_DGSEM_3D 
+            
       PROCEDURE :: CalculateSolutionAtBoundaries => CalculateSolutionAtBoundaries_DGSEMSolution_3D
     END TYPE DGSEMSolution_3D
 
@@ -593,6 +597,41 @@ SUBROUTINE GetTendencyWithVarID_DGSEM_3D( myDGS, varID, theTend  )
 
  END SUBROUTINE SetBoundarySolutionAtBoundaryWithVarID_DGSEM_3D
 !
+!
+!
+ SUBROUTINE GetBoundarySolutionAtBoundaryNodeWithVarID_DGSEM_3D( myDGS, i, j, boundary, varID, theSolution  )
+ ! S/R GetBoundarySolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(DGSEMSolution_3D), INTENT(in) :: myDGS
+   INTEGER, INTENT(in)                 :: i, j, boundary, varID 
+   REAL(prec), INTENT(out)             :: theSolution
+
+      theSolution = myDGS % boundarySolution(i, j, varID, boundary)
+
+ END SUBROUTINE GetBoundarySolutionAtBoundaryNodeWithVarID_DGSEM_3D
+!
+!
+!
+ SUBROUTINE SetBoundarySolutionAtBoundaryNodeWithVarID_DGSEM_3D( myDGS, i, j, boundary, varID, theSolution  )
+ ! S/R SetBoundarySolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(DGSEMSolution_3D), INTENT(inout) :: myDGS
+   INTEGER, INTENT(in)                    :: i, j, boundary, varID 
+   REAL(prec), INTENT(in)                 :: theSolution
+   ! LOCAL
+
+      myDGS % boundarySolution(i, j, varID, boundary) = theSolution
+
+ END SUBROUTINE SetBoundarySolutionAtBoundaryNodeWithVarID_DGSEM_3D
+!
 ! --------------------------------- Boundary Flux ------------------------------------------------ !
 !
 SUBROUTINE GetBoundaryFlux_DGSEM_3D( myDGS, theFlux  )
@@ -730,6 +769,41 @@ SUBROUTINE GetBoundaryFlux_DGSEM_3D( myDGS, theFlux  )
       myDGS % boundaryFlux(0:myDGS % nMax, 0:myDGS % nMax, varID, boundary) = theFlux
 
  END SUBROUTINE SetBoundaryFluxAtBoundaryWithVarID_DGSEM_3D
+!
+!
+!
+SUBROUTINE GetBoundaryFluxAtBoundaryNodeWithVarID_DGSEM_3D( myDGS, i, j, boundary, varID, theFlux  )
+ ! S/R GetBoundaryFlux
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(DGSEMSolution_3D), INTENT(in) :: myDGS
+   INTEGER, INTENT(in)                 :: i, j, boundary, varID 
+   REAL(prec), INTENT(out)             :: theFlux
+
+      theFlux = myDGS % boundaryFlux(i, j, varID, boundary)
+
+ END SUBROUTINE GetBoundaryFluxAtBoundaryNodeWithVarID_DGSEM_3D
+!
+!
+!
+ SUBROUTINE SetBoundaryFluxAtBoundaryNodeWithVarID_DGSEM_3D( myDGS, i, j, boundary, varID, theFlux  )
+ ! S/R SetBoundaryFlux
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(DGSEMSolution_3D), INTENT(inout) :: myDGS
+   INTEGER, INTENT(in)                    :: i, j, boundary, varID 
+   REAL(prec), INTENT(in)                 :: theFlux
+   ! LOCAL
+
+      myDGS % boundaryFlux(i, j, varID, boundary) = theFlux
+
+ END SUBROUTINE SetBoundaryFluxAtBoundaryNodeWithVarID_DGSEM_3D
 !
 !
 !==================================================================================================!

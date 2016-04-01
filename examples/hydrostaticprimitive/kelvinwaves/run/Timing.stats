@@ -1,0 +1,37 @@
+ ====================== Timing Results ======================
+  
+ CalculateSolutionAtBoundaries           
+ Number of Measurements :    2.0000000000000000     
+ Accumulated Time       :   4.63999999999992196E-004
+ Average Time           :   2.31999999999996098E-004
+ ------------------------------------------------------------
+ CalculateDivU                           
+ Number of Measurements :    2.0000000000000000     
+ Accumulated Time       :   8.01999999999997160E-004
+ Average Time           :   4.00999999999998580E-004
+ ------------------------------------------------------------
+ DiagnoseP                               
+ Number of Measurements :    2.0000000000000000     
+ Accumulated Time       :   3.03999999999998716E-004
+ Average Time           :   1.51999999999999358E-004
+ ------------------------------------------------------------
+ DiagnoseW                               
+ Number of Measurements :    2.0000000000000000     
+ Accumulated Time       :   2.90000000000012470E-004
+ Average Time           :   1.45000000000006235E-004
+ ------------------------------------------------------------
+ EdgeFlux                                
+ Number of Measurements :    2.0000000000000000     
+ Accumulated Time       :   6.47999999999995802E-004
+ Average Time           :   3.23999999999997901E-004
+ ------------------------------------------------------------
+ MappedTimeDerivative                    
+ Number of Measurements :    2.0000000000000000     
+ Accumulated Time       :   9.95999999999996888E-004
+ Average Time           :   4.97999999999998444E-004
+ ------------------------------------------------------------
+ File-I/O                                
+ Number of Measurements :    0.0000000000000000     
+ Accumulated Time       :    0.0000000000000000     
+ Average Time           :                        NaN
+ ------------------------------------------------------------

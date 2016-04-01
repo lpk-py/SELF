@@ -15,7 +15,7 @@
         
      \begin{flushright}
         {\fontfamily{cmss}\selectfont
-        \HUGE{\textbf{ Spectral Element Method }}\\
+        \HUGE{\textbf{ Spectral Element Libraries in Fortran }}\\
         }
        
         \vspace{1cm}
@@ -24,7 +24,7 @@
         \textbf{
         \textit{
         \textcolor{blue}{
-           Support Modules
+           SELF
         }}}}
         
      \end{flushright}
@@ -73,25 +73,13 @@ The software is broken into the following components :
 \item Spectral filters,
 \item Solution storage data structures,
 \item Geometry,
-\item High end solvers for particular PDEs
+\item \textbf{\textit{High end solvers}}
 \end{enumerate}
 
-This first chapter is focused on getting you working with the high end solvers. The high end solvers follow two generic structures, one for CG methods and another for DG methods. Currently, the DG method templates are available for one, two, and three dimensions while CG is only available in one and two dimensions. Underneath the \texttt{src/highend/} directory, you will see a set of subdirectories for each of the provided high-end solvers. The \texttt{examples/} directory is where you will find test-cases of each of the high-end solvers that are ``ready-to-go''.
+This document primarily focuses on the use and modification of the pre-constructed and tested high-end solvers. The first six components all serve as support for computing high order discrete diferentiation on structured or unstructured meshes. Modification of these lower-end support modules is not recommended. 
 
- Underneath a given example, you will find a \texttt{build/} directory, \texttt{localmods/} directory, and a \texttt{run/} directory.
-
-\chapter{Modules}
-This chapter describes in more detail the modules that are provided in each sub-directory, including a description of the data-structures and associated procedures. This provides the necessary information for developing your own ``highend'' solvers from scratch. Coincidentally, a few of the highend solvers are described here to provide examples of how the support libraries can be used to solve PDE's on complex geometry.
-
-\section{Interpolation (interp)}
-\section{Spectral Operator Storage (nodal)}
-\section{Solution Storage (dgsem/cgsem)}
-\section{Iterative Solvers (iterativesolve) }
-\section{Geometry (geom)}
-\section{Filters (filters) }
-\section{Provided High-End Solvers (highend)}
-
-
+\chapter{Getting Started}
+The quickest way to get started is to browse through the examples subdirectory and identify a test-case that is appealing to you. The next steps are to compile and execute the example program. This process is now described for the ``spot-advection'' example for for advection3d highend solver.
 
 
 

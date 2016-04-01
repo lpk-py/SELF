@@ -58,6 +58,7 @@ MODULE ModelFlags
    INTEGER, PARAMETER :: PRESCRIBED = -102
    INTEGER, PARAMETER :: InflowOne = -103
    INTEGER, PARAMETER :: InflowTwo = -104
+   INTEGER, PARAMETER :: SEA_FLOOR = -105
   !
   !==============================================!
   ! ---------- Continuous Galerkin ------------- !

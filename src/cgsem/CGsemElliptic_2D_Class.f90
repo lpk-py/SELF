@@ -1,14 +1,39 @@
+! CGsemElliptic_2D_Class.f90 ( new with v2.1 - 25 March 2016)
+! 
+! ====================================== LICENSE ================================================= !
+!
+!  This program is free software; you can redistribute it and/or modify
+!  it under the terms of the GNU General Public License as published by
+!  the Free Software Foundation; either version 2 of the License, or
+!  (at your option) any later version.
+!  
+!  This program is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  GNU General Public License for more details.
+!  
+!  You should have received a copy of the GNU General Public License
+!  along with this program; if not, write to the Free Software
+!  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+!  MA 02110-1301, USA.
+! 
+! ==================================== Module History ============================================ ! 
+! 
+! o  (ver 1.0) April 2015
+! o  (ver 2.1) March 2016
+!
+! ========================================= Logs ================================================= !
+! yyyy-mm-dd  Joe  <joe@clay>
+!    This module defines the data structure used for implementing the Continuous Galerkin
+!    Spectral Element Method. 
+!
+!    The module  is set up so that we solve div( Flux ) = Source
+!   
+! 
+! //////////////////////////////////////////////////////////////////////////////////////////////// !
+
+
 MODULE CGsemElliptic_2D_Class
-!    
-! CGsemElliptic_2D_Class
-!
-! o (v1.0) May 2015
-!
-! o (v2.1) Jan 2016
-!
-!
-!
-! ========================================================================================== !
 
 ! src/common/
 USE ModelPrecision
@@ -19,14 +44,12 @@ USE RunParamsClass
 ! src/nodal/
 USE NodalStorage_2D_Class
 ! src/geom/
-USE QUADMESH_CLASS
-USE EDGE_CLASS
-USE CORNERNODE_2D_CLASS
-USE GEOMETRY_BASICS
-USE VECTOR_CLASS
-USE MAPPEDGEOM_2D_CLASS
-! src/cgsem/
-USE DIAGONAL_2DSEM_PRECONDITIONER
+USE QuadMeshClass
+USE EdgeClass
+USE NodeClass_2D
+USE VectorClass
+USE MappedGeometryClass_2D
+
 
 
 IMPLICIT NONE
@@ -34,30 +57,18 @@ IMPLICIT NONE
       TYPE, EXTENDS(ConjugateGradient) :: CGsemElliptic
          TYPE( NodalStorage_2D )       :: cgStorage
          TYPE( QuadMesh )              :: mesh           
-         TYPE( RunParams )             :: params 
-         REAL(prec), ALLOCATABLE       :: gridSolution(:,:,:)
-         REAL(prec), ALLOCATABLE       :: fluxCoeffs(:,:,:,:)
+         REAL(prec), ALLOCATABLE       :: cgSol(:,:,:)
+         REAL(prec), ALLOCATABLE       :: source(:,:,:)
+         REAL(prec), ALLOCATABLE       :: fluxCoeff(:,:,:)
 
          CONTAINS
 
-         PROCEDURE :: BUILD => BUILD_CGSEM2D
-         PROCEDURE :: TRASH => TRASH_CGSEM2D
+         PROCEDURE :: Build         => Build_CGsemElliptic
+         PROCEDURE :: BuildQuadMesh => BuildQuadMesh_CGsemElliptic
+         PROCEDURE :: Trash         => Trash_CGsemElliptic
        
-         PROCEDURE :: SET_DIAG_COEFFS
-
-         PROCEDURE :: SET_DIRICHLET_BOUNDARY_CONDITION
-         PROCEDURE :: MASK => MASK_CGSEM2D
-         PROCEDURE :: UNMASK => UNMASK_CGSEM2D
-         PROCEDURE :: GLOBAL_SUM => GLOBALSUM_CGSEM2D
-
-         PROCEDURE :: MATRIX_ACTION
-         PROCEDURE :: RESIDUAL
-
-         PROCEDURE :: VECTOR_PRODUCT
-         PROCEDURE :: CONJUGATE_GRADIENT => CONJUGATE_GRADIENT_CGSEM2D
-
-         PROCEDURE :: WRITE_TECPLOT => WRITE_TECPLOT_CGSEM2D
-
+         PROCEDURE :: SetDirichletBoundaryCondition => SetDirichletBoundaryCondition_CGsemElliptic
+         PROCEDURE :: SetThisDirichletEdge          => SetThisDirichletEdge_CGsemElliptic
 
       END TYPE CGsem
 
@@ -65,232 +76,102 @@ IMPLICIT NONE
 
 CONTAINS
 
- SUBROUTINE BUILD_CGSEM2D( myCGSEM )
- ! S/R BUILD_CGSEM2D
+ SUBROUTINE Build_CGsemElliptic( myCGSEM, params )
+ ! S/R Build
  !
  ! 
- ! ================================================ !
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout) :: myCGSEM
+   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
+   TYPE( RunParams ), INTENT(in)         :: params
    ! LOCAL
-   integer :: nS, nP, iS, iP, iEl
-   character(40) :: meshFile
-   character(10) :: pickupIterChar
+   INTEGER :: nS, nP, iS, iP, iEl
 
-      CALL myCGSEM % params % BUILD( )
-      nS = myCGSEM % params % polyDeg
+      nS = params % polyDeg
       nP = nS
 
-      ! Build the nodal storage structure
-      CALL myCGSEM % cgStorage % BUILD( nS, nP, GAUSS_LOBATTO, CG )
-
-
-     ! Builds the lateral mesh
-      if( TRIM(myCGSEM % params % ISMmeshFile) == ' ' )then
-
-         meshFile = 'mesh'
-         CALL myCGSEM % mesh % READ_PICKUP( trim(meshfile), myCGSEM % cgStorage  ) 
-
-      else
-
-         CALL myCGSEM % mesh % READ_SPECMESH_FILE( myCGSEM % params, myCGSEM % cgStorage )
-
-      endif
-
-      CALL myCGSEM % mesh % SCALE_THE_MESH( myCGSEM % params % xScale, &
-                                            myCGSEM % params % yScale, &
-                                            myCGSEM % cgStorage )
+      CALL myCGSEM % cgStorage % Build( nS, nP, GAUSS_LOBATTO, CG )
 
       ! Allocate space for the solution, source term, and diffusivity coefficient
-      ALLOCATE( myCGSEM % boundaryFlux(1:myCGSEM % mesh % nElems, 1:4, 0:nS ), &
-                myCGSEM % solution(0:nS, 0:nP, 1:myCGSEM % mesh % nElems), &
+      ALLOCATE( myCGSEM % solution(0:nS, 0:nP, 1:myCGSEM % mesh % nElems), &
                 myCGSEM % source(0:nS, 0:nP, 1:myCGSEM % mesh % nElems), &
-                myCGSEM % fluxcoeffs(1:myCGSEM % mesh % nElems) )
+                myCGSEM % fluxCoeff(0:nS, 0:nP, 1:myCGSEM % mesh % nElems) )
 
-      myCGSEM % solution =  ZERO
-      myCGSEM % source = ZERO
-      myCGSEM % boundaryFlux = ZERO
+      myCGSEM % solution   =  ZERO
+      myCGSEM % source     = ZERO
+      myCGSEM % fluxCoeffs = ZERO
 
-     do iEl = 1, myCGSEM % mesh % nElems
-   
-        CALL myCGSEM % fluxCoeffs(iEl) % BUILD( nS, nP )
- 
-     enddo
-
-
-    !  if( myCGSEM % params % iterInit > 0 )then 
-    !     write(pickupIterChar,'(I10.10)')  myCGSEM % params % iterInit
-    !     CALL myCGSEM  % READ_PICKUP( 'Solution.'//pickupIterchar//'.pickup' )
-    !  endif
- 
-   
-      CALL myCGSEM % SET_DIRICHLET_BOUNDARY_CONDITION( DIRICHLET_FUNCTION )
-
-      CALL myCGSEM % diag % BUILD( nP, myCGSEM % mesh % nElems )
-
-
- END SUBROUTINE BUILD_CGSEM2D
+ END SUBROUTINE Build_CGsemElliptic
 !
 !
 !
- SUBROUTINE TRASH_CGSEM2D( myCGSEM )
- ! S/R TRASH_CGSEM2D
+ SUBROUTINE BuildQuadMesh_CGsemElliptic( myCGSEM, params )
+ ! S/R BuildQuadMesh
  !
- ! 
- ! ================================================ !
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout) :: myCGSEM
+   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
+   TYPE( RunParams ), INTENT(in)         :: params
+
+      IF( TRIM( params % SpecMeshFile ) == nada )THEN
+         PRINT*,' Loading default 2-D mesh.'
+         CALL  myCGSEM % mesh % LoadDefaultMesh( myCGSEM % cgStorage % interp, &
+                                         params % nXelem, &
+                                         params % nYelem )
+      ELSE
+      ! Builds the lateral mesh
+         PRINT*, 'Reading 2-D mesh from '//trim(params % SpecMeshFile)//'.'
+         CALL myCGSEM % mesh % ReadSpecMeshFile( myCGSEM % cgStorage % interp, params % SpecMeshFile )
+      ENDIF
+
+ END SUBROUTINE BuildQuadMesh_CGsemElliptic
+!
+!
+!
+ SUBROUTINE Trash_CGsemElliptic( myCGSEM )
+ ! S/R Trash
+ !
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
 
 
       ! Trash the nodal storage structure
-      CALL myCGSEM % cgStorage % TRASH( )
+      CALL myCGSEM % cgStorage % Trash( )
 
       ! Trash the geometry
-      CALL myCGSEM % mesh % TRASH( )
-
-      ! Trash the diagonal preconditioner
-      CALL myCGSEM % diag % TRASH( )
+      CALL myCGSEM % mesh % Trash( )
 
       ! Deallocate space for the solution, source term, and diffusivity coefficient
-      DEALLOCATE( myCGSEM % boundaryFlux, &
+      DEALLOCATE( myCGSEM % fluxCoeffs, &
                   myCGSEM % solution,&
                   myCGSEM % source )
 
- END SUBROUTINE TRASH_CGSEM2D
+ END SUBROUTINE Trash_CGsemElliptic
 !
 !
-!
- SUBROUTINE BUILD_FLUX_COEFFS(myCoeffs, nS, nP)
- ! S/R BUILD_FLUX_COEFFS
- !
- !   Allocates space for the flux coefficients
- !
- ! ============================================================================= !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( FLUX_COEFFICIENTS ), intent(out) :: myCoeffs
-   integer, intent(in)                     :: nS, nP
-
-
-      ALLOCATE( myCoeffs % a(0:nS,0:nP), &
-                myCoeffs % b(0:nS,0:nP), &
-                myCoeffs % c(0:nS,0:nP), &
-                myCoeffs % d(0:nS,0:nP) )
-
-      myCoeffs % a = ZERO
-      myCoeffs % b = ZERO
-      myCoeffs % c = ZERO
-      myCoeffs % d = ZERO
-
-  END SUBROUTINE BUILD_FLUX_COEFFS
+!==================================================================================================!
+!-------------------------------------- Type Specific ---------------------------------------------!
+!==================================================================================================!
 !
 !
-!
-  SUBROUTINE TRASH_FLUX_COEFFS(myCoeffs)
- ! S/R TRASH_FLUX_COEFFS
- !
- !   Deallocates space for the flux coefficients
- !
- ! ============================================================================= !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( FLUX_COEFFICIENTS ), intent(inout) :: myCoeffs
-
-
-      DEALLOCATE( myCoeffs % a, &
-                  myCoeffs % b, &
-                  myCoeffs % c, &
-                  myCoeffs % d )
-
-
-  END SUBROUTINE TRASH_FLUX_COEFFS
-!
-!
-!
-!
-!================================================================================!
-!=======================   PROBLEM SPECIFIC ROUTINES    =========================!
-!================================================================================!
-!
-!
-!
- SUBROUTINE SET_DIAG_COEFFS( myCGSEM, polyDeg )
- ! S/R SET_DIAG_COEFFS
- !
- !   Sets the coefficients for the diagonal preconditioner.
- !   An impulse response function is used to obtain a matrix column of the laplacian
- !   operator. 
- !
- ! ============================================================================= !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout) :: myCGSEM
-   integer, intent(in)             :: polyDeg
-   ! LOCAL
-   integer :: iS, iP, iEl
-   real(prec) :: IRF(0:polyDeg, 0:polyDeg, 1:myCGSEM % mesh % nElems)
-   real(prec) :: aIRF(0:polyDeg, 0:polyDeg, 1:myCGSEM % mesh % nElems)
- 
-
-      do iEl = 1, myCGSEM % mesh % nElems
-         do iP = 0, polyDeg
-            do iS = 0, polyDeg
-
-               ! Set the impulse response function
-               IRF = ZERO
-               IRF(iS,iP, iEl) = ONE
-            
-               ! Calculate the Laplacian of the impulse response function
-               CALL myCGSEM % MATRIX_ACTION(IRF, aIRF )
-            
-
-               ! The diagonal contribution is the matrix action at iS,iP
-               myCGSEM % diag % coeffs(iS,iP,iEl) = aIRF(iS,iP,iEl)
-      
-            enddo
-         enddo
-      enddo
- 
-
-      CALL myCGSEM % UNMASK( myCGSEM % diag % coeffs )
-
- END SUBROUTINE SET_DIAG_COEFFS
-!
-!
-!================================================================================!
-!=======================       SUPPORT ROUTINES       ===========================!
-!================================================================================!
-!
-!
-!
- FUNCTION DIRICHLET_FUNCTION( x, y ) RESULT( u )
- ! DIRICHLET_FUNCTION
- !
- ! ============================================================================= !
-  IMPLICIT NONE
-  real(prec) :: x, y
-  real(prec) :: u
-
-     u = ZERO
-
- END FUNCTION DIRICHLET_FUNCTION
-!
-!
-!
- SUBROUTINE SET_DIRICHLET_BOUNDARY_CONDITION( myCGSEM, dirF )
- ! S/R SET_DIRICHLET_BOUNDARY_CONDITION
+ SUBROUTINE SetDirichletBoundaryCondition_CGsemElliptic( myCGSEM, dirF )
+ ! S/R SetDirichletBoundaryCondition
  !
  !
  ! ============================================================================= !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout) :: myCGSEM
+   CLASS( CGSEM2D ), INTENT(inout) :: myCGSEM
    ! dirF is a function which is passed to this subroutine
-   real(prec), external :: dirF !(x, y)
+   REAL(prec), EXTERNAL :: dirF !(x, y)
    !LOCAL
-   integer :: nS, nP, iEdge, eID, sID, iNode, nID, i, j, eID0, i0, j0, nEl
+   INTEGER :: nS, nP, iEdge
+   INTEGER :: e1, e2, s1, s2, nodeType, i, j
    real(prec) :: x, y 
 
       nS = myCGSEM % cgStorage % nS
@@ -298,30 +179,33 @@ CONTAINS
       nEl = myCGSEM % mesh % nElems
    
       ! Mask out the solution over the edges -- excluding the corner nodes
-      do iEdge = 1, myCGSEM % mesh % nEdges ! Loop over the edges
+      DO iEdge = 1, myCGSEM % mesh % nEdges ! Loop over the edges
  
-         if( myCGSEM % mesh % edges(iEdge) % elementIDS(2)  == DIRICHLET )then ! This is a dirichlet boundary edge
+         CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+         IF( e2  == DIRICHLET )then ! This is a dirichlet boundary edge
+      
+            CALL myCGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
+            CALL myCGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
 
-            eID = myCGSEM % mesh % edges(iEdge) % elementIDS(1)
-            sID = myCGSEM % mesh % edges(iEdge) % elementSides(1)
+            CALL myCGSEM % SetThisDirichletEdge( e1, s1, dirF )
 
-            CALL SET_DIRICHLET_SIDE( eID, sID, myCGSEM % mesh, myCGSEM % solution, nS, nP, nEl, dirF )
+         ENDIF
 
-         endif
-
-      enddo ! iEdge, loop over the edges     
+      ENDDO ! iEdge, loop over the edges     
 
 
       ! Mask out the corner-nodes appropriately ( Leave the primary element intact )
-      do iNode = 1, myCGSEM % mesh % nNodes ! Loop over the corner nodes
+      DO iNode = 1, myCGSEM % mesh % nNodes ! Loop over the corner nodes
 
-         if( myCGSEM % mesh % nodes(iNode) % nodeType == DIRICHLET ) then ! this is a prescribed (Dirichlet) boundary
+         CALL myCGSEM % mesh % GetNodeType( iNode, nodeType )
+
+         IF( nodeType == DIRICHLET ) then ! this is a prescribed (Dirichlet) boundary
 
             ! Rewind to the head of the linked list
             myCGSEM % mesh % nodes(iNode) % nodeToElement % current => myCGSEM % mesh % nodes(iNode) % nodeToElement % head
 
             ! Loop over the elements in this corner-node's connectivity list
-            do while( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
+            DO WHILE( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
 
                CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GET_CURRENT_DATA( eID, nID ) ! Get the element ID and the local node ID (1->4)
 
@@ -331,85 +215,77 @@ CONTAINS
                x = myCGSEM % mesh % elements(eID) % geometry % x(i,j)
                y = myCGSEM % mesh % elements(eID) % geometry % y(i,j)
 
-               myCGSEM % solution(i,j,eID) = dirF( x, y)
+               myCGSEM % solution(i,j,eID) = dirF( x, y )
 
-               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MOVE_TO_NEXT( )
+               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToNext( )
 
-            enddo ! while we have elements in the node-to-element list
+            ENDDO ! while we have elements in the node-to-element list
 
+         ENDIF
 
-
-         endif
-
-
-      enddo
+      ENDDO
 
 
- END SUBROUTINE SET_DIRICHLET_BOUNDARY_CONDITION
+ END SUBROUTINE SetDirichletBoundaryCondition_CGsemElliptic
 !
 !
 !
- SUBROUTINE SET_DIRICHLET_SIDE( eID, sID, mesh, u, nS, nP, nElems, dirF )
- ! S/R SET_DIRICHLET_SIDE
+ SUBROUTINE SetThisDirichletEdge_CGsemElliptic( myCGSEM, eID, sID, dirF )
+ ! S/R SetThisDirichletEdge
  !
  !  This subroutine sets the solutions on side "sID" of element "eID",
  !  excluding the corner nodes ( Assumes Gauss-Lobatto points are used )
  !
- ! ======================================================================
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   integer, intent(in)        :: eID, sID, nS, nP,nElems
-   real(prec), intent(inout)  :: u(0:nS,0:nP,1:nElems)
-   TYPE(QUADMESH), intent(in) :: mesh
-   ! dirF is a function which is passed to this subroutine
-   real(prec), external :: dirF !(x, y)
+   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
+   INTEGER, INTENT(in)                   :: eID, sID
+   REAL(prec), EXTERNAL :: dirF !(x, y)
    ! LOCAL
-   integer    :: iS, iP
-   real(prec) :: x, y
+   INTEGER    :: iS, iP, nS, nP,nElems
+   REAL(prec) :: x, y
    
-      if( sID == 2 .OR. sID == 4)then ! east or west sides
 
-         iS = mesh % sideMap(sID) 
+      nS     = myCGSEM % cgStorage % nS
+      nP     = nS
+      nElems = myCGSEM % mesh % nElems
 
-         do iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
+      IF( sID == east .OR. sID == west )then ! east or west sides
 
-            x = mesh % elements(eID) % geometry % x(iS,iP)
-            y = mesh % elements(eID) % geometry % y(iS,iP)
+         iS = myCGSEM % mesh % sideMap(sID) 
 
-            u(iS,iP,eID) = dirF( x, y)
+         DO iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
+            CALL myDGSEM % mesh % GetPositionAtNode( eID, x, y, iS, iP )
+            myCGSEM % cgSol(iS,iP,eID) = dirF( x, y )
+         ENDDO ! iP, loop over the edge
 
-         enddo ! iP, loop over the edge
+      ELSE ! south or north sides
 
-      else ! south or north sides
+         iP = myCGSEM % mesh % sideMap(sID)
 
-         iP = mesh % sideMap(sID)
+         DO iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
+            CALL myDGSEM % mesh % GetPositionAtNode( eID, x, y, iS, iP )
+            myCGSEM % cgSol(iS,iP,eID) = dirF( x, y )
+         ENDDO
 
-         do iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
+      ENDIF
 
-            x = mesh % elements(eID) % geometry % x(iS,iP)
-            y = mesh % elements(eID) % geometry % y(iS,iP)
-
-            u(iS,iP,eID) = dirF( x, y)
-
-         enddo
-
-      endif
-
- END SUBROUTINE SET_DIRICHLET_SIDE
+ END SUBROUTINE SetThisDirichletEdge_CGsemElliptic
 !
 !
 !
- SUBROUTINE MASK_CGSEM2D( myCGSEM, u )
- ! S/R MASK_CGSEM2D
+ SUBROUTINE Mask_CGsemElliptic( myCGSEM, u )
+ ! S/R Mask_CGsemElliptic
  !
  !
  ! ============================================================================= !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout) :: myCGSEM
-   real(prec), intent(inout)       :: u(0:myCGSEM % cgStorage % nS, &
-                                        0:myCGSEM % cgStorage % nP, &
-                                        1:myCGSEM % mesh % nElems )
+   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
+   real(prec), INTENT(inout)             :: u(0:myCGSEM % cgStorage % nS, &
+                                              0:myCGSEM % cgStorage % nP, &
+                                              1:myCGSEM % mesh % nElems )
    !LOCAL
    integer :: nS, nP, iEdge, eID, sID, iNode, nID, i, j, nEl
 
@@ -490,9 +366,9 @@ CONTAINS
  ! ======================================================================
  ! DECLARATIONS
    IMPLICIT NONE
-   integer, intent(in)        :: eID, sID, nS, nP,nElems
-   real(prec), intent(inout)  :: u(0:nS,0:nP,1:nElems)
-   TYPE(QUADMESH), intent(in) :: mesh
+   integer, INTENT(in)        :: eID, sID, nS, nP,nElems
+   real(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
+   TYPE(QUADMESH), INTENT(in) :: mesh
    ! LOCAL
    integer :: iS, iP
    
@@ -529,8 +405,8 @@ CONTAINS
  ! ============================================================================= !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout) :: myCGSEM
-   real(prec), intent(inout)       :: u(0:myCGSEM % cgStorage % nS, &
+   CLASS( CGSEM2D ), INTENT(inout) :: myCGSEM
+   real(prec), INTENT(inout)       :: u(0:myCGSEM % cgStorage % nS, &
                                         0:myCGSEM % cgStorage % nP, &
                                         1:myCGSEM % mesh % nElems )
    !LOCAL
@@ -608,10 +484,10 @@ CONTAINS
  ! ======================================================================
  ! DECLARATIONS
    IMPLICIT NONE
-   TYPE(EDGE), intent(in)     :: thisEdge
-   integer, intent(in)        :: nS, nP,nElems
-   real(prec), intent(inout)  :: u(0:nS,0:nP,1:nElems)
-   TYPE(QUADMESH), intent(in) :: mesh
+   TYPE(EDGE), INTENT(in)     :: thisEdge
+   integer, INTENT(in)        :: nS, nP,nElems
+   real(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
+   TYPE(QUADMESH), INTENT(in) :: mesh
    ! LOCAL
    integer :: iS, iP, eID, sID, jS, jP
    real(prec) :: temp(0:nS) ! assume nS == nP
@@ -690,8 +566,8 @@ CONTAINS
  ! ============================================================================= !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout) :: myCGSEM
-   real(prec), intent(inout)       :: u(0:myCGSEM % cgStorage % nS, &
+   CLASS( CGSEM2D ), INTENT(inout) :: myCGSEM
+   real(prec), INTENT(inout)       :: u(0:myCGSEM % cgStorage % nS, &
                                         0:myCGSEM % cgStorage % nP, &
                                         1:myCGSEM % mesh % nElems )
    !LOCAL
@@ -776,10 +652,10 @@ CONTAINS
  ! ======================================================================
  ! DECLARATIONS
    IMPLICIT NONE
-   TYPE(EDGE), intent(in)     :: thisEdge
-   integer, intent(in)        :: nS, nP,nElems
-   real(prec), intent(inout)  :: u(0:nS,0:nP,1:nElems)
-   TYPE(QUADMESH), intent(in) :: mesh
+   TYPE(EDGE), INTENT(in)     :: thisEdge
+   integer, INTENT(in)        :: nS, nP,nElems
+   real(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
+   TYPE(QUADMESH), INTENT(in) :: mesh
    ! LOCAL
    integer :: iS, iP, eID, sID, jS, jP, k, n
    real(prec) :: temp(0:nS,1:2) ! assume nS == nP
@@ -880,12 +756,12 @@ CONTAINS
  ! ============================================================================= !
  ! DECLARATIONS
    IMPLICIT NONE
-   integer, intent(in)                  :: nS, nP
-   TYPE( MAPPEDGEOM_2D ), intent(in)    :: geometry
-   TYPE( NODAL_STORAGE_2D ), intent(in) :: cgStorage
-   real(prec), intent(in)               :: u(0:nS, 0:nP)
-   real(prec), intent(out)              :: dudx(0:nS, 0:nP)
-   real(prec), intent(out)              :: dudy(0:nS, 0:nP) 
+   integer, INTENT(in)                  :: nS, nP
+   TYPE( MAPPEDGEOM_2D ), INTENT(in)    :: geometry
+   TYPE( NODAL_STORAGE_2D ), INTENT(in) :: cgStorage
+   real(prec), INTENT(in)               :: u(0:nS, 0:nP)
+   real(prec), INTENT(out)              :: dudx(0:nS, 0:nP)
+   real(prec), INTENT(out)              :: dudy(0:nS, 0:nP) 
    ! LOCAL
    integer :: iS, iP
    real(prec) :: duds(0:nS, 0:nP)
@@ -980,12 +856,12 @@ CONTAINS
  ! ============================================================================= !
  ! DECLARATIONS
    IMPLICIT NONE
-   integer, intent(in)                  :: nS, nP
-   TYPE( MAPPEDGEOM_2D ), intent(in)    :: geometry
-   TYPE( NODAL_STORAGE_2D ), intent(in) :: cgStorage
-   TYPE( FLUX_COEFFICIENTS), intent(in) :: coeffs
-   real(prec), intent(in)               :: u(0:nS, 0:nP)
-   real(prec), intent(out)              :: Lu(0:nS, 0:nP)
+   integer, INTENT(in)                  :: nS, nP
+   TYPE( MAPPEDGEOM_2D ), INTENT(in)    :: geometry
+   TYPE( NODAL_STORAGE_2D ), INTENT(in) :: cgStorage
+   TYPE( FLUX_COEFFICIENTS), INTENT(in) :: coeffs
+   real(prec), INTENT(in)               :: u(0:nS, 0:nP)
+   real(prec), INTENT(out)              :: Lu(0:nS, 0:nP)
    ! LOCAL
    integer    :: iS, iP
    real(prec) :: F1(0:nS,0:nP)
@@ -1060,11 +936,11 @@ CONTAINS
  ! ==========================================================!
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D), intent(inout) :: myCGSEM
-   real(prec), intent(inout)       :: u(0:myCGSEM % cgStorage % nS, &
+   CLASS( CGSEM2D), INTENT(inout) :: myCGSEM
+   real(prec), INTENT(inout)       :: u(0:myCGSEM % cgStorage % nS, &
                                         0:myCGSEM % cgStorage % nP, &
                                         1:myCGSEM % mesh % nElems )
-   real(prec), intent(out)         :: Au(0:myCGSEM % cgStorage % nS, &
+   real(prec), INTENT(out)         :: Au(0:myCGSEM % cgStorage % nS, &
                                          0:myCGSEM % cgStorage % nP, &
                                          1:myCGSEM % mesh % nElems  )
    ! Local
@@ -1124,9 +1000,9 @@ CONTAINS
  ! ==========================================================!
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout) :: myCGSEM
+   CLASS( CGSEM2D ), INTENT(inout) :: myCGSEM
    real(prec), external            :: dirF
-   real(prec), intent(out)         :: r(0:myCGSEM % cgStorage % nS, &
+   real(prec), INTENT(out)         :: r(0:myCGSEM % cgStorage % nS, &
                                         0:myCGSEM % cgStorage % nP, &
                                         1:myCGSEM % mesh % nElems )
    ! LOCAL
@@ -1267,14 +1143,14 @@ CONTAINS
  ! ==========================================================!
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), intent(inout)  :: myCGSEM
-   real(prec), intent(inout)        :: u(0:myCGSEM % cgStorage % nS, &
+   CLASS( CGSEM2D ), INTENT(inout)  :: myCGSEM
+   real(prec), INTENT(inout)        :: u(0:myCGSEM % cgStorage % nS, &
                                          0:myCGSEM % cgStorage % nP, &
                                          1:myCGSEM % mesh % nElems )
-   real(prec), intent(inout)        :: v(0:myCGSEM % cgStorage % nS, &
+   real(prec), INTENT(inout)        :: v(0:myCGSEM % cgStorage % nS, &
                                          0:myCGSEM % cgStorage % nP, &
                                          1:myCGSEM % mesh % nElems )
-   real(prec), intent(out)          :: uDotv
+   real(prec), INTENT(out)          :: uDotv
    ! Local
    integer :: iS, iP, nS, nP, iEl
    
@@ -1332,11 +1208,11 @@ CONTAINS
  ! 
  !------------------------------------------------------------------------
   IMPLICIT NONE
-  CLASS( CGSEM2D ), intent(in)           :: myCGSEM
-!  integer, intent(in)                   :: nOld, nPlot
-!  real(prec), intent(in)                :: Tmat(0:nPlot, 0:nOld)
-!  TYPE( LAG_INTERP2D ), intent(in)      :: plotInterp
-!  character(*), intent(in)              :: filename
+  CLASS( CGSEM2D ), INTENT(in)           :: myCGSEM
+!  integer, INTENT(in)                   :: nOld, nPlot
+!  real(prec), INTENT(in)                :: Tmat(0:nPlot, 0:nOld)
+!  TYPE( LAG_INTERP2D ), INTENT(in)      :: plotInterp
+!  character(*), INTENT(in)              :: filename
   !LOCAL
   integer :: iX, iY, iZ, iEl, nS
   character(len=5) :: zoneID

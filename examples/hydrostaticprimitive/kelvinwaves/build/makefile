@@ -26,7 +26,58 @@ INIDIR=${DIR}/
 #                 ~/src/highend/hydrostaticprimitives/                   #
 # ---------------------------------------------------------------------- #
 
+HYDOBJS = ModelPrecision.o \
+          ConstantsDictionary.o \
+          ModelFlags.o \
+          CommonRoutines.o \
+          Timing.o \
+          LinkedListClass.o \
+          HashTableClass.o \
+          KeyRingClass.o \
+          Chebyshev.o \
+          Legendre.o \
+          Lagrange_1D_Class.o \
+          Lagrange_2D_Class.o \
+          Lagrange_3D_Class.o \
+          NodalStorage_1D_Class.o \
+          NodalStorage_2D_Class.o \
+          NodalStorage_3D_Class.o \
+          DGSEMSolutionStorageClass_3D.o \
+          GeometrySupportRoutines.o \
+          MappedGeometryClass_1D.o \
+          MappedGeometryClass_2D.o \
+          MappedGeometryClass_3D.o \
+          SegmentMeshClass.o \
+          NodeClass_2D.o \
+          NodeClass_3D.o \
+          VectorClass.o \
+          CurveClass_2D.o \
+          CurveClass_3D.o \
+          EdgeClass.o \
+          FaceClass.o \
+          SurfaceClass_3D.o \
+          QuadElementClass.o \
+          HexElementClass.o \
+          QuadMeshClass.o \
+          HexMeshClass.o \
+          StackedHexMeshClass.o \
+          HydrostaticParams_Class.o \
+          Elliptic1D_Class.o \
+          HydrostaticPrimitivesClass.o
+
+init_hyd : ${HYDOBJS} HydrostaticPrimitives_InitialConditions.o
+	${FC} ${OPT} ${HYDOBJS} HydrostaticPrimitives_InitialConditions.o -o $@
+          
+
 # Modules
+HydrostaticPrimitivesClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o CommonRoutines.o \
+                               Timing.o Lagrange_1D_Class.o Lagrange_2D_Class.o Lagrange_3D_Class.o \
+                               NodalStorage_1D_Class.o NodalStorage_2D_Class.o NodalStorage_3D_Class.o \
+                               DGSEMSolutionStorageClass_3D.o \
+                               QuadMeshClass.o FaceClass.o HexElementClass.o HexMeshClass.o \
+                               StackedHexMeshClass.o HydrostaticParams_Class.o Elliptic1D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticPrimitivesClass.f90 -o $@
+
 StackedHexMeshClass.o: ModelPrecision.o ConstantsDictionary.o ModelFlags.o Lagrange_2D_Class.o \
                        Lagrange_3D_Class.o QuadMeshClass.o MappedGeometryClass_3D.o \
                        SurfaceClass_3D.o HexElementClass.o FaceClass.o NodeClass_3D.o HexMeshClass.o
@@ -40,18 +91,11 @@ Elliptic1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Lagrang
 HydrostaticParams_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticParams_Class.f90 -o $@
 
-#Advection3DClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Timing.o \
-#                   Lagrange_3D_Class.o NodalStorage_3D_Class.o DGSEMSolutionStorageClass_3D.o \
-#                   FaceClass.o HexElementClass.o HexMeshClass.o Advection3DParamsClass.o
-#	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3DClass.f90 -o $@
 
 # Test Programs
-#Advection3D_InitialConditions.o : ModelPrecision.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
-#	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_InitialConditions.f90 -o $@
-
-#Advection3D_Driver.o : ModelPrecision.o Timing.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
-#	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_Driver.f90 -o $@
-
+HydrostaticPrimitives_InitialConditions.o : ModelPrecision.o StackedHexMeshClass.o HydrostaticParams_Class.o \
+                                            HydrostaticPrimitivesClass.o
+	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticPrimitives_InitialConditions.f90 -o $@
 
 
 # ---------------------------------------------------------------------- #

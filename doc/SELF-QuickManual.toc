@@ -1,10 +1,3 @@
 \contentsline {chapter}{Contents}{1}{section*.1}
 \contentsline {chapter}{\chapternumberline {1}Software Overview}{3}{chapter.1}
-\contentsline {chapter}{\chapternumberline {2}Modules}{5}{chapter.2}
-\contentsline {section}{\numberline {2.1}Interpolation (interp)}{5}{section.2.1}
-\contentsline {section}{\numberline {2.2}Spectral Operator Storage (nodal)}{5}{section.2.2}
-\contentsline {section}{\numberline {2.3}Solution Storage (dgsem/cgsem)}{5}{section.2.3}
-\contentsline {section}{\numberline {2.4}Iterative Solvers (iterativesolve) }{5}{section.2.4}
-\contentsline {section}{\numberline {2.5}Geometry (geom)}{5}{section.2.5}
-\contentsline {section}{\numberline {2.6}Filters (filters) }{5}{section.2.6}
-\contentsline {section}{\numberline {2.7}Provided High-End Solvers (highend)}{5}{section.2.7}
+\contentsline {chapter}{\chapternumberline {2}Getting Started}{5}{chapter.2}

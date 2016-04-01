@@ -201,6 +201,7 @@ USE CommonRoutines
 
 
       theTimer % whatYourTiming = nameInput
+      theTimer % nObs = ZERO
 
  END SUBROUTINE SetTimerName
 !
