@@ -1,4 +1,4 @@
-! CGsemElliptic_2D_Class.f90 ( new with v2.1 - 25 March 2016)
+! CGsemElliptic_2D_2D_Class.f90 ( new with v2.1 - 25 March 2016)
 ! 
 ! ====================================== LICENSE ================================================= !
 !
@@ -54,36 +54,37 @@ USE MappedGeometryClass_2D
 
 IMPLICIT NONE
 
-      TYPE, EXTENDS(ConjugateGradient) :: CGsemElliptic
+      TYPE CGsemElliptic_2D
          TYPE( NodalStorage_2D )       :: cgStorage
          TYPE( QuadMesh )              :: mesh           
          REAL(prec), ALLOCATABLE       :: cgSol(:,:,:)
          REAL(prec), ALLOCATABLE       :: source(:,:,:)
          REAL(prec), ALLOCATABLE       :: fluxCoeff(:,:,:)
 
+
          CONTAINS
 
-         PROCEDURE :: Build         => Build_CGsemElliptic
-         PROCEDURE :: BuildQuadMesh => BuildQuadMesh_CGsemElliptic
-         PROCEDURE :: Trash         => Trash_CGsemElliptic
+         PROCEDURE :: Build         => Build_CGsemElliptic_2D
+         PROCEDURE :: BuildQuadMesh => BuildQuadMesh_CGsemElliptic_2D
+         PROCEDURE :: Trash         => Trash_CGsemElliptic_2D
        
-         PROCEDURE :: SetDirichletBoundaryCondition => SetDirichletBoundaryCondition_CGsemElliptic
-         PROCEDURE :: SetThisDirichletEdge          => SetThisDirichletEdge_CGsemElliptic
+         PROCEDURE :: SetDirichletBoundaryCondition => SetDirichletBoundaryCondition_CGsemElliptic_2D
+         PROCEDURE :: SetThisDirichletEdge          => SetThisDirichletEdge_CGsemElliptic_2D
 
-      END TYPE CGsem
+      END TYPE CGsemElliptic_2D
 
       
 
 CONTAINS
 
- SUBROUTINE Build_CGsemElliptic( myCGSEM, params )
+ SUBROUTINE Build_CGsemElliptic_2D( myCGSEM, params )
  ! S/R Build
  !
  ! 
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
    TYPE( RunParams ), INTENT(in)         :: params
    ! LOCAL
    INTEGER :: nS, nP, iS, iP, iEl
@@ -102,17 +103,17 @@ CONTAINS
       myCGSEM % source     = ZERO
       myCGSEM % fluxCoeffs = ZERO
 
- END SUBROUTINE Build_CGsemElliptic
+ END SUBROUTINE Build_CGsemElliptic_2D
 !
 !
 !
- SUBROUTINE BuildQuadMesh_CGsemElliptic( myCGSEM, params )
+ SUBROUTINE BuildQuadMesh_CGsemElliptic_2D( myCGSEM, params )
  ! S/R BuildQuadMesh
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
    TYPE( RunParams ), INTENT(in)         :: params
 
       IF( TRIM( params % SpecMeshFile ) == nada )THEN
@@ -126,18 +127,18 @@ CONTAINS
          CALL myCGSEM % mesh % ReadSpecMeshFile( myCGSEM % cgStorage % interp, params % SpecMeshFile )
       ENDIF
 
- END SUBROUTINE BuildQuadMesh_CGsemElliptic
+ END SUBROUTINE BuildQuadMesh_CGsemElliptic_2D
 !
 !
 !
- SUBROUTINE Trash_CGsemElliptic( myCGSEM )
+ SUBROUTINE Trash_CGsemElliptic_2D( myCGSEM )
  ! S/R Trash
  !
  ! 
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
 
 
       ! Trash the nodal storage structure
@@ -151,7 +152,7 @@ CONTAINS
                   myCGSEM % solution,&
                   myCGSEM % source )
 
- END SUBROUTINE Trash_CGsemElliptic
+ END SUBROUTINE Trash_CGsemElliptic_2D
 !
 !
 !==================================================================================================!
@@ -159,7 +160,7 @@ CONTAINS
 !==================================================================================================!
 !
 !
- SUBROUTINE SetDirichletBoundaryCondition_CGsemElliptic( myCGSEM, dirF )
+ SUBROUTINE SetDirichletBoundaryCondition_CGsemElliptic_2D( myCGSEM, dirF )
  ! S/R SetDirichletBoundaryCondition
  !
  !
@@ -226,11 +227,11 @@ CONTAINS
       ENDDO
 
 
- END SUBROUTINE SetDirichletBoundaryCondition_CGsemElliptic
+ END SUBROUTINE SetDirichletBoundaryCondition_CGsemElliptic_2D
 !
 !
 !
- SUBROUTINE SetThisDirichletEdge_CGsemElliptic( myCGSEM, eID, sID, dirF )
+ SUBROUTINE SetThisDirichletEdge_CGsemElliptic_2D( myCGSEM, eID, sID, dirF )
  ! S/R SetThisDirichletEdge
  !
  !  This subroutine sets the solutions on side "sID" of element "eID",
@@ -239,7 +240,7 @@ CONTAINS
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
    INTEGER, INTENT(in)                   :: eID, sID
    REAL(prec), EXTERNAL :: dirF !(x, y)
    ! LOCAL
@@ -271,586 +272,511 @@ CONTAINS
 
       ENDIF
 
- END SUBROUTINE SetThisDirichletEdge_CGsemElliptic
+ END SUBROUTINE SetThisDirichletEdge_CGsemElliptic_2D
 !
 !
 !
- SUBROUTINE Mask_CGsemElliptic( myCGSEM, u )
- ! S/R Mask_CGsemElliptic
+ SUBROUTINE Mask_CGsemElliptic_2D( myCGSEM, u )
+ ! S/R Mask_CGsemElliptic_2D
  !
  !
  ! ============================================================================= !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGsemElliptic ), INTENT(inout) :: myCGSEM
-   real(prec), INTENT(inout)             :: u(0:myCGSEM % cgStorage % nS, &
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
+   REAL(prec), INTENT(inout)             :: u(0:myCGSEM % cgStorage % nS, &
                                               0:myCGSEM % cgStorage % nP, &
                                               1:myCGSEM % mesh % nElems )
    !LOCAL
-   integer :: nS, nP, iEdge, eID, sID, iNode, nID, i, j, nEl
+   INTEGER :: nS, nP, iEdge, eID, sID, iNode, nID, i, j, nEl, nEdges, nNodes
+   INTEGER :: e1, e2, s1 s2
 
-      nS = myCGSEM % cgStorage % nS
-      nP = myCGSEM % cgStorage % nP
-      nEl = myCGSEM % mesh % nElems
+      nS     = myCGSEM % cgStorage % nS
+      nP     = myCGSEM % cgStorage % nP
+      nEl    = myCGSEM % mesh % nElems
+      nEdges = myCGSEM % mesh % nEdges
+      nNodes = myDGSEM % mesh % nNodes
    
       ! Mask out the solution over the edges -- excluding the corner nodes
-      do iEdge = 1, myCGSEM % mesh % nEdges ! Loop over the edges
+      DO iEdge = 1, nEdges ! Loop over the edges
  
-         if( myCGSEM % mesh % edges(iEdge) % elementIDS(2) == DIRICHLET )then ! check the secondary element for boundary condition flag
+         CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+
+         IF( e2 == DIRICHLET )THEN ! check the secondary element for boundary condition flag
 
             ! This is a prescribed boundary condition (Dirichlet) so we mask out the solution along this edge   
 
-            eID = myCGSEM % mesh % edges(iEdge) % elementIDS(1)   ! Find the primary element ID
+            CALL myCGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
+            CALL myCGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
 
-            sID = myCGSEM % mesh % edges(iEdge) % elementSides(1) ! Get the side of the element which should be masked
+            CALL MaskSide( e1, s1, myCGSEM % mesh, u, nS, nP, nElems )
 
-            CALL MASK_SIDE( eID, sID, myCGSEM % mesh, u, nS, nP, nEl )
+         ELSE ! then this is not a prescribed boundary, and we choose to mask out the secondary element
 
-         else ! then this is not a prescribed boundary, and we choose to mask out the secondary element
+            IF( eID > 0 )THEN ! this is an internal edge, and we should mask out the secondary element
+               CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+               CALL myCGSEM % mesh % GetEdgeSecondaryElementSide( iEdge, s2 )
+               CALL MaskSide( e2, s2, myCGSEM % mesh, u, nS, nP, nElems )
+            ENDIF
 
-            eID = myCGSEM % mesh % edges(iEdge) % elementIDS(2)  ! Get the secondary element ID
+         ENDIF
 
-            sID = abs(myCGSEM % mesh % edges(iEdge) % elementSides(2)) ! Get the side of the secondary element which should be masked
-
-            if( eID > 0 )then ! this is an internal edge, and we should mask out the secondary element
-               CALL MASK_SIDE( eID, sID, myCGSEM % mesh, u, nS, nP, nEl )
-            endif
-
-         endif
-
-
-      enddo ! iEdge, loop over the edges     
+      ENDDO ! iEdge, loop over the edges     
 
       ! At this point, the secondary internal edges and prescribed boundary condition edges have been masked out.
       ! Now we mask out all but the primary element in the corner-node lists.
 
       ! Mask out the corner-nodes appropriately ( Leave the primary element intact )
-      do iNode = 1, myCGSEM % mesh % nNodes ! Loop over the corner nodes
+      DO iNode = 1, nNodes ! Loop over the corner nodes
 
          ! Rewind to the head of the linked list
-         myCGSEM % mesh % nodes(iNode) % nodeToElement % current => myCGSEM % mesh % nodes(iNode) % nodeToElement % head
+         CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToHead( ) 
 
-         if( myCGSEM % mesh % nodes(iNode) % nodeType /= DIRICHLET ) then ! this is NOT a prescribed (Dirichlet) boundary
+         IF( myCGSEM % mesh % nodes(iNode) % nodeType /= DIRICHLET ) then ! this is NOT a prescribed (Dirichlet) boundary
                                                                           ! The data in this non-prescribed node is preserved
 
-            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MOVE_TO_NEXT( ) ! skip the first element in the list so it's data is not masked
+            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToNext( ) ! skip the first element in the list so it's data is not masked
 
-         endif
+         ENDIF
 
-         do while( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
+         DO WHILE( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
 
-            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GET_CURRENT_DATA( eID, nID ) ! Get the element ID and the local node ID (1->4)
+            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GetCurrentData( eID, nID ) ! Get the element ID and the local node ID (1->4)
 
             i = myCGSEM % mesh % cornerMap(1, nID) ! Grab the index over the first computational direction associated with this corner node
             j = myCGSEM % mesh % cornerMap(2, nID) ! Grab the index over the second computational direction associated with this corner node
  
             u(i,j,eID) = ZERO ! Mask out the solution at this element at this corner node
 
-            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MOVE_TO_NEXT( )
+            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToNext( )
 
-         enddo ! while we have elements in the node-to-element list
+         ENDDO ! while we have elements in the node-to-element list
 
-      enddo
+      ENDDO
 
 
- END SUBROUTINE MASK_CGSEM2D
+ END SUBROUTINE Mask_CGsemElliptic_2D
 !
 !
 !
- SUBROUTINE MASK_SIDE( eID, sID, mesh, u, nS, nP, nElems )
- ! S/R MASK_SIDE
+ SUBROUTINE MaskSide( eID, sID, mesh, u, nS, nP, nElems )
+ ! S/R MaskSide
  !
  !  This subroutine masks the solutions on side "sID" of element "eID",
  !  excluding the corner nodes ( Assumes Gauss-Lobatto points are used )
  !
- ! ======================================================================
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   integer, INTENT(in)        :: eID, sID, nS, nP,nElems
-   real(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
-   TYPE(QUADMESH), INTENT(in) :: mesh
+   INTEGER, INTENT(in)        :: eID, sID, nS, nP,nElems
+   REAL(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
+   TYPE(QuadMesh), INTENT(in) :: mesh
    ! LOCAL
-   integer :: iS, iP
+   INTEGER :: iS, iP
    
-      if( sID == 2 .OR. sID == 4)then ! east or west sides
+      IF( sID == 2 .OR. sID == 4)then ! east or west sides
 
          iS = mesh % sideMap(sID) 
-
-         do iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
-
+         DO iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
             u(iS,iP,eID) = ZERO
+         ENDDO ! iP, loop over the edge
 
-         enddo ! iP, loop over the edge
-
-      else ! south or north sides
+      ELSE ! south or north sides
 
          iP = mesh % sideMap(sID)
-
-         do iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
-
+         DO iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
             u(iS,iP,eID) = ZERO
+         ENDDO
 
-         enddo
+      ENDIF
 
-      endif
-
- END SUBROUTINE MASK_SIDE
+ END SUBROUTINE MaskSide
 !
 !
 !
- SUBROUTINE UNMASK_CGSEM2D( myCGSEM, u )
- ! S/R UNMASK_CGSEM2D
+ SUBROUTINE Unmask_CGsemElliptic_2D( myCGSEM, u )
+ ! S/R UnMask
  !
  !
- ! ============================================================================= !
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), INTENT(inout) :: myCGSEM
-   real(prec), INTENT(inout)       :: u(0:myCGSEM % cgStorage % nS, &
-                                        0:myCGSEM % cgStorage % nP, &
-                                        1:myCGSEM % mesh % nElems )
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
+   REAL(prec), INTENT(inout)             :: u(0:myCGSEM % cgStorage % nS, &
+                                              0:myCGSEM % cgStorage % nP, &
+                                              1:myCGSEM % mesh % nElems )
    !LOCAL
-   integer :: nS, nP, iEdge, eID, sID, iNode, nID, i, j, eID0, i0, j0, nEl
+   INTEGER :: nS, nP, iEdge, eID, sID, iNode, nID, i, j, eID0, i0, j0, nEl, nEdges, nNodes
+   INTEGER :: e1, s1, e2, s2
 
-      nS = myCGSEM % cgStorage % nS
-      nP = myCGSEM % cgStorage % nP
-      nEl = myCGSEM % mesh % nElems
+      nS     = myCGSEM % cgStorage % nS
+      nP     = myCGSEM % cgStorage % nP
+      nEl    = myCGSEM % mesh % nElems
+      nEdges = myCGSEM % mesh % nEdges
+      nNodes = myCGSEM % mesh % nNodes
    
       ! Unmask the solution over the interior edges only -- corner nodes are excluded in this step
       ! and are taken care of in the following step
-      do iEdge = 1, myCGSEM % mesh % nEdges ! Loop over the edges
+      DO iEdge = 1, nEdges ! Loop over the edges
  
-         eID = myCGSEM % mesh % edges(iEdge) % elementIDS(2)
+         CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
 
-         if( eID > 0 )then ! This is an interior shared edge
+         IF( e2 > 0 )THEN ! This is an interior shared edge
+            CALL UnMaskSide( iEdge, myCGSEM % mesh, u, nS, nP, nEl ) ! unmask the solution along this edge
+         ENDIF
 
-            CALL UNMASK_SIDE( myCGSEM % mesh % edges(iEdge), myCGSEM % mesh, u, nS, nP, nEl ) ! unmask the solution along this edge
-
-         endif
-
-      enddo ! iEdge, loop over the edges     
+      ENDDO ! iEdge, loop over the edges     
 
 
       ! Unmask the corner-nodes
-      do iNode = 1, myCGSEM % mesh % nNodes ! Loop over the corner nodes
+      DO iNode = 1, nNodes ! Loop over the corner nodes
 
 
-         if( myCGSEM % mesh % nodes(iNode) % nodeType /= DIRICHLET ) then ! this is NOT a prescribed (Dirichlet) boundary
+         IF( myCGSEM % mesh % nodes(iNode) % nodeType /= DIRICHLET ) then ! this is NOT a prescribed (Dirichlet) boundary
 
             ! Rewind to the head of the linked list
-            myCGSEM % mesh % nodes(iNode) % nodeToElement % current => myCGSEM % mesh % nodes(iNode) % nodeToElement % head
+            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToHead( ) 
 
             ! Gather the element and local node IDs of the corner which contains the unmasked solution values.
-            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GET_CURRENT_DATA( eID0, nID ) ! Get the element ID and the local node ID (1->4)
+            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GetCurrentData( eID0, nID ) ! Get the element ID and the local node ID (1->4)
 
             i0 = myCGSEM % mesh % cornerMap(1, nID) ! Grab the index over the first computational direction associated with this corner node
             j0 = myCGSEM % mesh % cornerMap(2, nID) ! Grab the index over the second computational direction associated with this corner node
 
-            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MOVE_TO_NEXT( ) ! move on to the next element which shares this node
+            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToNext( ) ! move on to the next element which shares this node
 
 
             ! Loop over the elements in this corner-node's connectivity list
-            do while( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
+            DO WHILE( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
 
-               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GET_CURRENT_DATA( eID, nID ) ! Get the element ID and the local node ID (1->4)
+               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GetCurrentData( eID, nID ) ! Get the element ID and the local node ID (1->4)
 
                i = myCGSEM % mesh % cornerMap(1, nID) ! Grab the index over the first computational direction associated with this corner node
                j = myCGSEM % mesh % cornerMap(2, nID) ! Grab the index over the second computational direction associated with this corner node
   
                u(i,j,eID) = u(i0,j0,eID0) ! copy the solution from the unmasked solution
 
-               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MOVE_TO_NEXT( )
+               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToNext( )
 
-            enddo ! while we have elements in the node-to-element list
+            ENDDO ! while we have elements in the node-to-element list
 
+         ENDIF
 
+      ENDDO
 
-         endif
-
-
-      enddo
-
-
- END SUBROUTINE UNMASK_CGSEM2D
+ END SUBROUTINE UnMask_CGsemElliptic_2D
 !
 !
 !
- SUBROUTINE UNMASK_SIDE( thisEdge, mesh, u, nS, nP, nElems )
- ! S/R UNMASK_SIDE
+ SUBROUTINE UnMaskSide( edgeID, mesh, u, nS, nP, nElems )
+ ! S/R UnMaskSide
  !
  !  This subroutine unmasks the solutions on side "sID" of element "eID",
  !  excluding the corner nodes ( Assumes Gauss-Lobatto points are used )
  !
- ! ======================================================================
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   TYPE(EDGE), INTENT(in)     :: thisEdge
-   integer, INTENT(in)        :: nS, nP,nElems
-   real(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
-   TYPE(QUADMESH), INTENT(in) :: mesh
+   INTEGER, INTENT(in)        :: edgeID
+   INTEGER, INTENT(in)        :: nS, nP,nElems
+   REAL(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
+   TYPE(QuadMesh), INTENT(in) :: mesh
    ! LOCAL
-   integer :: iS, iP, eID, sID, jS, jP
-   real(prec) :: temp(0:nS) ! assume nS == nP
-   
+   INTEGER :: iS, iP, eID, sID, jS, jP
+   REAL(prec) :: temp(0:nS) ! assume nS == nP
 
       ! Get the primary element and side IDs
-      eID = thisEdge % elementIDs(1)
-      sID = thisEdge % elementSides(1)
-   
+      eID = mesh % edges(edgeID) % elementIDs(1)
+      sID = mesh % edges(edgeID) % elementSides(1)
  
-      if( sID == 2 .OR. sID == 4)then ! east or west sides
+      IF( sID == 2 .OR. sID == 4)THEN ! east or west sides
 
          iS = mesh % sideMap(sID) 
-
-         do iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
-
+         DO iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
             temp(iP) = u(iS,iP,eID) ! Copy the solution in the primary element
+         ENDDO ! iP, loop over the edge
 
-         enddo ! iP, loop over the edge
-
-      else ! south or north sides
+      ELSE ! south or north sides
 
          iP = mesh % sideMap(sID)
-
-         do iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
-
+         DO iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
             temp(iS) = u(iS,iP,eID) ! Copy the solution in the primary element
+         ENDDO
 
-         enddo
-
-      endif
+      ENDIF
 
        ! Get the secondary element and side IDs
-      eID = thisEdge % elementIDs(2)
-      sID = abs( thisEdge % elementSides(2) )
+      eID = mesh % edges(edgeID) % elementIDs(2)
+      sID = abs( mesh % edges(edgeID) % elementSides(2) )
         
-      if( sID == 2 .OR. sID == 4)then ! east or west sides
+      IF( sID == 2 .OR. sID == 4)THEN ! east or west sides
 
          iS = mesh % sideMap(sID) 
+         jP = mesh % edges(edgeID) % start ! accounting for the possibility that the node ordering may be different in the secondary element
 
-         jP = thisEdge % start ! accounting for the possibility that the node ordering may be different in the secondary element
-
-         do iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
-
+         DO iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
             u(iS,jP,eID) = temp(iP) ! Copy the solution to the secondary element
+            jP = jP + mesh % edges(edgeID) % inc ! increment jP
+         ENDDO ! iP, loop over the edge
 
-            jP = jP + thisEdge % inc ! increment jP
-
-         enddo ! iP, loop over the edge
-
-      else ! south or north sides
+      ELSE ! south or north sides
 
          iP = mesh % sideMap(sID)
-       
-         jS = thisEdge % start ! accounting for the possibility that the node ordering may be different in the secondary element
+         jS = mesh % edges(edgeID) % start ! accounting for the possibility that the node ordering may be different in the secondary element
 
-         do iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
+         DO iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
 
             u(jS,iP,eID) = temp(iS) ! Copy the solution in the primary element
+            jS = jS + mesh % edges(edgeID) % inc ! increment jS
 
-            jS = jS + thisEdge % inc ! increment jS
+         ENDDO
 
-         enddo
+      ENDIF
 
-      endif
-
- END SUBROUTINE UNMASK_SIDE
+ END SUBROUTINE UnMaskSide
 !
 !
 !
- SUBROUTINE GLOBALSUM_CGSEM2D( myCGSEM, u )
- ! S/R GLOBALSUM_CGSEM2D
+ SUBROUTINE GlobalSum_CGsemElliptic_2D( myCGSEM, u )
+ ! S/R GlobalSum
  !
  !  Adds together the shared edge and node contributions for the CGSEM method.
  !
- ! ============================================================================= !
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), INTENT(inout) :: myCGSEM
-   real(prec), INTENT(inout)       :: u(0:myCGSEM % cgStorage % nS, &
-                                        0:myCGSEM % cgStorage % nP, &
-                                        1:myCGSEM % mesh % nElems )
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
+   REAL(prec), INTENT(inout)             :: u(0:myCGSEM % cgStorage % nS, &
+                                              0:myCGSEM % cgStorage % nP, &
+                                              1:myCGSEM % mesh % nElems )
    !LOCAL
-   integer :: iEdge, eID, sID, iNode, nID, i, j, eID0, i0, j0
-   real(prec) :: theSum
+   INTEGER    :: iEdge, eID, sID, iNode, nID, i, j, eID0, i0, j0, nEdges, nNodes, nS, nP, nEl
+   INTEGER    :: e1, s1, e2, s2 
+   REAL(prec) :: theSum
+
+      nS     = myCGSEM % cgStorage % nS
+      nP     = myCGSEM % cgStorage % nP
+      nEl    = myCGSEM % mesh % nElems
+      nEdges = myCGSEM % mesh % nEdges
+      nNodes = myCGSEM % mesh % nNodes
+
+      DO iEdge = 1, nEdges ! loop over the edges
+
+         CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+         IF( e2 > 0 )then !/= DIRICHLET )then ! This is an interior shared edge (or a neumann boundary edge)
+
+            CALL SumSide( iEdge, myCGSEM % mesh, u, nS, nP, nEl )  ! add the contributions from the elements which share this edge
+                                                                   ! The edge sum excludes corner points
+         ENDIF
+
+      ENDDO ! iEdge, loop over the edges
 
 
-      do iEdge = 1, myCGSEM % mesh % nEdges ! loop over the edges
+      DO iNode = 1, nNodes ! loop over the corner nodes
 
-         if( myCGSEM % mesh % edges(iEdge)  % elementIDS(2) > 0 )then !/= DIRICHLET )then ! This is an interior shared edge (or a neumann boundary edge)
-
-            CALL SUM_SIDE( myCGSEM % mesh % edges(iEdge), myCGSEM % mesh, u, &
-                           myCGSEM % cgStorage % nS, myCGSEM % cgStorage % nP, &
-                           myCGSEM % mesh % nElems )                             ! add the contributions from the elements which share this edge
-                                                                                 ! The edge sum excludes corner points
-
-         endif
-
-      enddo ! iEdge, loop over the edges
-
-
-      do iNode = 1, myCGSEM % mesh % nNodes ! loop over the corner nodes
-
-         if( myCGSEM % mesh % nodes(iNode) % nodeType /= DIRICHLET ) then ! this node does NOT lie on a prescribed (Dirichlet) boundary
+         IF( myCGSEM % mesh % nodes(iNode) % nodeType /= DIRICHLET ) then ! this node does NOT lie on a prescribed (Dirichlet) boundary
 
              ! Rewind to the head of the linked list
-            myCGSEM % mesh % nodes(iNode) % nodeToElement % current => myCGSEM % mesh % nodes(iNode) % nodeToElement % head
+            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToHead( )
 
             ! *** First, compute the sum from the contributing elements *** !
-
             theSum = ZERO 
 
-
             ! Loop over the elements in this corner-node's connectivity list
-            do while( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
+            DO WHILE( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
 
-               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GET_CURRENT_DATA( eID, nID ) ! Get the element ID and the local node ID (1->4)
+               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GetCurrentData( eID, nID ) ! Get the element ID and the local node ID (1->4)
 
                i = myCGSEM % mesh % cornerMap(1, nID) ! Grab the index over the first computational direction associated with this corner node
                j = myCGSEM % mesh % cornerMap(2, nID) ! Grab the index over the second computational direction associated with this corner node
   
                theSum = theSum + u(i,j,eID) 
 
-               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MOVE_TO_NEXT( )
+               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToNext( )
 
-            enddo ! while we have elements in the node-to-element list
-
+            ENDDO ! while we have elements in the node-to-element list
 
             ! *** Now, copy the sum to the array "u" for each element which contributed to the sum *** !
 
              ! Rewind to the head of the linked list
-            myCGSEM % mesh % nodes(iNode) % nodeToElement % current => myCGSEM % mesh % nodes(iNode) % nodeToElement % head
+            CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToHead( )
 
-            do while( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
+            DO WHILE( ASSOCIATED( myCGSEM % mesh % nodes(iNode) % nodeToElement % current ) ) ! while there are elements in the node-to-element list
 
-               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GET_CURRENT_DATA( eID, nID ) ! Get the element ID and the local node ID (1->4)
+               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % GetCurrentData( eID, nID ) ! Get the element ID and the local node ID (1->4)
 
                i = myCGSEM % mesh % cornerMap(1, nID) ! Grab the index over the first computational direction associated with this corner node
                j = myCGSEM % mesh % cornerMap(2, nID) ! Grab the index over the second computational direction associated with this corner node
   
                u(i,j,eID) = theSum
 
-               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MOVE_TO_NEXT( )
+               CALL myCGSEM % mesh % nodes(iNode) % nodeToElement % MoveToNext( )
 
-            enddo ! while we have elements in the node-to-element list
+            ENDDO ! while we have elements in the node-to-element list
 
+         ENDIF
 
+      ENDDO
 
-         endif
-
-      enddo
-
- END SUBROUTINE GLOBALSUM_CGSEM2D
+ END SUBROUTINE GlobalSum_CGsemElliptic_2D
 !
 !
 !
- SUBROUTINE SUM_SIDE( thisEdge, mesh, u, nS, nP, nElems )
- ! S/R SUM_SIDE
+ SUBROUTINE SumSide( edgeID, mesh, u, nS, nP, nElems )
+ ! S/R SumSide
  !
  ! 
  !
- ! ======================================================================
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   TYPE(EDGE), INTENT(in)     :: thisEdge
-   integer, INTENT(in)        :: nS, nP,nElems
-   real(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
+   INTEGER, INTENT(in)        :: edgeID
+   INTEGER, INTENT(in)        :: nS, nP,nElems
+   REAL(prec), INTENT(inout)  :: u(0:nS,0:nP,1:nElems)
    TYPE(QUADMESH), INTENT(in) :: mesh
    ! LOCAL
-   integer :: iS, iP, eID, sID, jS, jP, k, n
-   real(prec) :: temp(0:nS,1:2) ! assume nS == nP
-   real(prec) :: theSum
+   INTEGER :: iS, iP, eID, sID, jS, jP, k, n
+   REAL(prec) :: temp(0:nS,1:2) ! assume nS == nP
+   REAL(prec) :: theSum
 
 
-      do k = 1,2
+      DO k = 1,2
 
          ! Get the primary/secondary element and side IDs
-         eID = thisEdge % elementIDs(k)
-         sID = abs( thisEdge % elementSides(k) )
+         eID = mesh % edges(edgeID) % elementIDs(k)
+         sID = abs( mesh % edges(edgeID) % elementSides(k) )
    
  
-         if( sID == 2 .OR. sID == 4)then ! east or west sides
+         IF( sID == east .OR. sID == west )then ! east or west sides
 
             iS = mesh % sideMap(sID) 
-
-            do iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
-
+            DO iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
                temp(iP,k) = u(iS,iP,eID) ! 
+            ENDDO ! iP, loop over the edge
 
-            enddo ! iP, loop over the edge
-
-         else ! south or north sides
+         ELSE ! south or north sides
 
             iP = mesh % sideMap(sID)
-
-            do iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
-
+            DO iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
                temp(iS,k) = u(iS,iP,eID) ! 
+            ENDDO
 
-            enddo
+         ENDIF
 
-         endif
-
-      enddo
+      ENDDO
 
       ! Add the two contributions together
-      n = thisEdge % start
+      n = mesh % edges(edgeID) % start
      
-      do iS = 1, nS-1
+      DO iS = 1, nS-1
 
          theSum = temp(iS,1) + temp(n,2)
 
          temp(iS,1) = theSum
-
          temp(n,2) = theSum
 
-         n = n + thisEdge % inc ! increment the secondary element array adress
+         n = n + mesh % edges(edgeID) % inc ! increment the secondary element array adress
 
-      enddo
+      ENDDO
 
       ! copy the sum into the two contributing element edges
 
-      do k = 1,2
+      DO k = 1,2
 
          ! Get the primary/secondary element and side IDs
-         eID = thisEdge % elementIDs(k)
-         sID = abs( thisEdge % elementSides(k) )
+         eID = mesh % edges(edgeID) % elementIDs(k)
+         sID = abs( mesh % edges(edgeID) % elementSides(k) )
    
  
-         if( sID == 2 .OR. sID == 4)then ! east or west sides
+         IF( sID == east .OR. sID == west )THEN ! east or west sides
 
             iS = mesh % sideMap(sID) 
-
-            do iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
-
+            DO iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
                 u(iS,iP,eID) = temp(iP,k) !
+            ENDDO ! iP, loop over the edge
 
-            enddo ! iP, loop over the edge
-
-         else ! south or north sides
+         ELSE ! south or north sides
 
             iP = mesh % sideMap(sID)
-
-            do iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
-
+            DO iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
                u(iS,iP,eID) = temp(iS,k) ! 
+            ENDDO
 
-            enddo
+         ENDIF
 
-         endif
-
-      enddo
+      ENDDO
 
 
- END SUBROUTINE SUM_SIDE
+ END SUBROUTINE SumSide
 !
 !
 !
- SUBROUTINE CALC_GRADIENT( geometry, cgStorage, u, dudx, dudy, nS, nP )
- ! S/R CALC_GRADIENT
+ SUBROUTINE CalculateGradient_CGsemElliptic_2D( myCGSEM, iEl, u, dudx, dudy )
+ ! S/R CalculateGradient
  !
  !  Calculates the gradient of the solution in computational coordinates within 
  !  a single element
  !
  !
- ! ============================================================================= !
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   integer, INTENT(in)                  :: nS, nP
+   CLASS( CGsemElliptic_2D ), INTENT(in)   :: myCGSEM 
+   INTEGER, INTENT(in)                  :: iEl
    TYPE( MAPPEDGEOM_2D ), INTENT(in)    :: geometry
-   TYPE( NODAL_STORAGE_2D ), INTENT(in) :: cgStorage
-   real(prec), INTENT(in)               :: u(0:nS, 0:nP)
-   real(prec), INTENT(out)              :: dudx(0:nS, 0:nP)
-   real(prec), INTENT(out)              :: dudy(0:nS, 0:nP) 
+   REAL(prec), INTENT(in)               :: u(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec), INTENT(out)              :: dudx(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec), INTENT(out)              :: dudy(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP) 
    ! LOCAL
-   integer :: iS, iP
-   real(prec) :: duds(0:nS, 0:nP)
-   real(prec) :: dudp(0:nS, 0:nP)
-   real(prec) :: J, dxds, dxdp, dyds, dydp
+   INTEGER :: iS, iP, nS, nP
+   REAL(prec) :: duds(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: dudp(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: dMatS(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nS)
+   REAL(prec) :: dMatP(0:myCGSEM % cgStorage % nP, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: sTemp(0:myCGSEM % cgStorage % nS)
+   REAL(prec) :: pTemp(0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: J, dxds, dxdp, dyds, dydp
 
+      nS = myCGSEM % cgStorage % nS
+      nP = myCGSEM % cgStorage % nP
+      CALL myCGSEM % cgStorage % GetDerivativeMatrix( dMatS, dMatP ) 
 
-      do iP = 0, nP ! Loop over the second computational direction
-
+      DO iP = 0, nP ! Loop over the second computational direction
+ 
+         sTemp = u(0:nS,iP)
          ! Calculate the derivative in the first computational direction
-         duds(0:nS,iP) = MATVECMUL( cgStorage % dMatX(0:nS,0:nS), &
-                                    u(0:nS,iP), nS, nS )
+         duds(0:nS,iP) = MATMUL( dMatS, sTemp )
 
-      enddo ! iP, loop over the second computational direction
+      ENDDO ! iP, loop over the second computational direction
 
+      DO iS = 0, nS ! Loop over the first computational direction
 
-
-      do iS = 0, nS ! Loop over the first computational direction
-
+         pTemp = u(iS,0:nP)
          ! Calculate the derivative in the second computational direction
-         dudp(iS,0:nP) = MATVECMUL( cgStorage % dMatY(0:nP,0:nP), &
-                                    u(iS,0:nP), nP, nP )
+         dudp(iS,0:nP) = MATMUL( dMatP, pTemp )
 
-      enddo ! iS, loop over the first computational direction
+      ENDDO ! iS, loop over the first computational direction
 
 
       ! Calculate the gradient in physical space
-      do iP = 0, nP
-         do iS = 0, nS
+      DO iP = 0, nP
+         DO iS = 0, nS
 
-            J = geometry % J(iS,iP)
+            CALL myCGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
+            CALL myCGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
 
-            dxds = geometry % dxds(iS,iP)
-            dxdp = geometry % dxdp(iS,iP)
-            dyds = geometry % dyds(iS,iP)
-            dydp = geometry % dydp(iS,iP)
+            dudx(iS,iP) = ( dydp*duds - dyds*dudp )/J
+            dudy(iS,iP) = ( dxds*dudp - dxdp*duds )/J        
 
-            dudx(iS,iP) = ( dydp*duds(iS,iP) - dyds*dudp(iS,iP) )/J
+         ENDDO
+      ENDDO
 
-            dudy(iS,iP) = ( dxds*dudp(iS,iP) - dxdp*duds(iS,iP) )/J        
-
-         enddo
-      enddo
-
-
- END SUBROUTINE CALC_GRADIENT
+ END SUBROUTINE CalculateGradient_CGsemElliptic_2D
 !
 !
 !
- FUNCTION FLUX_X( u, dudx, dudy, a, b) RESULT( fx )
- ! FUNCTION FLUX_X
- !
- !   In the problem Div( F ) = s, the x-component of the flux is calculated here.
- !
- !
- ! ============================================================================= !
- ! DECLARATIONS
-   IMPLICIT NONE
-   real(prec) :: u, dudx, dudy, fx, a, b
-
-
-      fx = a*dudx + b*dudy
-
-
- END FUNCTION FLUX_X
-!
-!
-!
-  FUNCTION FLUX_Y( u, dudx, dudy, c, d ) RESULT( fy )
- ! FUNCTION FLUX_Y
- !
- !   In the problem Div( F ) = s, the y-component of the flux is calculated here.
- !
- !
- ! ============================================================================= !
- ! DECLARATIONS
-   IMPLICIT NONE
-   real(prec) :: u, dudx, dudy, fy, c, d
-
-
-      fy = c*dudx + d*dudy
-
-
- END FUNCTION FLUX_Y
-!
-!
-!
- SUBROUTINE FLUX_DIVERGENCE( geometry, cgStorage, coeffs, u, Lu, nS, nP )
- ! S/R FLUX_DIVERGENCE
+ SUBROUTINE FluxDivergence_CGsemElliptic_2D( myCGSEM, iEl, u, Lu, nS, nP )
+ ! S/R FluxDivergence
  !
  !
  ! ============================================================================= !
@@ -860,77 +786,75 @@ CONTAINS
    TYPE( MAPPEDGEOM_2D ), INTENT(in)    :: geometry
    TYPE( NODAL_STORAGE_2D ), INTENT(in) :: cgStorage
    TYPE( FLUX_COEFFICIENTS), INTENT(in) :: coeffs
-   real(prec), INTENT(in)               :: u(0:nS, 0:nP)
-   real(prec), INTENT(out)              :: Lu(0:nS, 0:nP)
+   REAL(prec), INTENT(in)               :: u(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec), INTENT(out)              :: Lu(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
    ! LOCAL
-   integer    :: iS, iP
-   real(prec) :: F1(0:nS,0:nP)
-   real(prec) :: F2(0:nS,0:nP)
-   real(prec) :: dF1ds(0:nS, 0:nP)
-   real(prec) :: dF2dp(0:nS, 0:nP)
-   real(prec) :: dudx(0:nS, 0:nP)
-   real(prec) :: dudy(0:nS, 0:nP)
-   real(prec) :: J, dxds, dxdp, dyds, dydp, Fx, Fy
+   INTEGER    :: iS, iP
+   REAL(prec) :: F1(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: F2(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: dF1ds(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: dF2dp(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: dudx(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: dudy(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: dMatS(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nS)
+   REAL(prec) :: dMatSt(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nS)
+   REAL(prec) :: dMatP(0:myCGSEM % cgStorage % nP, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: dMatPt(0:myCGSEM % cgStorage % nP, 0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: ws(0:myCGSEM % cgStorage % nS)
+   REAL(prec) :: wp(0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: sTemp(0:myCGSEM % cgStorage % nS)
+   REAL(prec) :: pTemp(0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: J, dxds, dxdp, dyds, dydp
 
+      nS = myCGSEM % cgStorage % nS
+      nP = myCGSEM % cgStorage % nP
 
-      CALL CALC_GRADIENT( geometry, cgStorage, u, dudx, dudy, nS, nP ) ! calculate the gradient in physical coordinates
+      CALL myCGSEM % cgStorage % GetQuadratureWeights( ws, wp )
+      CALL myCGSEM % cgStorage % GetDerivativeMatrix( dMatS, dMatP )
+      dMatSt = TRANSPOSE( dMatS )
+      dMatPt = TRANSPOSE( dMatP )
+
+      CALL myCGSEM % CalculateGradient( iEl, u, dudx, dudy ) ! calculate the gradient in physical coordinates
 
       ! Now apply the metric terms
-      do iP = 0, nP ! Loop over the second computational direction
-         do iS = 0, nS ! Loop over the first computational direction
+      DO iP = 0, nP ! Loop over the second computational direction
+         DO iS = 0, nS ! Loop over the first computational direction
 
-            J = geometry % J(iS,iP)
-
-            dxds = geometry % dxds(iS,iP)
-            dxdp = geometry % dxdp(iS,iP)
-            dyds = geometry % dyds(iS,iP)
-            dydp = geometry % dydp(iS,iP)
-
-            ! Calculate the conservative flux
-            Fx = FLUX_X( u(iS,iP), dudx(iS,iP), dudy(iS,iP), coeffs % a(iS,iP), coeffs % b(iS,iP) )
-            Fy = FLUX_Y( u(iS,iP), dudx(iS,iP), dudy(iS,iP), coeffs % c(iS,iP), coeffs % d(iS,iP) )
+            CALL myCGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
+            CALL myCGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
 
             ! Contravariant flux calculation
-            F1(iS,iP) = ( Fx*dydp - Fy*dxdp )*cgStorage % qWeightX(iS)
+            F1(iS,iP) = ( dudx(iS,iP)*dydp - dudy(iS,iP)*dxdp )*ws(iS)
+            F2(iS,iP) = ( dudy(iS,iP)*dxds - dudx(iS,iP)*dyds )*wp(iP)        
 
-            F2(iS,iP) = ( Fy*dxds - Fx*dyds )*cgStorage % qWeightY(iP)
-        
+         ENDDO ! iS
+      ENDDO ! iP
 
-         enddo ! iS
-      enddo ! iP
+      ! Now calculate the divergence of the flux
+
+      DO iP = 0, nP ! loop over the second computational direction
+         sTemp = F1(0:nS,iP)
+         dF1ds(0:nS,iP) = MATMUL( dMatSt, sTemp )  
+      ENDDO ! iP
+
+      DO iS = 0, nS ! loop over the second computational direction
+         pTemp = F2(iS,0:nP)
+         dF2dp(iS,0:nP) = MATMUL( dMatPt, pTemp )  
+      ENDDO
 
 
-   ! Now calculate the divergence of the flux
-
-   do iP = 0, nP ! loop over the second computational direction
-
-      dF1ds(0:nS,iP) = MATVECMUL_TRANSPOSE( cgStorage % dMatX(0:nS,0:nS), F1(0:nS,iP), nS )  
-
-   enddo ! iP
-
-   do iS = 0, nS ! loop over the second computational direction
-
-      dF2dp(iS,0:nP) = MATVECMUL_TRANSPOSE( cgStorage % dMatY(0:nP,0:nP), F2(iS,0:nP), nP )  
-
-   enddo ! iP
-
-   ! Now calculate the Laplacian
-
-   do iP = 0, nP
-      do iS = 0, nS
-
-         Lu(iS,iP) = -( dF1ds(iS,iP)*cgStorage % qWeightY(iP) +&
-                        dF2dp(iS,iP)*cgStorage % qWeightX(iS) )
-
-      enddo ! iS
-   enddo ! iP
+      DO iP = 0, nP
+         DO iS = 0, nS
+            Lu(iS,iP) = -( dF1ds(iS,iP)*wp(iP) + dF2dp(iS,iP)*ws(iS) )
+         ENDDO 
+      ENDDO 
        
 
- END SUBROUTINE FLUX_DIVERGENCE 
+ END SUBROUTINE FluxDivergence_CGsemElliptic_2D 
 !
 !
 !
- SUBROUTINE MATRIX_ACTION( myCGSEM, u, Au )
+ SUBROUTINE MatrixAction_CGsemElliptic_2D( myCGSEM, u, Au )
  !
  ! 
  ! ==========================================================!

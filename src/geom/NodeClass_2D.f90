@@ -28,7 +28,7 @@ IMPLICIT NONE
       INTEGER, PRIVATE           :: nodeType      ! An INTEGER flag for INTERIOR or BOUNDARY
       REAL(prec), PRIVATE        :: x, y
       TYPE( LinkedList ), PUBLIC :: nodeToElement ! A linked list of element IDs which share this node.
-      TYPE( Node_2D ), POINTER      :: next
+      TYPE( Node_2D ), POINTER   :: next
 
       CONTAINS
 
