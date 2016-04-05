@@ -43,7 +43,12 @@ IMPLICIT NONE
       PROCEDURE :: SetType => SetType_Node_2D
       PROCEDURE :: GetPosition => GetPosition_Node_2D
       PROCEDURE :: SetPosition => SetPosition_Node_2D
+      PROCEDURE :: GetCurrentElementID => GetCurrentElementID_Node_2D
+      PROCEDURE :: SetCurrentElementID => SetCurrentElementID_Node_2D
       
+      PROCEDURE :: RewindElementList => RewindElementList_Node_2D
+      PROCEDURE :: AdvanceElementList => AdvanceElementList_Node_2D
+      PROCEDURE :: CurrentElemExists => CurrentElemExists_Node_2D
       PROCEDURE :: ScaleNodePosition => ScaleNodePosition_Node_2D
       
       
@@ -417,9 +422,81 @@ IMPLICIT NONE
  END SUBROUTINE SetPosition_Node_2D
 !
 !
+!
+ SUBROUTINE GetCurrentElementID_Node_2D( thisNode, eID )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE 
+   CLASS( Node_2D ), INTENT(in) :: thisNode
+   INTEGER, INTENT(out)         :: eID
+
+      CALL thisNode % nodeToElement % GetData( eID )
+ 
+ END SUBROUTINE GetCurrentElementID_Node_2D
+!
+!
+!
+ SUBROUTINE SetCurrentElementID_Node_2D( thisNode, eID )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE 
+   CLASS( Node_2D ), INTENT(inout) :: thisNode
+   INTEGER, INTENT(in)             :: eID
+
+      CALL thisNode % nodeToElement % SetData( eID )
+ 
+ END SUBROUTINE SetCurrentElementID_Node_2D
+!
+!
 !==================================================================================================!
 !----------------------------------- Linked List Routines  ----------------------------------------!
 !==================================================================================================!
+!
+!
+ SUBROUTINE RewindElementList_Node_2D( thisNode )
+ ! S/R RewindElementList
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE  
+   CLASS( Node_2D ), INTENT(inout) :: thisNode
+
+      CALL thisNode % nodeToElement % MoveToHead( )
+
+ END SUBROUTINE RewindElementList_Node_2D
+!
+!
+!
+ SUBROUTINE AdvanceElementList_Node_2D( thisNode )
+ ! S/R AdvanceElementList
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE  
+   CLASS( Node_2D ), INTENT(inout) :: thisNode
+
+      CALL thisNode % nodeToElement % MoveToNext( )
+
+ END SUBROUTINE AdvanceElementList_Node_2D
+!
+!
+!
+ FUNCTION CurrentElemExists_Node_2D( thisNode ) RESULT( itExists )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   CLASS( Node_2D ) :: thisNode
+   LOGICAL          :: itExists
+
+     itExists = ASSOCIATED( thisNode % nodeToElement % current )
+
+ END FUNCTION CurrentElemExists_Node_2D
+!
 !
 !
  FUNCTION ListIsEmpty_Node_2DList( myList ) RESULT( TorF )

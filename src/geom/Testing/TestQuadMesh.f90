@@ -15,9 +15,11 @@ PROGRAM TestQuadMesh
  
  TYPE( NodalStorage_2D )   :: nodal
  TYPE( QuadMesh )          :: mesh
+ TYPE( QuadMesh )          :: linmesh
  TYPE( GeometryParams )    :: params
  REAL(prec)                :: s, p
  LOGICAL                   :: successful
+ INTEGER, ALLOCATABLE      :: linToO(:,:,:,:), oToLin(:,:,:,:)
  
  
  
@@ -32,15 +34,19 @@ PROGRAM TestQuadMesh
 
     
     ! Build the Geometry
-    CALL mesh % ReadSpecMeshFile( nodal % interp, params % SpecMeshFile )
-    
+    CALL mesh % LoadDefaultMesh( nodal % interp, 2, 2 )
+    !CALL mesh % ReadSpecMeshFile( nodal % interp, params % SpecMeshFile )
+    CALL linmesh % ConstructLinearMeshFromOther( mesh, linToO, oToLin )
     ! Scale the Geometry
-    CALL mesh % ScaleTheMesh( nodal % interp, params % xScale, params % yScale )
+!    CALL mesh % ScaleTheMesh( nodal % interp, params % xScale, params % yScale )
     ! Write to a tecplot file
     CALL mesh % WriteTecplot( )
+    CALL linmesh % WriteTecplot( 'linmesh' )
    
     CALL mesh % Trash( )
+    CALL linmesh % Trash( )
     
+    DEALLOCATE( linToO, oToLin )
     ! Test the Default mesh
     !CALL mesh % LoadDefaultMesh( nodal % interp )
     !CALL mesh % WriteTecplot('DefaultMesh')

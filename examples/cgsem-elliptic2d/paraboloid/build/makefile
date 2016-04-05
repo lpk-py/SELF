@@ -14,14 +14,47 @@ INC=
 #OPT=-O3
 OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
-SRCDIR=../src/
+SRCDIR=../../../../src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
-INIDIR=${DIR}/init/
+INIDIR=${DIR}/
 
 
 
+# ---------------------------------------------------------------------- #
+#              ~/examples/cgsem-elliptic2d/paraboloid/                   #
+# ---------------------------------------------------------------------- #
+CGOBJS = ModelPrecision.o \
+         ModelFlags.o \
+         ConstantsDictionary.o \
+         CommonRoutines.o \
+         LinkedListClass.o \
+         HashTableClass.o \
+         Legendre.o \
+         Chebyshev.o \
+         Lagrange_1D_Class.o \
+         Lagrange_2D_Class.o \
+         NodalStorage_2D_Class.o \
+         CurveClass_2D.o \
+         VectorClass.o \
+         CurveClass_3D.o \
+         GeometrySupportRoutines.o \
+         MappedGeometryClass_2D.o \
+         QuadElementClass.o \
+         EdgeClass.o \
+         NodeClass_2D.o \
+         QuadMeshClass.o \
+         CGsemParams_Class.o \
+         CGsemPreconditioner_2D_Class.o \
+         CGsemElliptic_2D_Class.o \
+         CGsemElliptic2D_Driver.o
+
+cgsolve : ${CGOBJS}
+	${FC} ${OPT} ${CGOBJS} -o $@
+
+CGsemElliptic2D_Driver.o : ModelPrecision.o QuadMeshClass.o CGsemParams_Class.o CGsemElliptic_2D_Class.o
+	${FC} ${OPT} -c ${INIDIR}localmods/CGsemElliptic2D_Driver.f90 -o $@
 
 
 # ---------------------------------------------------------------------- #
@@ -190,9 +223,6 @@ CGsemPreconditioner_2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictiona
                                  NodalStorage_2D_Class.o QuadMeshClass.o MappedGeometryClass_2D.o
 	${FC} ${OPT} -c ${SRCDIR}cgsem/CGsemPreconditioner_2D_Class.f90 -o $@
 
-# Test Programs
-Elliptic1D_Driver.o : ModelPrecision.o IterativeSolvers_Class.o Elliptic1D_Class.o
-	${FC} ${OPT} -c ${SRCDIR}cgsem/Elliptic1D_Driver.f90 -o $@
 
 # ---------------------------------------------------------------------- #
 #                            ~/src/geom/                                 #

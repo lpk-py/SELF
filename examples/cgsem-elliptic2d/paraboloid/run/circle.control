@@ -1,0 +1,42 @@
+\begin{ControlInput}
+
+   \begin{RunParameters}
+      mesh file name   = "circle.mesh"
+      plot file name   = "circle.tec"
+      stats file name  = "circle.txt"
+      mesh file format = "ISM-v2"
+      polynomial order = 5
+   \end{RunParameters}
+
+   \begin{MeshParameters}
+      mesh type            = "conforming"
+      background grid size = [1.0,1.0,1.0]
+   \end{MeshParameters}
+   
+   
+   \begin{SpringSmoother}
+      smoothing            = "ON"
+      smoothing type       = "LinearAndCrossBarSpring"
+      spring constant      = 1.0
+      mass                 = 1.0
+      rest length          = 0.0
+      damping coefficient  = 7.0
+      number of iterations = 40
+      time step            = 0.1
+   \end{SpringSmoother}
+
+\end{ControlInput}
+
+\begin{Model}
+\begin{OuterBoundary}
+
+   \begin{ParametricEquationCurve}
+	 name = "DIRICHLET"
+	 xEqn = "f(t) =  0.5 + 0.5*cos(2.0*pi*t)"
+	 yEqn = "f(t) =  0.5 + 0.5*sin(2.0*pi*t)"
+	 zEqn = "f(t) =  0.0"
+   \end{ParametricEquationCurve}
+     
+\end{OuterBoundary}
+\end{Model}
+\end{File}

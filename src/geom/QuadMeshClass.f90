@@ -120,8 +120,8 @@ IMPLICIT NONE
        ! NodeClass_2D Wrapper Routines
        PROCEDURE :: SetNodeData => SetNodeData_QuadMesh
        PROCEDURE :: GetNodeData => GetNodeData_QuadMesh
-       PROCEDURE :: SetNodeKey => SetNodeKey_QuadMesh
-       PROCEDURE :: GetNodeKey => GetNodeKey_QuadMesh
+       PROCEDURE :: SetLocalNodeID => SetLocalNodeID_QuadMesh
+       PROCEDURE :: GetLocalNodeID => GetLocalNodeID_QuadMesh
        PROCEDURE :: SetNodeType => SetNodeType_QuadMesh
        PROCEDURE :: GetNodeType => GetNodeType_QuadMesh
        PROCEDURE :: SetNodePosition => SetNodePosition_QuadMesh
@@ -155,7 +155,8 @@ IMPLICIT NONE
        PROCEDURE :: GetNodeToElementConnectivity => GetNodeToElementConnectivity_QuadMesh
        PROCEDURE :: ScaleTheMesh => ScaleTheMesh_QuadMesh
        PROCEDURE :: LoadDefaultMesh => LoadDefaultMesh_QuadMesh
-       
+       PROCEDURE :: ConstructLinearMeshFromOther => ConstructLinearMeshFromOther_QuadMesh       
+
        PROCEDURE :: ReadSpecMeshFile => ReadSpecMeshFile_QuadMesh
        PROCEDURE :: WriteTecplot => WriteTecplot_Quadmesh
        
@@ -969,8 +970,8 @@ SUBROUTINE SetNumberOfInternalNodes_Quadmesh( myQuadMesh, iEl, nS, nP )
 !
 !
 !
- SUBROUTINE SetNodeKey_QuadMesh( myQuadMesh, iNode, key )
- ! S/R SetNodeKey
+ SUBROUTINE SetLocalNodeID_QuadMesh( myQuadMesh, iNode, key )
+ ! S/R SetLocalNodeID
  !  
  !
  ! =============================================================================================== !
@@ -980,14 +981,14 @@ SUBROUTINE SetNumberOfInternalNodes_Quadmesh( myQuadMesh, iEl, nS, nP )
    INTEGER, INTENT(in)              :: iNode
    INTEGER, INTENT(in)              :: key
    
-      CALL myQuadMesh % nodes(iNode) % SetKey( key )
+      CALL myQuadMesh % nodes(iNode) % nodeToElement % SetKey( key )
    
- END SUBROUTINE SetNodeKey_QuadMesh
+ END SUBROUTINE SetLocalNodeID_QuadMesh
 !
 !
 !
- SUBROUTINE GetNodeKey_QuadMesh( myQuadMesh, iNode, key )
- ! S/R GetNodeKey
+ SUBROUTINE GetLocalNodeID_QuadMesh( myQuadMesh, iNode, key )
+ ! S/R GetLocalNodeID
  !  
  !
  ! =============================================================================================== !
@@ -997,9 +998,9 @@ SUBROUTINE SetNumberOfInternalNodes_Quadmesh( myQuadMesh, iEl, nS, nP )
    INTEGER, INTENT(in)           :: iNode
    INTEGER, INTENT(out)          :: key
    
-      CALL myQuadMesh % nodes(iNode) % GetKey( key )
+      CALL myQuadMesh % nodes(iNode) % nodeToElement % GetKey( key )
    
- END SUBROUTINE GetNodeKey_QuadMesh
+ END SUBROUTINE GetLocalNodeID_QuadMesh
 !
 !
 !
@@ -1555,6 +1556,9 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
                   CALL myQuadMesh % SetEdgeSecondaryElementSide( edgeID, -k )
                  
                ENDIF
+               ! Set the node-type information
+               CALL myQuadMesh % SetNodeType(startID, INTERIOR )
+               CALL myQuadMesh % SetNodeType(endID, INTERIOR )
 
             ELSE ! this is a new edge
 
@@ -1569,6 +1573,10 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
 
                ! Default the secondary information
                CALL myQuadMesh % SetEdgeSecondaryElementID( edgeID, BoundaryFlagDefault )
+
+               ! Set the node-type information
+               CALL myQuadMesh % SetNodeType(startID, BoundaryFlagDefault)
+               CALL myQuadMesh % SetNodeType(endID, BoundaryFlagDefault)
                
                CALL edgeTable % AddDataForKeys( edgeID, key1, key2 )
                
@@ -1813,6 +1821,236 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
       ENDDO
   
  END SUBROUTINE LoadDefaultMesh_QuadMesh
+!
+!
+!
+ SUBROUTINE ConstructLinearMeshFromOther_QuadMesh( linMesh, otherMesh , linToOther, otherToLin )
+ ! S/R ConstructurLinearMeshFromOther
+ !
+ ! This subroutine takes as input a SE mesh that is linear or higher order and constructs another
+ ! mesh by using the quadrature points as corner nodes. This routine assumes that the Gauss-Lobatto
+ ! points are used, so that the endpoints of each element are included in the internal mesh.
+ !
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( QuadMesh ), INTENT(inout)    :: linMesh
+   TYPE( QuadMesh ), INTENT(in)        :: otherMesh
+   INTEGER, INTENT(inout), ALLOCATABLE :: linToOther(:,:,:,:), otherToLin(:,:,:,:)
+   ! LOCAL
+   TYPE( Lagrange_2D )     :: interp
+   TYPE( Curve_2D )        :: elBoundCurves(1:4)
+   REAL(prec)              :: x, y, xc, yc
+   REAL(prec)              :: x1, x2, y1, y2
+   REAL(prec), ALLOCATABLE :: cnodelocs(:,:)
+   REAL(prec), ALLOCATABLE :: xx(:), yy(:), s(:)
+   INTEGER, ALLOCATABLE    :: uniqueNids(:)
+   INTEGER :: nodes(1:4)
+   INTEGER :: nEl, nS, nP, n1, n2, nEdges
+   INTEGER :: nLinEl, N, nLinNodes, nUnique, inc, nID, eID
+   INTEGER :: iNode, i, j, iS, iP, iEl, iSide, iEdge
+
+      nS  = otherMesh % elements(1) % nS
+      nP  = nS
+      nEl = otherMesh % nElems
+      
+      N      = 1 ! Polynomial order for the linear mesh
+      nLinEl = nEl*nS*nP
+
+      ALLOCATE( linToOther(0:N,0:N,1:nLinEl,1:3), otherToLin(0:nS,0:nP,1:nEl,1:3) )
+      linToOther = 0
+      otherToLin = 0
+
+
+      nLinNodes = nEl*(nS+1)*(nP+1)
+      ALLOCATE( cnodelocs(1:nLinNodes,1:2), uniqueNids(1:nLinNodes) )
+
+      DO iEl = 1, nEl
+         DO iP = 0, nP
+            DO iS = 0, nS
+
+               iNode = iS+1 + (nS+1)*( iP + (nP+1)*(iEl-1) )
+               CALL otherMesh % GetPositionAtNode(iEl, x, y, iS, iP)
+               cnodelocs(iNode,1) = x
+               cnodelocs(iNode,2) = y
+
+            ENDDO
+         ENDDO
+      ENDDO 
+
+      nUnique = 0
+      ! Now we determine the unique nodes by comparing their location. The list is traversed in 
+      ! increasing order of node ID. The node is compared to all of the previous nodes. If this node
+      ! is different from all of the previously identified node, the number of unique nodes is
+      ! incremented and the node is assigned that number as it's ID. An integer array is used
+      ! to map the global node list ID to the unique node ID, so that we can establish a mapping
+      ! between the linear mesh and the original mesh.
+      DO i = 1, nLinNodes
+
+         x = cnodelocs(i,1)
+         y = cnodelocs(i,2)
+
+         inc = 1 ! reset the unique node ID increment
+         DO j = 1,i-1
+
+            ! Grab the nodes to compare with
+            xc = cnodelocs(j,1)
+            yc = cnodelocs(j,2)
+
+            ! If the current node (node "i") does not match a previous node (node "j"), then we record
+            ! the unique ID counter in the integer array "uniqueNids". 
+            IF( AlmostEqual(x,xc) .AND. AlmostEqual(y,yc) )THEN
+               uniqueNids(i) = uniqueNids(j)
+               inc = 0
+               EXIT
+            ENDIF
+
+         ENDDO
+
+         nUnique = nUnique + inc
+         IF( inc == 1 )THEN
+            uniqueNids(i) = nUnique 
+         ENDIF
+
+      ENDDO
+ 
+      PRINT*, 'S/R ConstructLinearMeshFromOther : Found ', nUnique, ' unique nodes in the linear mesh.'
+      CALL linMesh % Build( nUnique, nLinEl, 1, N ) 
+
+      ALLOCATE( s(0:N), xx(0:N), yy(0:N) )
+      s(0) = -ONE
+      s(1) = ONE
+
+      CALL interp % Build( N, N, s, s )
+      ! Now the linear mesh construction and mapping can begin.
+     
+      ! First we start with the nodes
+      DO iEl = 1, nEl
+         DO iP = 0, nP
+            DO iS = 0, nS
+
+               iNode = iS+1 + (nS+1)*( iP + (nP+1)*(iEl-1) )
+               nID   = uniqueNids(iNode)  ! Convert iNode to a unique node ID             
+               x     = cnodelocs(iNode,1)
+               y     = cnodelocs(iNode,2)
+               CALL linmesh % SetNodePosition( nID, x, y )
+
+            ENDDO
+         ENDDO
+      ENDDO
+
+      ! Do the element information
+ 
+      xx = ZERO
+      yy = ZERO
+      ! Do the initial build for the parametric curves
+      DO iSide = 1, 4
+         CALL elBoundCurves(iSide) % Build( xx, yy, s ) 
+      ENDDO
+   
+     
+      DO iEl = 1, nEl
+         DO iP = 1, nP
+            DO iS = 1, nS
+
+               eID = iS + nS*( (iP-1) + (iEl-1)*nP )
+               ! Linear to original mesh mapping
+               ! Southwest
+               linToOther(0,0,eID,1) = iS-1 
+               linToOther(0,0,eID,2) = iP-1
+               linToOther(0,0,eID,3) = iEl
+               ! Southeast
+               linToOther(1,0,eID,1) = iS 
+               linToOther(1,0,eID,2) = iP-1
+               linToOther(1,0,eID,3) = iEl
+               ! Northeast
+               linToOther(1,1,eID,1) = iS 
+               linToOther(1,1,eID,2) = iP
+               linToOther(1,1,eID,3) = iEl
+               ! NorthWest
+               linToOther(0,1,eID,1) = iS-1 
+               linToOther(0,1,eID,2) = iP
+               linToOther(0,1,eID,3) = iEl
+
+               ! Original to linear mesh mapping
+               ! Southwest
+               otherToLin(iS-1,iP-1,iEl,1) = 0 
+               otherToLin(iS-1,iP-1,iEl,2) = 0
+               otherToLin(iS-1,iP-1,iEl,3) = eID
+               ! Southeast
+               otherToLin(iS,iP-1,iEl,1) = 1 
+               otherToLin(iS,iP-1,iEl,2) = 0
+               otherToLin(iS,iP-1,iEl,3) = eID
+               ! Northeast
+               otherToLin(iS,iP,iEl,1) = 1 
+               otherToLin(iS,iP,iEl,2) = 1
+               otherToLin(iS,iP,iEl,3) = eID
+               ! NorthWest
+               otherToLin(iS-1,iP,iEl,1) = 0 
+               otherToLin(iS-1,iP,iEl,2) = 1
+               otherToLin(iS-1,iP,iEl,3) = eID
+   
+               ! Calculate the global node IDs for this element.
+               nodes(1) = uniqueNids( iS + (nS+1)*( iP - 1 + (nP+1)*(iEl-1) ) )   ! Southwest
+               nodes(2) = uniqueNids( iS+1 + (nS+1)*( iP - 1 + (nP+1)*(iEl-1) ) ) ! SouthEast
+               nodes(3) = uniqueNids( iS+1 + (nS+1)*( iP + (nP+1)*(iEl-1) ) )     ! NorthEast
+               nodes(4) = uniqueNids( iS + (nS+1)*( iP + (nP+1)*(iEl-1) ) )       ! NorthWest
+         
+               DO iSide = 1, 4 ! Loop over the sides of the quads
+
+                  ! Build a straight curve for this side
+                  n1 = nodes( linmesh % edgeMap(1,iSide) )
+                  n2 = nodes( linmesh % edgeMap(2,iSide) )
+
+                  CALL linmesh % GetNodePosition( n1, x1, y1 )
+                  CALL linmesh % GetNodePosition( n2, x2, y2 )
+               
+                  DO iNode = 0, N
+                     xx(iNode) = x1 + (x2-x1)*HALF*( s(iNode) + ONE )
+                     yy(iNode) = y1 + (y2-y1)*HALF*( s(iNode) + ONE )
+                  ENDDO
+                  CALL elBoundCurves(iSide) % SetNodes( xx, yy ) 
+               ENDDO
+
+               CALL linmesh % elements(eID) % Build( nodes, iEl, elBoundCurves, interp )
+
+            ENDDO
+         ENDDO
+      ENDDO
+
+      CALL linmesh % ConstructEdges( )
+      nEdges = linmesh % nEdges
+      PRINT*, 'nEdges    : ', nEdges
+      
+      ! Set the start and increment for the secondary element 
+      DO iEdge = 1, nEdges
+            CALL linmesh % GetEdgeSecondaryElementSide(iEdge, iSide)
+            IF(iSide < 0)THEN
+               CALL linmesh % SetEdgeStart( iEdge, N-1 )
+               CALL linmesh % SetEdgeIncrement( iEdge, -1)
+            ELSE
+               CALL linmesh % SetEdgeStart( iEdge, 1 )
+               CALL linmesh % SetEdgeIncrement( iEdge, 1 )
+            ENDIF
+
+            CALL linmesh % GetEdgeSecondaryElementID( iEdge, eID )
+            IF( eID == BoundaryFlagDefault )THEN
+               CALL linmesh % SetEdgeSecondaryElementID( iEdge, DIRICHLET )
+            ENDIF
+      ENDDO
+
+      CALL linmesh % GetNodeToElementConnectivity( )
+
+      ! Clear up memory
+      DEALLOCATE( s, xx, yy )
+
+      DO iSide = 1, 4
+         CALL elBoundCurves(iSide) % Trash( )
+      ENDDO
+  
+      
+ END SUBROUTINE ConstructLinearMeshFromOther_QuadMesh
 !
 !
 !==================================================================================================!

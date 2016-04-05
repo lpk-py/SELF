@@ -105,8 +105,8 @@ MODULE HashTableClass
   ! LOCAL
   INTEGER :: thisKey
 
+     doesContain = .FALSE.
      IF(  myTable % list(i) % ListIsEmpty() )THEN ! this list hasn't been started
-        doesContain = .FALSE.
         RETURN
      ENDIF
  
