@@ -55,12 +55,15 @@ USE MappedGeometryClass_2D
 IMPLICIT NONE
 
       TYPE CGsemElliptic_2D
+         INTEGER                       :: maxIters
+         REAL(prec)                    :: tolerance
          TYPE( NodalStorage_2D )       :: cgStorage
          TYPE( QuadMesh )              :: mesh           
-         REAL(prec), ALLOCATABLE       :: cgSol(:,:,:)
+         REAL(prec), ALLOCATABLE       :: solution(:,:,:)
          REAL(prec), ALLOCATABLE       :: source(:,:,:)
          REAL(prec), ALLOCATABLE       :: fluxCoeff(:,:,:)
-
+         REAL(prec), ALLOCATABLE       :: resi(:)
+         REAL(prec), ALLOCATABLE       :: plMatS(:,:), plMatP(:,:)
 
          CONTAINS
 
@@ -71,6 +74,17 @@ IMPLICIT NONE
          PROCEDURE :: SetDirichletBoundaryCondition => SetDirichletBoundaryCondition_CGsemElliptic_2D
          PROCEDURE :: SetThisDirichletEdge          => SetThisDirichletEdge_CGsemElliptic_2D
 
+         PROCEDURE :: Mask                 => Mask_CGsemElliptic_2D
+         PROCEDURE :: UnMask               => UnMask_CGsemElliptic_2D
+         PROCEDURE :: GlobalSum            => GlobalSum_CGsemElliptic_2D
+         PROCEDURE :: FluxDivergence       => FluxDivergence_CGsemElliptic_2D
+         PROCEDURE :: SetThisDirichletEdge => SetThisDirichletEdge_CGsemElliptic_2D
+         PROCEDURE :: CalculateGradient    => CalculateGradient_CGsemElliptic_2D
+         PROCEDURE :: MatrixAction         => MatrixAction_CGsemElliptic_2D
+         PROCEDURE :: Residual             => Residual_CGsemElliptic_2D
+         PROCEDURE :: Solve                => Solve_PCConjugateGradient
+         
+         PROCEDURE :: CoarseToFine => CoarseToFine_CGsemElliptic_2D
       END TYPE CGsemElliptic_2D
 
       
@@ -87,11 +101,16 @@ CONTAINS
    CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
    TYPE( RunParams ), INTENT(in)         :: params
    ! LOCAL
-   INTEGER :: nS, nP, iS, iP, iEl
+   INTEGER                 :: nS, nP, iS, iP, iEl
+   REAL(prec), ALLOCATABLE :: sNew(:)
 
       nS = params % polyDeg
       nP = nS
-
+      
+      nPlot = params % nPlot
+      myCGSEM % tolerance = params % tolerance
+      myCGSEM % maxIters  = params % maxIters
+      
       CALL myCGSEM % cgStorage % Build( nS, nP, GAUSS_LOBATTO, CG )
 
       ! Allocate space for the solution, source term, and diffusivity coefficient
@@ -99,10 +118,22 @@ CONTAINS
                 myCGSEM % source(0:nS, 0:nP, 1:myCGSEM % mesh % nElems), &
                 myCGSEM % fluxCoeff(0:nS, 0:nP, 1:myCGSEM % mesh % nElems) )
 
+      ALLOCATE( myCGSEM % resi(0:params % maxIters) )
+
       myCGSEM % solution   =  ZERO
       myCGSEM % source     = ZERO
       myCGSEM % fluxCoeffs = ZERO
 
+      ALLOCATE( sNew(0:nPlot) )
+      sNew = UniformPoints( -ONE, ONE, nPlot )
+      ALLOCATE( myDGSEM % plMatS(0:nPlot,0:nS), myDGSEM % plMatP(0:nPlot,0:nP) )
+      ! Build the plotting matrix
+      CALL myDGSEM % dgStorage % interp % CalculateInterpolationMatrix( nPlot, nPlot, sNew, sNew, &
+                                                                        myDGSEM % plMatS, &
+                                                                        myDGSEM % plMatP )
+      DEALLOCATE( sNew )
+      
+      
  END SUBROUTINE Build_CGsemElliptic_2D
 !
 !
@@ -150,7 +181,10 @@ CONTAINS
       ! Deallocate space for the solution, source term, and diffusivity coefficient
       DEALLOCATE( myCGSEM % fluxCoeffs, &
                   myCGSEM % solution,&
-                  myCGSEM % source )
+                  myCGSEM % source, &
+                  myCGSEM % resi )
+                  
+      DEALLOCATE( myCGSEM % plMatS, myCGSEM % plMatP )
 
  END SUBROUTINE Trash_CGsemElliptic_2D
 !
@@ -258,7 +292,7 @@ CONTAINS
 
          DO iP = 1, nP-1 ! Loop over the edge, excluding the corner nodes
             CALL myDGSEM % mesh % GetPositionAtNode( eID, x, y, iS, iP )
-            myCGSEM % cgSol(iS,iP,eID) = dirF( x, y )
+            myCGSEM % solution(iS,iP,eID) = dirF( x, y )
          ENDDO ! iP, loop over the edge
 
       ELSE ! south or north sides
@@ -267,7 +301,7 @@ CONTAINS
 
          DO iS = 1, nS-1 ! Loop over the edge, excluding the corner nodes
             CALL myDGSEM % mesh % GetPositionAtNode( eID, x, y, iS, iP )
-            myCGSEM % cgSol(iS,iP,eID) = dirF( x, y )
+            myCGSEM % solution(iS,iP,eID) = dirF( x, y )
          ENDDO
 
       ENDIF
@@ -394,7 +428,7 @@ CONTAINS
 !
 !
 !
- SUBROUTINE Unmask_CGsemElliptic_2D( myCGSEM, u )
+ SUBROUTINE UnMask_CGsemElliptic_2D( myCGSEM, u )
  ! S/R UnMask
  !
  !
@@ -646,7 +680,6 @@ CONTAINS
          eID = mesh % edges(edgeID) % elementIDs(k)
          sID = abs( mesh % edges(edgeID) % elementSides(k) )
    
- 
          IF( sID == east .OR. sID == west )then ! east or west sides
 
             iS = mesh % sideMap(sID) 
@@ -687,7 +720,6 @@ CONTAINS
          eID = mesh % edges(edgeID) % elementIDs(k)
          sID = abs( mesh % edges(edgeID) % elementSides(k) )
    
- 
          IF( sID == east .OR. sID == west )THEN ! east or west sides
 
             iS = mesh % sideMap(sID) 
@@ -775,19 +807,17 @@ CONTAINS
 !
 !
 !
- SUBROUTINE FluxDivergence_CGsemElliptic_2D( myCGSEM, iEl, u, Lu, nS, nP )
+ SUBROUTINE FluxDivergence_CGsemElliptic_2D( myCGSEM, iEl, u, Lu )
  ! S/R FluxDivergence
  !
  !
- ! ============================================================================= !
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   integer, INTENT(in)                  :: nS, nP
-   TYPE( MAPPEDGEOM_2D ), INTENT(in)    :: geometry
-   TYPE( NODAL_STORAGE_2D ), INTENT(in) :: cgStorage
-   TYPE( FLUX_COEFFICIENTS), INTENT(in) :: coeffs
-   REAL(prec), INTENT(in)               :: u(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
-   REAL(prec), INTENT(out)              :: Lu(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
+   INTENT, INTENT(in)                       :: iEl
+   REAL(prec), INTENT(in)                   :: u(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
+   REAL(prec), INTENT(out)                  :: Lu(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
    ! LOCAL
    INTEGER    :: iS, iP
    REAL(prec) :: F1(0:myCGSEM % cgStorage % nS, 0:myCGSEM % cgStorage % nP)
@@ -855,337 +885,373 @@ CONTAINS
 !
 !
  SUBROUTINE MatrixAction_CGsemElliptic_2D( myCGSEM, u, Au )
- !
+ ! S/R MatrixAction
  ! 
- ! ==========================================================!
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D), INTENT(inout) :: myCGSEM
-   real(prec), INTENT(inout)       :: u(0:myCGSEM % cgStorage % nS, &
-                                        0:myCGSEM % cgStorage % nP, &
-                                        1:myCGSEM % mesh % nElems )
-   real(prec), INTENT(out)         :: Au(0:myCGSEM % cgStorage % nS, &
-                                         0:myCGSEM % cgStorage % nP, &
-                                         1:myCGSEM % mesh % nElems  )
+   CLASS(CGsemElliptic_2D), INTENT(inout) :: myCGSEM
+   REAL(prec), INTENT(inout)              :: u(0:myCGSEM % cgStorage % nS, &
+                                               0:myCGSEM % cgStorage % nP, &
+                                               1:myCGSEM % mesh % nElems )
+   REAL(prec), INTENT(out)                :: Au(0:myCGSEM % cgStorage % nS, &
+                                                0:myCGSEM % cgStorage % nP, &
+                                                1:myCGSEM % mesh % nElems  )
    ! Local
-   integer :: iEl, nS, nP
-   real(prec) :: temp(0:myCGSEM % cgStorage % nS, &
-                       0:myCGSEM % cgStorage % nP )
-   real(prec) :: Atemp(0:myCGSEM % cgStorage % nS, &
+   INTEGER :: iEl, nS, nP, nEl
+   REAL(prec) :: temp(0:myCGSEM % cgStorage % nS, &
+                      0:myCGSEM % cgStorage % nP )
+   REAL(prec) :: Atemp(0:myCGSEM % cgStorage % nS, &
                        0:myCGSEM % cgStorage % nP )
 
-
-     nS = myCGSEM % cgStorage % nS
-     nP = myCGSEM % cgStorage % nP
+      nS  = myCGSEM % cgStorage % nS
+      nP  = myCGSEM % cgStorage % nP
+      nEl = myCGSEM % mesh % nElems
      
-     CALL myCGSEM % UNMASK( u ) ! unmask the solution
+      CALL myCGSEM % UnMask( u ) ! unmask the solution
 
-!$OMP PARALLEL PRIVATE( temp, Atemp)
+!$OMP PARALLEL PRIVATE( temp, Atemp )
 !$OMP DO 
-     do iEl = 1, myCGSEM  % mesh % nElems
-
-        temp(0:nS,0:nP) = u(0:nS,0:nP,iEl)
-
-
-        CALL FLUX_DIVERGENCE( myCGSEM % mesh % elements(iEl) % geometry, &
-                              myCGSEM % cgStorage, &
-                              myCGSEM % fluxCoeffs(iEl), &
-                              temp, &
-                              Atemp, nS, nP )
-
-        Au(0:nS,0:nP,iEl) = Atemp(0:nS,0:nP)
-
-     enddo
+      DO iEl = 1, nEl
+         temp(0:nS,0:nP) = u(0:nS,0:nP,iEl)
+         CALL myCGSEM % FluxDivergence( iEl, temp, Atemps )
+         Au(0:nS,0:nP,iEl) = Atemp(0:nS,0:nP)
+      ENDDO
 !$OMP END DO
-
 !$OMP  FLUSH ( Au )
-
 !$OMP END PARALLEL
 
      ! Add the contributions from the shared edges and corners
-     CALL myCGSEM % GLOBAL_SUM( Au )
+     CALL myCGSEM % GlobalSum( Au )
 
      ! Mask the edges in preparation for residual calculation
-
-     CALL myCGSEM % MASK( Au )
+     CALL myCGSEM % Mask( Au )
 
      ! Re-mask the solution
+     CALL myCGSEM % Mask( u )
 
-     CALL myCGSEM % MASK( u )
-
-
- END SUBROUTINE MATRIX_ACTION
+ END SUBROUTINE MatrixAction_CGsemElliptic_2D
 !
 !
 !
- SUBROUTINE RESIDUAL( myCGSEM, dirF, r )
- !
+ SUBROUTINE Residual_CGsemElliptic_2D( myCGSEM, dirF, r )
+ ! S/R Residual
  ! 
- ! ==========================================================!
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), INTENT(inout) :: myCGSEM
-   real(prec), external            :: dirF
-   real(prec), INTENT(out)         :: r(0:myCGSEM % cgStorage % nS, &
-                                        0:myCGSEM % cgStorage % nP, &
-                                        1:myCGSEM % mesh % nElems )
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
+   REAL(prec), EXTERNAL                     :: dirF
+   REAL(prec), INTENT(out)                  :: r(0:myCGSEM % cgStorage % nS, &
+                                                 0:myCGSEM % cgStorage % nP, &
+                                                 1:myCGSEM % mesh % nElems )
    ! LOCAL
-   integer    :: iS, iP, nS, nP, nEl, iEl
-   integer    :: iEdge, e1, s1, nB, nEdges, wallcount
-   real(prec) :: w1, w2, J, length, rhs
-   real(prec) :: nhat(1:2), x, y
-   real(prec) :: temp(0:myCGSEM % cgStorage % nS, &
-                      0:myCGSEM % cgStorage % nP, &
-                      1:myCGSEM % mesh % nElems )
-   real(prec) :: locR(0:myCGSEM % cgStorage % nS, &
-                      0:myCGSEM % cgStorage % nP)
-   real(prec) :: bfac(1:4)
+   INTEGER    :: iS, iP, nS, nP, nEl, iEl
+   INTEGER    :: iEdge, e1, s1, nB, nEdges
+   REAL(prec) :: J, length, rhs
+   REAL(prec) :: ws(0:myCGSEM % cgStorage % nS)
+   REAL(prec) :: wp(0:myCGSEM % cgStorage % nP)
+   REAL(prec) :: nhat(1:2), x, y
+   REAL(prec) :: Au(0:myCGSEM % cgStorage % nS, &
+                    0:myCGSEM % cgStorage % nP, &
+                    1:myCGSEM % mesh % nElems )
+   REAL(prec) :: bfac(1:4)
 
-      bfac = (/ -ONE, ONE, ONE, -ONE /)
+!      bfac = (/ -ONE, ONE, ONE, -ONE /)
 
       nS = myCGSEM % cgStorage % nS 
       nP = myCGSEM % cgStorage % nP
       nEl = myCGSEM % mesh % nElems 
       nEdges = myCGSEM % mesh % nEdges
 
-      CALL myCGSEM % UNMASK( myCGSEM % solution )
+      CALL myCGSEM % cgStorage % GetQuadratureWeights( ws, wp )
+      CALL myCGSEM % MatrixAction( myCGSEM % solution, Au )
 
-!$OMP PARALLEL PRIVATE( w1, w2, J, locR )
+!$OMP PARALLEL PRIVATE( J, locR )
 !$OMP DO      
-      do iEl = 1, nEl
-
-
-        CALL FLUX_DIVERGENCE( myCGSEM % mesh % elements(iEl) % geometry, &
-                               myCGSEM % cgStorage, &
-                               myCGSEM % fluxCoeffs(iEl), & 
-                               myCGSEM % solution(:,:,iEl),  &
-                               locR, nS, nP )
-
-
-         do iP = 0, nP
-            do iS = 0, nS
-
-               w1 = myCGSEM % cgStorage % qWeightX(iS)
-               w2 = myCGSEM % cgStorage % qWeightY(iP)
-
-               J = myCGSEM % mesh % elements(iEl) % geometry % J(iS,iP)
- 
-               r(iS,iP,iEl) = myCGSEM % source(iS,iP,iEl)*J*w1*w2 - locR(iS,iP)! gather source terms
-           
-
-           enddo
-        enddo
-
-     enddo
+      DO iEl = 1, nEl
+         DO iP = 0, nP
+            DO iS = 0, nS
+               CALL myCGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP ) 
+               r(iS,iP,iEl) = myCGSEM % source(iS,iP,iEl)*J*w1(iS)*w2(iP) - Au(iS,iP,iEl)! gather source terms
+            ENDDO
+         ENDDO
+      ENDDO
 !$OMP END DO
-
 !$OMP  FLUSH ( r )
-
 !$OMP END PARALLEL
 
   ! Add in the boundary flux
-       do iEdge = 1, nEdges
+      DO iEdge = 1, nEdges
+         CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+         IF( e2 == NEUMANN_WALL )then 
+
+            ! Gather the local addressing information
+            CALL myCGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
+            CALL myCGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
+            nB = myCGSEM % mesh % sideMap(s1) ! get the local quadrature node ID for this boundary
+
+            IF( s1 == South .OR. s1 == North )THEN
+
+               DO iS = 0, nS
+                  CALL myCGSEM % mesh % GetBoundaryNormalAtNode( e1, nhat, length, iS, s1 ) 
+                  rhs = myCGSEM % boundaryFlux(e1,s1,iS)*length!*bfac(s1) 
+                  r(iS, nB, e1) = r(iS, nB, e1) - rhs*ws(iS)
+               ENDDO
+
+            ELSEIF( s1 == East .OR. s1 == West )then ! east or west boundary (respectively)
+
+               DO iP = 0, nP
+                  CALL myCGSEM % mesh % GetBoundaryNormalAtNode( e1, nhat, length, iS, s1 )
+                  rhs = myCGSEM % boundaryFlux(e1,s1,iP)*length!*bfac(s1) 
+                  r(nB, iP, e1) = r(nB, iP, e1) - rhs*w2
+               ENDDO
+
+            ENDIF
  
-           if( myCGSEM % mesh % edges(iEdge) % elementIDs(2) == NEUMANN_WALL )then 
+         ENDIF
 
+      ENDDO ! iEdge, loop over the edges
 
-              ! Gather the local addressing information
-              e1 = myCGSEM % mesh % edges(iEdge) % elementIDs(1)
-              s1 = myCGSEM % mesh % edges(iEdge) % elementSides(1)
-  
-              nB = myCGSEM % mesh % sideMap(s1) ! get the local quadrature node ID for this boundary
-
-              if( s1 == 1 .OR. s1 == 3 )then ! south or north boundary (respectively)
-
-                  do iS = 0, nS
-
-                     ! Get nHat
-                     CALL myCGSEM % mesh % elements(e1) % geometry % GET_NHAT_ATPOINT( s1, iS, nhat, length ) 
- 
-                     x = myCGSEM % mesh % elements(e1) % geometry % x(iS,nB)
-                     y = myCGSEM % mesh % elements(e1) % geometry % y(iS,nB)
-                     w1 = myCGSEM % cgStorage % qWeightX(iS)
-
-
-                     rhs = myCGSEM % boundaryFlux(e1,s1,iS)*length*bfac(s1) 
-                     ! From benchmark05 -- toporesponse
-                     ! rhs = -sin(pi*x/(10.0_prec**6))*length*bfac(s1)
-
-                     r(iS, nB, e1) = r(iS, nB, e1) - rhs*w1
-
-                  enddo
-
-
-              elseif( s1 == 2 .OR. s1 == 4 )then ! east or west boundary (respectively)
-
-                 do iP = 0, nP
-
-                     ! Get nHat
-                     CALL myCGSEM % mesh % elements(e1) % geometry % GET_NHAT_ATPOINT( s1, iP, nhat, length ) 
-                     x = myCGSEM % mesh % elements(e1) % geometry % x(nB,iP)
-                     y = myCGSEM % mesh % elements(e1) % geometry % y(nB,iP)
-                     w2 = myCGSEM % cgStorage % qWeightY(iP)
-
-                     rhs = myCGSEM % boundaryFlux(e1,s1,iP)*length*bfac(s1) 
-                     ! From benchmark05 -- toporesponse
-                     !rhs = -sin(pi*x/(10.0_prec**6))*length*bfac(s1) 
-
-                     r(nB, iP, e1) = r(nB, iP, e1) - rhs*w2
-
-                  enddo
-
-              endif
- 
-           endif
-
-        enddo ! iEdge, loop over the edges
-
- 
      ! Add the contributions from the shared edges and corners
-     CALL myCGSEM % GLOBAL_SUM( r )
+     CALL myCGSEM % GlobalSum( r )
 
      ! Mask the edges in preparation for residual calculation
-
-     CALL myCGSEM % MASK( r )
+     CALL myCGSEM % Mask( r )
 
      ! Re-mask the solution
-     CALL myCGSEM % MASK( myCGSEM % solution )
+     CALL myCGSEM % Mask( myCGSEM % solution )
 
      ! re-set the dirichlet boundary conditions
-     CALL myCGSEM % SET_DIRICHLET_BOUNDARY_CONDITION( dirF )
+     CALL myCGSEM % SetDirichletBoundaryCondition( dirF )
 
-
- END SUBROUTINE RESIDUAL
+ END FUNCTION Residual_CGsemElliptic_2D
 !
 !
 !
-  SUBROUTINE VECTOR_PRODUCT( myCGSEM, u, v, uDotv )
- !
+ FUNCTION DotProduct_CGsemElliptic_2D( myCGSEM, u, v ) RESULT( uDotv )
+ ! FUNCTION DotProduct
  ! Computes the dot product of two "vectors" whose data are
  ! stored in the "(iS,iP)" format
  !
- ! ==========================================================!
+ ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( CGSEM2D ), INTENT(inout)  :: myCGSEM
-   real(prec), INTENT(inout)        :: u(0:myCGSEM % cgStorage % nS, &
-                                         0:myCGSEM % cgStorage % nP, &
-                                         1:myCGSEM % mesh % nElems )
-   real(prec), INTENT(inout)        :: v(0:myCGSEM % cgStorage % nS, &
-                                         0:myCGSEM % cgStorage % nP, &
-                                         1:myCGSEM % mesh % nElems )
-   real(prec), INTENT(out)          :: uDotv
+   CLASS( CGsemElliptic_2D ) :: myCGSEM
+   REAL(prec)                :: u(0:myCGSEM % cgStorage % nS, &
+                                  0:myCGSEM % cgStorage % nP, &
+                                  1:myCGSEM % mesh % nElems )
+   REAL(prec)                :: v(0:myCGSEM % cgStorage % nS, &
+                                  0:myCGSEM % cgStorage % nP, &
+                                  1:myCGSEM % mesh % nElems )
+   REAL(prec)                :: uDotv
    ! Local
-   integer :: iS, iP, nS, nP, iEl
+   INTEGER :: iS, iP, nS, nP, iEl, nEl
+   REAL(prec) :: uloc(0:myCGSEM % cgStorage % nS)
+   REAL(prec) :: vloc(0:myCGSEM % cgStorage % nS)
    
-      nS = myCGSEM % cgStorage % nS 
-      nP = myCGSEM % cgStorage % nP
+      nS  = myCGSEM % cgStorage % nS 
+      nP  = myCGSEM % cgStorage % nP
+      nEl = myCGSEM % mesh % nElems
 
-     ! mask the arrays
-     CALL myCGSEM % MASK( u )
-     CALL myCGSEM % MASK( v )
+      ! mask the arrays
+      CALL myCGSEM % Mask( u )
+      CALL myCGSEM % Mask( v )
  
-     uDotv = ZERO
+      uDotv = ZERO
+      DO iEl = 1, nEl
+         DO iP = 0, nP
+            uloc  = u(0:nS,iP,iEl)
+            vLoc  = v(0:nS,iP,iEl)
+            uDotV = uDotV + DOT_PRODUCT( uloc, vloc )
+         ENDDO
+      ENDDO
 
-     ! Compute the dot product
-     do iEl = 1, myCGSEM % mesh % nElems
-        do iP = 0, nP
-
-           uDotV = uDotV + DOT_PRODUCT( u(0:nS,iP,iEl), v(0:nS,iP,iEl) )
-
-        enddo
-     enddo ! iEl, loop over the elements
-
-     !CALL myCGSEM % UNMASK( u )
-     !CALL myCGSEM % UNMASK( v )
-
- END SUBROUTINE VECTOR_PRODUCT
+ END FUNCTION DotProduct_CGsemElliptic_2D
 !
 !
 !
+SUBROUTINE Solve_PCConjugateGradient( this, dirF, ioerr )
+ !  S/R Solve
+ !
+ !  This subroutine solves the system Ax = b using the preconditioned conjugate gradient method.
+ !  The matrix action, residual, preconditioning routines are supplied by a non-abstracted 
+ !  type-extension of PCConjugateGradient. These routines should return an array indexed from 1 to 
+ !  nDOF. Thus, in addition to a MatrixAction and Residual, the user should map their data-structure
+ !  to a 1-D array.  
+ !
+ !  On output ioerr is set to an error checking flag. 
+ !  If ioerr ==  0, the method converged within the maximum number of iterations.
+ !     ioerr == -1, the method did not converge within the maximum number of iterations.
+ !     ioerr == -2, something that is not caught by the current construct happened.
+ !  
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: this
+   REAL(prec), EXTERNAL                     :: dirF
+   INTEGER, INTENT(out)                     :: ioerr
+   ! LOCAL
+   INTEGER    :: iter
+   INTEGER    :: nIt
+   REAL(prec) :: TOL
+   REAL(prec) :: r(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
+   REAL(prec) :: v(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
+   REAL(prec) :: z(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
+   REAL(prec) :: w(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
+   REAL(prec) :: rNorm
+   REAL(prec) :: a, b, num, den, r0
+   
+      ioerr = -2
+      nIt = this % maxIters
+      TOL = this % tolerance
+      
+      CALL this % Residual( this % sol, r )
+      r0 = sqrt( this % DotProduct( r, r ) ) 
+      
+      this % resi = ZERO
+      this % resi(0) = r0
  
-!
-!
-!================================================================================!
-!=======================       FILE I/O      ===========================!
-!================================================================================!
-!
-!
-!
- SUBROUTINE WRITE_TECPLOT_CGSEM2D( myCGSEM ) ! nPlot, nOld, plotInterp, Tmat, filename )
- ! WRITE_TECPLOT_CGSEM2D
- !  Description :
- ! 
- !
- !    Subroutine dependencies :
- !    (NONE)
- !    
- !
- !  Input :
- !    type(LAG_INTERP2D) :: myPoly
- !
- !    real(prec) :: fAtNodes(:,:) - the interpolation nodes function values.
- !
- !    character(*) :: filename - name of output file
- !
- !
- ! 
- !------------------------------------------------------------------------
-  IMPLICIT NONE
-  CLASS( CGSEM2D ), INTENT(in)           :: myCGSEM
-!  integer, INTENT(in)                   :: nOld, nPlot
-!  real(prec), INTENT(in)                :: Tmat(0:nPlot, 0:nOld)
-!  TYPE( LAG_INTERP2D ), INTENT(in)      :: plotInterp
-!  character(*), INTENT(in)              :: filename
-  !LOCAL
-  integer :: iX, iY, iZ, iEl, nS
-  character(len=5) :: zoneID
+      DO iter = 1,nIt ! Loop over the CG iterates
+      
+       !  w = this % PreConditionInvert( r )
+         w = r
+         num = this % DotProduct( r, w )
 
-    nS = myCGSEM % cgStorage % nS
+         IF( iter == 1) THEN
+            v = w
+         ELSE
+            b = num/den
+            v = w + b*v
+         ENDIF
 
-    open( unit=2, file= 'CheckState.tec', form='formatted',status='replace')
+         CALL this % MatrixAction( v, z )
+         a = num/this % DotProduct( v, z )
+         this % sol = this % sol + a*v
+         r = r - a*z
+         
+         den = num
 
-    write(2,*) 'VARIABLES = "X", "Y", "Sol"'
+         rNorm = sqrt( this % DotProduct(r,r) )
+         this % resi(iter) = rNorm
+         IF( sqrt(rNorm)/r0 < TOL ) then
+           EXIT
+           ioerr = 0
+         ENDIF
+
+      ENDDO ! iter, loop over the CG iterates 
+
+      IF( SQRT(rNorm) > TOL )THEN
+         PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
+         PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
+         ioerr=-1
+      ENDIF   
+
+ END SUBROUTINE Solve_PCConjugateGradient 
+!
+!
+!==================================================================================================!
+!---------------------------------------- File I/O ------------------------------------------------!
+!==================================================================================================!
+!
+!
+SUBROUTINE CoarseToFine_CGsemElliptic_2D( myCGSEM, iEl, x, y, sol, source )
+ ! CoarseToFine
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemElliptic ), INTENT(in) :: myCGSEM
+   INTEGER, INTENT(in)                :: iEl
+   REAL(prec), INTENT(out)            :: x(0:myDGSEM % nPlot, 0:myDGSEM % nPlot)
+   REAL(prec), INTENT(out)            :: y(0:myDGSEM % nPlot, 0:myDGSEM % nPlot)
+   REAL(prec), INTENT(out)            :: sol(0:myDGSEM % nPlot, 0:myDGSEM % nPlot)
+   REAL(prec), INTENT(out)            :: source(0:myDGSEM % nPlot, 0:myDGSEM % nPlot)
+   ! Local
+   REAL(prec) :: localX(0:myDGSEM % nS, 0:myDGSEM % nP)
+   REAL(prec) :: localY(0:myDGSEM % nS, 0:myDGSEM % nP)
+   
+      CALL myCGSEM % mesh % GetPositions( iEl, localX, localY )
+      
+      CALL myCGSEM % cgStorage % interp % CoarseToFine( localX, &
+                                                        myCGSEM % plMatS, &
+                                                        myCGSEM % plMatP, &
+                                                        myCGSEM % nPlot, &
+                                                        myCGSEM % nPlot, &
+                                                        x )
+      
+      CALL myCGSEM % cgStorage % interp % CoarseToFine( localY, &
+                                                        myCGSEM % plMatS, &
+                                                        myCGSEM % plMatP, &
+                                                        myCGSEM % nPlot, &
+                                                        myCGSEM % nPlot, &
+                                                        y )
+                                                                                       
+      
+      CALL myCGSEM % cgStorage % interp % CoarseToFine( myCGSEM % solution(:,:,iEl), &
+                                                        myCGSEM % plMatS, &
+                                                        myCGSEM % plMatP, &
+                                                        myCGSEM % nPlot, &
+                                                        myCGSEM % nPlot, &
+                                                        sol )
+                                                      
+      CALL myCGSEM % cgStorage % interp % CoarseToFine( myCGSEM % source(:,:,iEl), &
+                                                        myCGSEM % plMatS, &
+                                                        myCGSEM % plMatP, &
+                                                        myCGSEM % nPlot, &
+                                                        myCGSEM % nPlot, &
+                                                        source )
+ END SUBROUTINE CoarseToFine_CGsemElliptic_2D
+!
+!
+!
+ SUBROUTINE WriteTecplot_CGsemElliptic_2D( myCGSEM )
+ ! S/R WriteTecplot
+ !
+ !
+ ! =============================================================================================== !
+   IMPLICIT NONE
+   CLASS( CGSEM2D ), INTENT(in)       :: myCGSEM
+   CHARACTER(*), INTENT(in), OPTIONAL :: filename
+   !LOCAL
+   INTEGER :: iX, iY, iEl, nS, nEl, fUnit
+   CHARACTER(len=5) :: zoneID
+   REAL(prec), INTENT(out)            :: x(0:myDGSEM % nPlot, 0:myDGSEM % nPlot)
+   REAL(prec), INTENT(out)            :: y(0:myDGSEM % nPlot, 0:myDGSEM % nPlot)
+   REAL(prec), INTENT(out)            :: sol(0:myDGSEM % nPlot, 0:myDGSEM % nPlot)
+   REAL(prec), INTENT(out)            :: source(0:myDGSEM % nPlot, 0:myDGSEM % nPlot)
+  
+      nEl = myCGSEM % mesh % nElems
+      nS  = myCGSEM % nPlot
+
+      IF( PRESENT(filename) )THEN
+         OPEN( UNIT=NewUnit(fUnit), &
+               FILE=TRIM(filename)//'.tec', &
+               FORM='FORMATTED')
+      ELSE
+         OPEN( UNIT=NewUnit(fUnit), &
+               FILE='CGsemSol.tec', &
+               FORM='FORMATTED')
+      ENDIF
+      
+      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "sol", "source"'
     
-    do iEL = 1, myCGSEM % mesh % nElems
+      DO iEl = 1, myCGSEM % mesh % nElems
 
-    
-      ! CALL COARSE_TO_FINE_2D(myCGSEM % cgStorage % interp,&
-      !                                myCGSEM % mesh % elements(iEl) %  geometry % x,&
-      !                                plotInterp, x, Tmat, Tmat)
+         WRITE(zoneID,'(I5.5)') iEl
+         WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nS+1,',F=POINT'
+         CALL myCGSEM % CoarseToFine( iEl, x, y, sol, source )
 
+         DO iY = 0, nS
+            DO iX = 0, nS
+               WRITE(fUnit,*)  x(iX, iY), y(iX, iY), sol(iX,iY), source(iX,iY) 
+            ENDDO
+         ENDDO
 
-      ! CALL COARSE_TO_FINE_2D(myCGSEM % cgStorage % interp,&
-      !                                myCGSEM % mesh % elements(iEl) %  geometry % y,&
-      !                                plotInterp, y, Tmat, Tmat)
+      ENDDO
+      
+      CLOSE( fUnit )
 
-      ! CALL COARSE_TO_FINE_2D(myCGSEM % cgStorage % interp,&
-      !                                myCGSEM % solution(:,:,iEl),&
-      !                                plotInterp, u, Tmat, Tmat)
- 
-      !  CALL COARSE_TO_FINE_2D(myCGSEM % cgStorage % interp,&
-      !                                myCGSEM % mesh % elements(iEl) % geometry % J,&
-      !                                plotInterp, J, Tmat, Tmat)
-
-        write(zoneID,'(I5.5)') iEl
-
-
-        write(2,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nS+1,',F=POINT'
-
-        do iY = 0, nS
-           do iX = 0, nS
-
-              write (2,*)  myCGSEM % mesh % elements(iEl) % geometry % x( iX, iY ), &
-                           myCGSEM % mesh % elements(iEl) % geometry % y( iX, iY ), &
-                           myCGSEM % solution(iX,iY,iEl) 
-
-           enddo
-        enddo
-
-    enddo
-
-    close(unit=2)
-
- END SUBROUTINE WRITE_TECPLOT_CGSEM2D
+ END SUBROUTINE WriteTecplot_CGsemElliptic_2D
 
 END MODULE CGsemElliptic_2D_Class
