@@ -166,6 +166,12 @@ ModalCutoffFilter1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.
                                   Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}filters/ModalCutoffFilter1D_Class.f90 -o $@
 
+
+ModalCutoffFilter2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                          Legendre.o Lagrange_2D_Class.o NodalStorage_2D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}filters/ModalCutoffFilter2D_Class.f90 -o $@
+
+
 RollOffFilter1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
                           Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter1D_Class.f90 -o $@
@@ -224,6 +230,11 @@ CGsemPreconditioner_2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictiona
 	${FC} ${OPT} -c ${SRCDIR}cgsem/CGsemPreconditioner_2D_Class.f90 -o $@
 
 
+
+CGsemCoarsePreconditioner_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                                    ModalCutoffFilter2D_Class.o NodalStorage_2D_Class.o QuadMeshClass.o \
+                                    MappedGeometryClass_2D.o
+	${FC} ${OPT} -c ${SRCDIR}cgsem/CGsemCoarsePreconditioner_Class.f90 -o $@
 # ---------------------------------------------------------------------- #
 #                            ~/src/geom/                                 #
 # ---------------------------------------------------------------------- #

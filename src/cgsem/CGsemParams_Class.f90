@@ -30,6 +30,7 @@ MODULE CGsemParams_Class
        INTEGER       :: pcIterates
        REAL(prec)    :: tolerance
        REAL(prec)    :: pcTolerance
+       INTEGER       :: pcDegree
 
        ! SpaceManagement
        CHARACTER(50) :: SpecMeshFile
@@ -67,6 +68,7 @@ MODULE CGsemParams_Class
        INTEGER       :: pcIterates
        REAL(prec)    :: tolerance
        REAL(prec)    :: pcTolerance
+       INTEGER       :: pcDegree
 
        ! SpaceManagement
        CHARACTER(50) :: SpecMeshFile
@@ -78,7 +80,7 @@ MODULE CGsemParams_Class
        REAL(prec)    :: xScale
 
       ! Set the namelists
-      NAMELIST / SolverCriteria / MaximumIterates, pcIterates, tolerance, pcTolerance
+      NAMELIST / SolverCriteria / MaximumIterates, pcIterates, tolerance, pcTolerance, pcDegree
 
       NAMELIST / SpaceManagement / SpecMeshFile, polyDeg, nXElem, nYElem, nPlot, xScale
  
@@ -88,6 +90,7 @@ MODULE CGsemParams_Class
       pcIterates      = 50     !
       tolerance       = 10.0_prec**(-8) ! conjugate gradient residual tolerance
       pcTolerance     = 10.0_prec**(-4) 
+      pcDegree        = 1
       ! SpaceManagement
       SpecMeshFile = nada 
       polyDeg      = 5
@@ -113,6 +116,7 @@ MODULE CGsemParams_Class
       thisParam % pcIterates      = pcIterates
       thisParam % tolerance       = tolerance
       thisParam % pcTolerance     = pcTolerance
+      thisParam % pcDegree        = 1
       
       ! SpaceManagement
       thisParam % SpecMeshFile = SpecMeshFile

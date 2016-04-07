@@ -90,7 +90,7 @@ IMPLICIT NONE
          PROCEDURE :: CoarseToFine  => CoarseToFine_CGsemElliptic_2D
          PROCEDURE :: WriteTecplot  => WriteTecplot_CGsemElliptic_2D
          PROCEDURE :: WriteResidual => WriteResidual_CGsemElliptic_2D
-
+         PROCEDURE :: ConstructMatrix
       END TYPE CGsemElliptic_2D
 
       
@@ -895,7 +895,6 @@ CONTAINS
       DO iP = 0, nP ! Loop over the second computational direction
          DO iS = 0, nS ! Loop over the first computational direction
 
-            CALL myCGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
             CALL myCGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
 
             ! Contravariant flux calculation
@@ -1198,7 +1197,7 @@ CONTAINS
 
       IF( rNorm/r0 > TOL )THEN
          PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
-         PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
+         PRINT*, 'Last L-2 residual : ', rNorm
          ioerr=-1
       ENDIF   
 
@@ -1346,6 +1345,113 @@ SUBROUTINE CoarseToFine_CGsemElliptic_2D( myCGSEM, iEl, x, y, sol, source )
     CLOSE(UNIT = fUnit)   
    
  END SUBROUTINE WriteResidual_CGsemElliptic_2D
- 
+!
+!
+!
+ SUBROUTINE ConstructMatrix( myPC )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myPC
+   ! LOCAL
+   INTEGER                 :: iEl, iS, iP, jEl, jS, jP, nEl, nS, nP
+   INTEGER                 :: row, col, nfree, fUnit
+   REAL(prec)              :: ei(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
+   REAL(prec)              :: Aei(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
+   REAL(prec)              :: thismask(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
+   REAL(prec)              :: s, p
+   REAL(prec), ALLOCATABLE :: A(:,:)
+   CHARACTER(5)            :: zoneID 
+
+      nS  = myPC % nS
+      nP  = myPC % nP
+      nEl = myPC % mesh % nElems
+
+      nfree = 0 
+      thismask = ONE
+      CALL myPC % Mask( thismask )
+      DO iEl = 1, nEl
+         DO iP = 0, nP
+            DO iS = 0, nS
+               nfree = nfree + thismask(iS,iP,iEl)
+            ENDDO
+         ENDDO
+      ENDDO
+
+      ALLOCATE(A(1:nfree,1:nfree))
+
+      row = 0
+      DO iEl = 1, nEl
+         DO iP = 0, nP
+            DO iS = 0, nS
+
+               IF( AlmostEqual(thismask(iS,iP,iEl),ONE) )THEN
+                  ei = ZERO
+                  ei(iS,iP,iEl) = ONE
+                  row = row + 1
+                  
+                  CALL myPC % MatrixAction( ei, Aei )
+
+                  col = 0
+                  DO jEl = 1, nEl
+                     DO jP = 0, nP
+                        DO jS = 0, nS
+                           
+                           IF( AlmostEqual( thisMask(jS,jP,jEl),ONE ) )THEN
+                              col = col + 1
+                              A(row,col) = Aei(jS,jP,jEl)
+                           ENDIF
+                   
+                        ENDDO
+                     ENDDO
+                  ENDDO
+  
+               ENDIF
+
+            ENDDO
+         ENDDO
+      ENDDO
+
+
+      OPEN( UNIT = NewUnit(fUnit), &
+            FILE = 'Omat.txt', &
+            FORM = 'FORMATTED' )
+
+      DO row = 1, nfree
+         WRITE(fUnit,*) A(row,:)
+      ENDDO
+
+      CLOSE(fUnit)
+
+
+           OPEN( UNIT=NewUnit(fUnit), &
+            FILE='omask.tec', &
+            FORM='FORMATTED')
+
+      
+      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "mask"'
+    
+      DO iEl = 1, myPC % mesh % nElems
+
+         WRITE(zoneID,'(I5.5)') iEl
+         WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nP+1,',F=POINT'
+
+         DO iP = 0, nS
+            DO iS = 0, nS
+               CALL myPC % mesh % GetPositionAtNode( iEl, s, p, iS, iP )
+               WRITE(fUnit,*)  s, p, thismask(iS,iP,iEl)
+            ENDDO
+         ENDDO
+
+      ENDDO
+      
+      CLOSE( fUnit )
+
+               
+
+ END SUBROUTINE ConstructMatrix
+
 
 END MODULE CGsemElliptic_2D_Class

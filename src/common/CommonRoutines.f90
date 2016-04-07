@@ -632,6 +632,52 @@ END FUNCTION UpperCase
 !
 !
 ! 
+ FUNCTION Map2Dto1D( array2D, N, M, N1D ) RESULT( array1D )
+ ! 
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   INTEGER    :: N, M, N1D
+   REAL(prec) :: array2D(0:N,0:M)
+   REAL(prec) :: array1D(1:N1D)
+   ! Local
+   INTEGER    :: i, j, ind1D
+
+         DO j = 0, M
+            DO i = 0, N
+               ind1D = i + 1 + j*(N+1)
+               array1D(ind1D) = array2D(i,j)
+            ENDDO
+         ENDDO
+            
+ END FUNCTION Map2Dto1D
+!
+!
+! 
+ FUNCTION Map1Dto2D( array1D, N, M, N1D ) RESULT( array2D )
+ ! 
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   INTEGER    :: N, M, N1D
+   REAL(prec) :: array1D(1:N1D)
+   REAL(prec) :: array2D(0:N,0:M)
+   ! Local
+   INTEGER    :: i, j, ind1D
+
+         DO j = 0, M
+            DO i = 0, N
+               ind1D = i + 1 + j*(N+1)
+               array2D(i,j) = array1D(ind1D)
+            ENDDO
+         ENDDO
+            
+ END FUNCTION Map1Dto2D 
+!
+!
+!
  FUNCTION Map3Dto1D( array3D, N, M, P, N1D ) RESULT( array1D )
  ! 
  !

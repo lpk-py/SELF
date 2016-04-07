@@ -48,8 +48,8 @@ USE EdgeClass
 USE NodeClass_2D
 USE VectorClass
 USE MappedGeometryClass_2D
-! src/cgsem/
-USE CGsemParams_Class
+! src/hydrostaticprimitives/
+USE HydrostaticParams_Class
 USE CGsemPreconditioner_2D_Class
 
 
@@ -90,6 +90,9 @@ IMPLICIT NONE
          PROCEDURE :: CoarseToFine  => CoarseToFine_CGsemElliptic_2D
          PROCEDURE :: WriteTecplot  => WriteTecplot_CGsemElliptic_2D
          PROCEDURE :: WriteResidual => WriteResidual_CGsemElliptic_2D
+         PROCEDURE :: WritePickup   => WritePickup_CGsemElliptic_2D
+         PROCEDURE :: ReadPickup    => ReadPickup_CGsemElliptic_2D
+         PROCEDURE :: WriteMask
 
       END TYPE CGsemElliptic_2D
 
@@ -105,7 +108,7 @@ CONTAINS
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
-   TYPE( CGsemParams ), INTENT(in)          :: params
+   TYPE( HydrostaticParams ), INTENT(in)    :: params
    ! LOCAL
    INTEGER                 :: nS, nP, nPlot
    REAL(prec), ALLOCATABLE :: sNew(:)
@@ -163,7 +166,7 @@ CONTAINS
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
-   TYPE( CGsemParams ), INTENT(in)          :: params
+   TYPE( HydrostaticParams ), INTENT(in)          :: params
    ! LOCAL
    INTEGER :: iEdge, eID, iNode, nID
 
@@ -180,19 +183,19 @@ CONTAINS
       ENDIF
 
 
-      DO iEdge = 1, myCGSEM % mesh % nEdges
-         CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, eID )
-         IF( eID == NO_NORMAL_FLOW )THEN
-            CALL myCGSEM % mesh % SetEdgeSecondaryElementID( iEdge, DIRICHLET )
-         ENDIF
-      ENDDO
+!      DO iEdge = 1, myCGSEM % mesh % nEdges
+!         CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, eID )
+!         IF( eID == NO_NORMAL_FLOW )THEN
+!            CALL myCGSEM % mesh % SetEdgeSecondaryElementID( iEdge, NEUMANN )
+!         ENDIF
+!      ENDDO
 
-      DO iNode = 1, myCGSEM % mesh % nNodes
-         CALL myCGSEM % mesh % GetNodeType( iNode, nID )
-         IF( nID == NO_NORMAL_FLOW )THEN
-            CALL myCGSEM % mesh % SetNodeType( iNode, DIRICHLET )
-         ENDIF
-      ENDDO
+!      DO iNode = 1, myCGSEM % mesh % nNodes
+!         CALL myCGSEM % mesh % GetNodeType( iNode, nID )
+!         IF( nID == NO_NORMAL_FLOW )THEN
+!            CALL myCGSEM % mesh % SetNodeType( iNode, NEUMANN )
+!         ENDIF
+!      ENDDO
 
  END SUBROUTINE BuildQuadMesh_CGsemElliptic_2D
 !
@@ -385,7 +388,7 @@ CONTAINS
 
          ELSE ! then this is not a prescribed boundary, and we choose to mask out the secondary element
 
-            IF( eID > 0 )THEN ! this is an internal edge, and we should mask out the secondary element
+            IF( e2 > 0 )THEN ! this is an internal edge, and we should mask out the secondary element
                CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
                CALL myCGSEM % mesh % GetEdgeSecondaryElementSide( iEdge, s2 )
                CALL MaskSide( e2, s2, myCGSEM % mesh, u, nS, nP, nEl )
@@ -895,7 +898,6 @@ CONTAINS
       DO iP = 0, nP ! Loop over the second computational direction
          DO iS = 0, nS ! Loop over the first computational direction
 
-            CALL myCGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
             CALL myCGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
 
             ! Contravariant flux calculation
@@ -929,13 +931,14 @@ CONTAINS
 !
 !
 !
- SUBROUTINE MatrixAction_CGsemElliptic_2D( myCGSEM, u, Au )
+ SUBROUTINE MatrixAction_CGsemElliptic_2D( myCGSEM, dt, u, Au )
  ! S/R MatrixAction
  ! 
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(CGsemElliptic_2D), INTENT(inout) :: myCGSEM
+   REAL(prec), INTENT(in)                 :: dt
    REAL(prec), INTENT(inout)              :: u(0:myCGSEM % nS, &
                                                0:myCGSEM % nP, &
                                                1:myCGSEM % mesh % nElems )
@@ -943,28 +946,41 @@ CONTAINS
                                                 0:myCGSEM % nP, &
                                                 1:myCGSEM % mesh % nElems  )
    ! Local
-   INTEGER :: iEl, nS, nP, nEl
+   INTEGER :: iEl, nS, nP, nEl, iS ,iP
    REAL(prec) :: temp(0:myCGSEM % nS, &
                       0:myCGSEM % nP )
    REAL(prec) :: Atemp(0:myCGSEM % nS, &
                        0:myCGSEM % nP )
+   REAL(prec) :: J, ws(0:myCGSEM % nS), wp(0:myCGSEM % nP)
 
       nS  = myCGSEM % nS
       nP  = myCGSEM % nP
       nEl = myCGSEM % mesh % nElems
      
       CALL myCGSEM % UnMask( u ) ! unmask the solution
+      CALL myCGSEM % SpectralOps % GetQuadratureWeights( ws, wp )
 
-!$OMP PARALLEL PRIVATE( temp, Atemp )
+!$OMP PARALLEL PRIVATE( temp, Atemp, J, iS, iP )
 !$OMP DO 
       DO iEl = 1, nEl
+
          temp(0:nS,0:nP) = u(0:nS,0:nP,iEl)
          CALL myCGSEM % FluxDivergence( iEl, temp, Atemp )
          Au(0:nS,0:nP,iEl) = Atemp(0:nS,0:nP)
+
+         DO iP = 0, nP
+            DO iS = 0, nS
+               CALL myCGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
+               Au(iS,iP,iEl) = Au(iS,iP,iEl)*(dt*dt) + u(iS,iP,iEl)*J*ws(iS)*wp(iP)
+            ENDDO
+         ENDDO
+
       ENDDO
 !$OMP END DO
 !$OMP  FLUSH ( Au )
 !$OMP END PARALLEL
+
+     
 
      ! Add the contributions from the shared edges and corners
      CALL myCGSEM % GlobalSum( Au )
@@ -979,13 +995,14 @@ CONTAINS
 !
 !
 !
- SUBROUTINE Residual_CGsemElliptic_2D( myCGSEM, dirF, r )
+ SUBROUTINE Residual_CGsemElliptic_2D( myCGSEM, dt, dirF, r )
  ! S/R Residual
  ! 
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
+   REAL(prec)                               :: dt
    REAL(prec), EXTERNAL                     :: dirF
    REAL(prec), INTENT(out)                  :: r(0:myCGSEM % nS, &
                                                  0:myCGSEM % nP, &
@@ -1007,7 +1024,7 @@ CONTAINS
       nEdges = myCGSEM % mesh % nEdges
 
       CALL myCGSEM % SpectralOps % GetQuadratureWeights( ws, wp )
-      CALL myCGSEM % MatrixAction( myCGSEM % solution, Au )
+      CALL myCGSEM % MatrixAction( dt, myCGSEM % solution, Au )
 
 !$OMP PARALLEL PRIVATE( J, locR )
 !$OMP DO      
@@ -1113,7 +1130,7 @@ CONTAINS
 !
 !
 !
- SUBROUTINE Solve_PCConjugateGradient( myCGSEM, dirF, ioerr )
+ SUBROUTINE Solve_PCConjugateGradient( myCGSEM, dt, dirF, ioerr )
  !  S/R Solve
  !
  !  This subroutine solves the system Ax = b using the preconditioned conjugate gradient method.
@@ -1132,6 +1149,7 @@ CONTAINS
    IMPLICIT NONE
    CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
    REAL(prec), EXTERNAL                     :: dirF
+   REAL(prec), INTENT(in)                   :: dt
    INTEGER, INTENT(out)                     :: ioerr
    ! LOCAL
    INTEGER    :: nS, nP, nEl,pcioerr
@@ -1155,7 +1173,7 @@ CONTAINS
       TOL = myCGSEM % tolerance
 
       u = myCGSEM % solution
-      CALL myCGSEM % Residual( dirF, r )
+      CALL myCGSEM % Residual( dt, dirF, r )
       r0 = sqrt( myCGSEM % DotProduct( r, r ) ) 
       
       myCGSEM % resi = ZERO
@@ -1168,7 +1186,7 @@ CONTAINS
       DO iter = 1,nIt ! Loop over the CG iterates
 
          CALL myCGSEM % UnMask( r )
-         CALL myCGSEM % preconditioner % Solve( w, r, nS, nP, nEl, pcioerr )
+         CALL myCGSEM % preconditioner % Solve( dt, w, r, nS, nP, nEl, pcioerr )
         ! w = r
    
          num = myCGSEM % DotProduct( r, w )
@@ -1180,7 +1198,7 @@ CONTAINS
             v = w + b*v
          ENDIF
 
-         CALL myCGSEM % MatrixAction( v, z )
+         CALL myCGSEM % MatrixAction( dt, v, z )
          a = num/myCGSEM % DotProduct( v, z )
          u = u + a*v
          r = r - a*z
@@ -1198,7 +1216,7 @@ CONTAINS
 
       IF( rNorm/r0 > TOL )THEN
          PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
-         PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
+         PRINT*, 'Last L-2 residual : ', rNorm
          ioerr=-1
       ENDIF   
 
@@ -1293,7 +1311,7 @@ SUBROUTINE CoarseToFine_CGsemElliptic_2D( myCGSEM, iEl, x, y, sol, source )
                FORM='FORMATTED')
       ENDIF
       
-      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "sol", "source"'
+      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "free-surface", "rhs"'
     
       DO iEl = 1, myCGSEM % mesh % nElems
 
@@ -1346,6 +1364,143 @@ SUBROUTINE CoarseToFine_CGsemElliptic_2D( myCGSEM, iEl, x, y, sol, source )
     CLOSE(UNIT = fUnit)   
    
  END SUBROUTINE WriteResidual_CGsemElliptic_2D
- 
+!
+!
+!
+ SUBROUTINE WritePickup_CGsemElliptic_2D( myCGSEM, iter )
+ ! S/R WritePickup
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemElliptic_2D ), INTENT(in) :: myCGSEM
+   INTEGER, INTENT(in)                   :: iter
+  ! LOCAL
+   CHARACTER(10) :: iterChar
+   INTEGER       :: iEl
+   INTEGER       :: thisRec, fUnit
+   INTEGER       :: iEq, nS, nP
 
+     nS = myCGSEM % nS
+     nP = myCGSEM % nP
+     
+     WRITE(iterChar,'(I10.10)') iter
+
+     OPEN( UNIT=NEWUNIT(fUnit), &
+           FILE='CGsemElliptic_2D.'//iterChar//'.pickup', &
+           FORM='unformatted',&
+           ACCESS='direct',&
+           STATUS='replace',&
+           ACTION='WRITE',&
+           CONVERT='big_endian',&
+           RECL=prec*(nS+1)*(nP+1) )
+
+      thisRec = 1 
+      DO iEl = 1, myCGSEM % mesh % nElems
+        
+         WRITE( fUnit, REC=thisRec )myCGSEM % solution(:,:,iEl)
+         thisRec = thisRec+1
+
+     ENDDO
+
+     CLOSE(UNIT=fUnit)
+
+     
+
+ END SUBROUTINE WritePickup_CGsemElliptic_2D
+!
+!
+!
+  SUBROUTINE ReadPickup_CGsemElliptic_2D( myCGSEM, iter )
+ ! S/R ReadPickup
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myCGSEM
+   INTEGER, INTENT(in)                      :: iter
+  ! LOCAL
+   CHARACTER(10) :: iterChar
+   INTEGER       :: iEl
+   INTEGER       :: thisRec, fUnit
+   INTEGER       :: iEq, nS, nP
+
+     nS = myCGSEM % nS
+     nP = myCGSEM % nP
+     
+     WRITE(iterChar,'(I10.10)') iter
+
+     OPEN( UNIT=NEWUNIT(fUnit), &
+           FILE='CGsemElliptic_2D.'//iterChar//'.pickup', &
+           FORM='unformatted',&
+           ACCESS='direct',&
+           STATUS='old',&
+           ACTION='READ',&
+           CONVERT='big_endian',&
+           RECL=prec*(nS+1)*(nP+1) )
+     
+      thisRec = 1 
+      DO iEl = 1, myCGSEM % mesh % nElems
+        
+         READ( fUnit, REC=thisRec ) myCGSEM % solution(:,:,iEl)
+         thisRec = thisRec+1
+
+     ENDDO
+
+     CLOSE(UNIT=fUnit)
+
+     
+ END SUBROUTINE ReadPickup_CGsemElliptic_2D
+!
+!
+!
+SUBROUTINE WriteMask( myPC )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemElliptic_2D ), INTENT(inout) :: myPC
+   ! LOCAL
+   INTEGER                 :: iEl, iS, iP, jEl, jS, jP, nEl, nS, nP
+   INTEGER                 :: row, col, nfree, fUnit
+   REAL(prec)              :: thismask(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
+   REAL(prec)              :: s, p
+   CHARACTER(5)            :: zoneID 
+
+      nS  = myPC % nS
+      nP  = myPC % nP
+      nEl = myPC % mesh % nElems
+
+      nfree = 0 
+      thismask = ONE
+      CALL myPC % Mask( thismask )
+
+
+           OPEN( UNIT=NewUnit(fUnit), &
+            FILE='omask.tec', &
+            FORM='FORMATTED')
+
+      
+      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "mask"'
+    
+      DO iEl = 1, myPC % mesh % nElems
+
+         WRITE(zoneID,'(I5.5)') iEl
+         WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nP+1,',F=POINT'
+
+         DO iP = 0, nS
+            DO iS = 0, nS
+               CALL myPC % mesh % GetPositionAtNode( iEl, s, p, iS, iP )
+               WRITE(fUnit,*)  s, p, thismask(iS,iP,iEl)
+            ENDDO
+         ENDDO
+
+      ENDDO
+      
+      CLOSE( fUnit )
+
+               
+
+ END SUBROUTINE WriteMask
 END MODULE CGsemElliptic_2D_Class

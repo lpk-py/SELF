@@ -1,11 +1,12 @@
 &SolverCriteria
 MaximumIterates = 200,
-pcIterates = 2,
+pcIterates = 20,
 tolerance = 1.0E-8,
-pcTolerance = 1.0E-1,
+pcTolerance = 1.0E-8,
+pcDegree = 1,
 /
 &SpaceManagement
-polyDeg = 20,
+polyDeg = 10,
 nXElem = 1,
 nYElem = 1,
 nPlot = 40,

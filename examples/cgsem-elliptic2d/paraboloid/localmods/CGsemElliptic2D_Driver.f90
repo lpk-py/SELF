@@ -60,6 +60,9 @@ IMPLICIT NONE
    CALL FillInSource( ellipticSolver )
    CALL ellipticSolver % Solve( DirichletBC, ioerr )
 
+   CALL ellipticSolver % ConstructMatrix( )
+   CALL ellipticSolver % preconditioner % ConstructPCMatrix( )
+
    CALL ellipticSolver % WriteTecplot( )
    CALL ellipticSolver % WriteResidual( )
 

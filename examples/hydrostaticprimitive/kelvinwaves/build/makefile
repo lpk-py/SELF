@@ -62,7 +62,8 @@ HYDOBJS = ModelPrecision.o \
           HexMeshClass.o \
           StackedHexMeshClass.o \
           HydrostaticParams_Class.o \
-          Elliptic1D_Class.o \
+          CGsemPreconditioner_2D_Class.o \
+          CGsemElliptic_2D_Class.o \
           HydrostaticPrimitivesClass.o
 
 init_hyd : ${HYDOBJS} HydrostaticPrimitives_InitialConditions.o
@@ -75,7 +76,7 @@ HydrostaticPrimitivesClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags
                                NodalStorage_1D_Class.o NodalStorage_2D_Class.o NodalStorage_3D_Class.o \
                                DGSEMSolutionStorageClass_3D.o \
                                QuadMeshClass.o FaceClass.o HexElementClass.o HexMeshClass.o \
-                               StackedHexMeshClass.o HydrostaticParams_Class.o Elliptic1D_Class.o
+                               StackedHexMeshClass.o HydrostaticParams_Class.o CGsemElliptic_2D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticPrimitivesClass.f90 -o $@
 
 StackedHexMeshClass.o: ModelPrecision.o ConstantsDictionary.o ModelFlags.o Lagrange_2D_Class.o \
@@ -83,10 +84,15 @@ StackedHexMeshClass.o: ModelPrecision.o ConstantsDictionary.o ModelFlags.o Lagra
                        SurfaceClass_3D.o HexElementClass.o FaceClass.o NodeClass_3D.o HexMeshClass.o
 	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/StackedHexMeshClass.f90 -o $@
 
-Elliptic1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Lagrange_1D_Class.o \
-                     NodalStorage_1D_Class.o MappedGeometryClass_1D.o SegmentMeshClass.o \
-                     HydrostaticParams_Class.o StackedHexMeshClass.o 
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/Elliptic1D_Class.f90 -o $@
+CGsemElliptic_2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                           NodalStorage_2D_Class.o QuadMeshClass.o MappedGeometryClass_2D.o \
+                           HydrostaticParams_Class.o CGsemPreconditioner_2D_Class.o 
+	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/CGsemElliptic_2D_Class.f90 -o $@
+
+CGsemPreconditioner_2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                                 NodalStorage_2D_Class.o QuadMeshClass.o MappedGeometryClass_2D.o
+	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/CGsemPreconditioner_2D_Class.f90 -o $@
+
 
 HydrostaticParams_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticParams_Class.f90 -o $@

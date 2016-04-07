@@ -20,7 +20,9 @@ MODULE HydrostaticParams_Class
     TYPE HydrostaticParams
        ! IterativeSolver
        INTEGER       :: MaximumIterates
+       INTEGER       :: pcIterates
        REAL(prec)    :: tolerance
+       REAL(prec)    :: pcTolerance
       ! TimeManagement
        REAL(prec)    :: dt
        INTEGER       :: iterInit
@@ -39,8 +41,9 @@ MODULE HydrostaticParams_Class
        REAL(prec)    :: xScale
        REAL(prec)    :: yScale
        REAL(prec)    :: zScale
-       ! VelocityField
-    !   REAL(prec)    :: 
+       ! PhysicalParameters
+       REAL(prec)    :: g
+       REAL(prec)    :: f0
       
        CONTAINS
 
@@ -63,7 +66,9 @@ MODULE HydrostaticParams_Class
    INTEGER :: nUnit
        ! IterativeSolver
        INTEGER       :: MaximumIterates
+       INTEGER       :: pcIterates
        REAL(prec)    :: tolerance
+       REAL(prec)    :: pcTolerance
        ! TimeManagement
        REAL(prec)    :: dt
        INTEGER       :: iterInit
@@ -81,15 +86,21 @@ MODULE HydrostaticParams_Class
        REAL(prec)    :: xScale
        REAL(prec)    :: yScale
        REAL(prec)    :: zScale
+       ! PhysicalParameters
+       REAL(prec)    :: g
+       REAL(prec)    :: f0
        
-      NAMELIST / IterativeSolver / MaximumIterates, tolerance
+      NAMELIST / IterativeSolver / MaximumIterates, pcIterates, tolerance, pcTolerance
       NAMELIST / TimeManagement / dt, iterInit, nTimeSteps, dumpFreq
       NAMELIST / SpaceManagement / SpecMeshFile, geomPolyDeg, polyDeg, nCutoff, nXElem, nYElem, nZElem, &
                                    nPlot, xScale, yScale, zScale
+      NAMELIST / PhysicalParameters / g, f0
       
       ! IterativeSolver
-      MaximumIterates = 100
-      tolerance = 1.0E-10
+      MaximumIterates = 500   ! Max number of conjugate gradient iterations
+      pcIterates      = 50     !
+      tolerance       = 10.0_prec**(-8) ! conjugate gradient residual tolerance
+      pcTolerance     = 10.0_prec**(-5)
       ! TimeManagement
       dt = ZERO
       iterInit = 0
@@ -107,6 +118,9 @@ MODULE HydrostaticParams_Class
       xScale = ONE
       yScale = ONE 
       zScale = ONE
+      ! PhysicalParameters
+      g = 9.806_prec
+      f0 = ZERO
       
       ! Reading in the namelist FILE
 
@@ -114,16 +128,20 @@ MODULE HydrostaticParams_Class
          READ( UNIT = nUnit, NML = IterativeSolver )
          READ( UNIT = nUnit, NML = TimeManagement )
          READ( UNIT = nUnit, NML = SpaceManagement )
+         READ( UNIT = nUnit, NML = PhysicalParameters )
       CLOSE( UNIT = nUnit ) 
 
       ! Sanity check - PRINT the results of the namelist READ to screen
       WRITE( UNIT = *, NML = IterativeSolver )
       WRITE( UNIT = *, NML = TimeManagement )
       WRITE( UNIT = *, NML = SpaceManagement )
+      WRITE( UNIT = *, NML = PhysicalParameters )
       
       ! IterativeSolver
-      thisParam % MaximumIterates = MaximumIterates 
+      thisParam % MaximumIterates = MaximumIterates
+      thisParam % pcIterates      = pcIterates
       thisParam % tolerance       = tolerance
+      thisParam % pcTolerance     = pcTolerance
       ! TimeManagement
       thisParam % dt         = dt
       thisParam % iterInit   = iterInit
@@ -142,6 +160,9 @@ MODULE HydrostaticParams_Class
       thisParam % xScale       = xScale
       thisParam % yScale       = yScale
       thisParam % zScale       = zScale
+      ! Physical Parameters
+      thisParam % g  = g
+      thisParam % f0 = f0
       
       
  END SUBROUTINE Build_HydrostaticParams

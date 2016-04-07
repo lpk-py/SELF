@@ -71,7 +71,6 @@ IMPLICIT NONE
 
          PROCEDURE :: Build         => Build_CGsemPreconditioner_2D
          PROCEDURE :: Trash         => Trash_CGsemPreconditioner_2D
-       
          
          PROCEDURE :: MapFromOrigToPC => MapFromOrigToPC_Preconditioner_2D
          PROCEDURE :: MapFromPCToOrig => MapFromPCToOrig_Preconditioner_2D
@@ -85,6 +84,7 @@ IMPLICIT NONE
          PROCEDURE :: DotProduct        => DotProduct_CGsemPreconditioner_2D
          PROCEDURE :: Solve             => Solve_CGsemPreconditioner_2D 
 
+         PROCEDURE :: WriteMaskPC
       END TYPE CGsemPreconditioner_2D
 
       
@@ -118,12 +118,12 @@ CONTAINS
                                                        myPC % pcToOrig, &
                                                        myPC % origToPC )
 
-      DO iNode = 1, myPC % mesh % nNodes
-         CALL myPC % mesh % GetNodeType( iNode, nID )
-         IF( nID == NO_NORMAL_FLOW )THEN
-            CALL myPC % mesh % SetNodeType( iNode, DIRICHLET )
-         ENDIF
-      ENDDO
+!      DO iNode = 1, myPC % mesh % nNodes
+!         CALL myPC % mesh % GetNodeType( iNode, nID )
+!         IF( nID == NO_NORMAL_FLOW )THEN
+!            CALL myPC % mesh % SetNodeType( iNode, NEUMANN )
+!         ENDIF
+!      ENDDO
       
       ! Allocate space for the solution, source term, and diffusivity coefficient
       ALLOCATE( myPC % fluxCoeff(0:nS, 0:nP, 1:myPC % mesh % nElems) )
@@ -518,7 +518,7 @@ CONTAINS
    REAL(prec) :: wp(0:myPC % nP)
    REAL(prec) :: sTemp(0:myPC % nS)
    REAL(prec) :: pTemp(0:myPC % nP)
-   REAL(prec) :: J, dxds, dxdp, dyds, dydp
+   REAL(prec) :: dxds, dxdp, dyds, dydp
 
       nS = myPC % nS
       nP = myPC % nP
@@ -534,7 +534,6 @@ CONTAINS
       DO iP = 0, nP ! Loop over the second computational direction
          DO iS = 0, nS ! Loop over the first computational direction
 
-            CALL myPC % mesh % GetJacobianAtNode( iEl, J, iS, iP )
             CALL myPC % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
 
             ! Contravariant flux calculation
@@ -568,13 +567,14 @@ CONTAINS
 !
 !
 !
- SUBROUTINE MatrixAction_CGsemPreconditioner_2D( myPC, u, Au )
+ SUBROUTINE MatrixAction_CGsemPreconditioner_2D( myPC, dt, u, Au )
  ! S/R MatrixAction
  ! 
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(CGsemPreconditioner_2D), INTENT(inout) :: myPC
+   REAL(prec), INTENT(in)                 :: dt
    REAL(prec), INTENT(inout)              :: u(0:myPC % nS, &
                                                0:myPC % nP, &
                                                1:myPC % mesh % nElems )
@@ -582,28 +582,41 @@ CONTAINS
                                                 0:myPC % nP, &
                                                 1:myPC % mesh % nElems  )
    ! Local
-   INTEGER :: iEl, nS, nP, nEl
+   INTEGER :: iEl, nS, nP, nEl, iS ,iP
    REAL(prec) :: temp(0:myPC % nS, &
                       0:myPC % nP )
    REAL(prec) :: Atemp(0:myPC % nS, &
                        0:myPC % nP )
+   REAL(prec) :: J, ws(0:myPC % nS), wp(0:myPC % nP)
 
       nS  = myPC % nS
       nP  = myPC % nP
       nEl = myPC % mesh % nElems
      
       CALL myPC % UnMask( u ) ! unmask the solution
+      CALL myPC % SpectralOps % GetQuadratureWeights( ws, wp )
 
-!$OMP PARALLEL PRIVATE( temp, Atemp )
+!$OMP PARALLEL PRIVATE( temp, Atemp, J, iS, iP )
 !$OMP DO 
       DO iEl = 1, nEl
+
          temp(0:nS,0:nP) = u(0:nS,0:nP,iEl)
          CALL myPC % FluxDivergence( iEl, temp, Atemp )
          Au(0:nS,0:nP,iEl) = Atemp(0:nS,0:nP)
+
+         DO iP = 0, nP
+            DO iS = 0, nS
+               CALL myPC % mesh % GetJacobianAtNode( iEl, J, iS, iP )
+               Au(iS,iP,iEl) = Au(iS,iP,iEl)*(dt*dt) + u(iS,iP,iEl)*J*ws(iS)*wp(iP)
+            ENDDO
+         ENDDO
+
       ENDDO
 !$OMP END DO
 !$OMP  FLUSH ( Au )
 !$OMP END PARALLEL
+
+     
 
      ! Add the contributions from the shared edges and corners
      CALL myPC % GlobalSum( Au )
@@ -668,7 +681,7 @@ CONTAINS
 !
 !
 !
- SUBROUTINE Solve_CGsemPreconditioner_2D( myPC, x, b, nS, nP, nEl, ioerr )
+ SUBROUTINE Solve_CGsemPreconditioner_2D( myPC, dt, x, b, nS, nP, nEl, ioerr )
  !  S/R Solve_CGsemPreconditioner_2D
  !
  !  This subroutine solves the system Hx = b using the conjugate gradient method.
@@ -683,6 +696,7 @@ CONTAINS
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( CGsemPreconditioner_2D ), INTENT(inout) :: myPC
+   REAL(prec), INTENT(in)                         :: dt
    INTEGER, INTENT(in)                            :: nS, nP, nEl
    REAL(prec), INTENT(out)                        :: x(0:nS,0:nP,1:nEl)
    REAL(prec), INTENT(in)                         :: b(0:nS,0:nP,1:nEl)
@@ -708,6 +722,7 @@ CONTAINS
       
       u = ZERO
       r0 = sqrt( myPC % DotProduct( r, r ) ) 
+         
 !      print*, r0
       DO iter = 1,nIt ! Loop over the CG iterates
       
@@ -721,7 +736,7 @@ CONTAINS
             v = w + c*v
          ENDIF
 
-         CALL myPC % MatrixAction( v, z )
+         CALL myPC % MatrixAction( dt, v, z )
          a = num/myPC % DotProduct( v, z )
          u = u + a*v
          r = r - a*z
@@ -737,15 +752,69 @@ CONTAINS
 
       ENDDO ! iter, loop over the CG iterates 
 
-      IF( SQRT(rNorm)/r0 > TOL )THEN
+      IF( rNorm/r0 > TOL )THEN
       !   PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
       !   PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
          ioerr=-1
       ENDIF   
 
+      IF( nIt == 0 )THEN
+         u = r
+      ENDIF
       CALL myPC % UnMask( u )
       CALL myPC % MapFromPCtoOrig( x, u, nS, nP, nEl ) !
 
  END SUBROUTINE Solve_CGsemPreconditioner_2D
+!
+!
+! 
+SUBROUTINE WriteMaskPC( myPC )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemPreconditioner_2D ), INTENT(inout) :: myPC
+   ! LOCAL
+   INTEGER                 :: iEl, iS, iP, jEl, jS, jP, nEl, nS, nP
+   INTEGER                 :: row, col, nfree, fUnit
+   REAL(prec)              :: thismask(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
+   REAL(prec)              :: s, p
+   CHARACTER(5)            :: zoneID 
 
+      nS  = myPC % nS
+      nP  = myPC % nP
+      nEl = myPC % mesh % nElems
+
+      nfree = 0 
+      thismask = ONE
+      CALL myPC % Mask( thismask )
+
+
+           OPEN( UNIT=NewUnit(fUnit), &
+            FILE='pcmask.tec', &
+            FORM='FORMATTED')
+
+      
+      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "mask"'
+    
+      DO iEl = 1, myPC % mesh % nElems
+
+         WRITE(zoneID,'(I5.5)') iEl
+         WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nP+1,',F=POINT'
+
+         DO iP = 0, nS
+            DO iS = 0, nS
+               CALL myPC % mesh % GetPositionAtNode( iEl, s, p, iS, iP )
+               WRITE(fUnit,*)  s, p, thismask(iS,iP,iEl)
+            ENDDO
+         ENDDO
+
+      ENDDO
+      
+      CLOSE( fUnit )
+
+               
+
+ END SUBROUTINE WriteMaskPC
 END MODULE CGsemPreconditioner_2D_Class

@@ -1556,9 +1556,7 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
                   CALL myQuadMesh % SetEdgeSecondaryElementSide( edgeID, -k )
                  
                ENDIF
-               ! Set the node-type information
-               CALL myQuadMesh % SetNodeType(startID, INTERIOR )
-               CALL myQuadMesh % SetNodeType(endID, INTERIOR )
+
 
             ELSE ! this is a new edge
 
@@ -1573,10 +1571,6 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
 
                ! Default the secondary information
                CALL myQuadMesh % SetEdgeSecondaryElementID( edgeID, BoundaryFlagDefault )
-
-               ! Set the node-type information
-               CALL myQuadMesh % SetNodeType(startID, BoundaryFlagDefault)
-               CALL myQuadMesh % SetNodeType(endID, BoundaryFlagDefault)
                
                CALL edgeTable % AddDataForKeys( edgeID, key1, key2 )
                
@@ -1705,7 +1699,7 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
    REAL(prec), ALLOCATABLE :: xc(:), yc(:), s(:)
 
    INTEGER :: nNodes, nElems, nEdges, gPolyDeg
-   INTEGER :: nodes(1:4)
+   INTEGER :: nodes(1:4), nids(1:2), eID
    INTEGER :: s2, n1, n2
    INTEGER :: iEdge, iNode, iEl, iSide, iX, iY
       
@@ -1807,7 +1801,13 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
                CALL myQuadMesh % SetEdgeStart( iEdge, 1 )
                CALL myQuadMesh % SetEdgeIncrement( iEdge, 1 )
             ENDIF
-            
+            CALL myQuadMesh % GetEdgeSecondaryElementID( iEdge, eID )
+            IF( eID < 0 )THEN
+               CALL myQuadMesh % SetEdgeSecondaryElementID( iEdge, eID )
+               CALL myQuadMesh % GetEdgeNodeIDs( iEdge, nids )
+               CALL myQuadMesh % SetNodeType( nids(1), eID )
+               CALL myQuadMesh % SetNodeType( nids(2), eID )
+            ENDIF
       ENDDO
 
 
@@ -1846,7 +1846,7 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
    REAL(prec), ALLOCATABLE :: cnodelocs(:,:)
    REAL(prec), ALLOCATABLE :: xx(:), yy(:), s(:)
    INTEGER, ALLOCATABLE    :: uniqueNids(:)
-   INTEGER :: nodes(1:4)
+   INTEGER :: nodes(1:4), nids(1:2)
    INTEGER :: nEl, nS, nP, n1, n2, nEdges
    INTEGER :: nLinEl, N, nLinNodes, nUnique, inc, nID, eID
    INTEGER :: iNode, i, j, iS, iP, iEl, iSide, iEdge
@@ -2035,8 +2035,11 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
             ENDIF
 
             CALL linmesh % GetEdgeSecondaryElementID( iEdge, eID )
-            IF( eID == BoundaryFlagDefault )THEN
-               CALL linmesh % SetEdgeSecondaryElementID( iEdge, DIRICHLET )
+            IF( eID < 0 )THEN
+               CALL linmesh % SetEdgeSecondaryElementID( iEdge, eID )
+               CALL linmesh % GetEdgeNodeIDs( iEdge, nids )
+               CALL linmesh % SetNodeType( nids(1), eID )
+               CALL linmesh % SetNodeType( nids(2), eID )
             ENDIF
       ENDDO
 
