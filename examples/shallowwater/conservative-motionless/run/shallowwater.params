@@ -1,0 +1,27 @@
+&MODEL_FORM
+ModelFormulation = 'Conservative',
+/
+&TIME_MANAGEMENT
+dt = 1.0,
+iterInit = 0,
+nTimeSteps = 1500,
+dumpFreq = 10,
+/
+&SPACE_MANAGEMENT
+polyDeg = 12,
+nXElem = 10,
+nYElem = 10,
+nPlot = 18,
+xScale = 500000.0,
+yScale = 500000.0,
+/
+&PHYSICAL_PARAMETERS
+g = 9.81,
+f0 = 0.0000,
+betaX = 0.0,
+betaY = 0.0,
+linearDrag = 0.0,
+/
+&DIPOLE_PARAMETERS
+
+/

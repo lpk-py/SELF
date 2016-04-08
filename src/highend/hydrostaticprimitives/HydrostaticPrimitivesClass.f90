@@ -110,9 +110,9 @@ IMPLICIT NONE
       TYPE( DGSEMSolution_3D ), ALLOCATABLE :: sol(:)
       TYPE( DGSEMSolution_3D ), ALLOCATABLE :: background(:)
       REAL(prec), ALLOCATABLE               :: planetaryVorticity(:,:,:,:)
-      REAL(prec), ALLOCATABLE               :: surfW(:,:,:)
       REAL(prec), ALLOCATABLE               :: bottomW(:,:,:)
       REAL(prec), ALLOCATABLE               :: divU(:,:,:,:)
+      REAL(prec), ALLOCATABLE               :: U(:,:,:), V(:,:,:) ! Transport
 !      TYPE( FilterContainer )               :: velFilter
 !      TYPE( FIlterContainer )               :: bFilter
 
@@ -120,6 +120,7 @@ IMPLICIT NONE
       TYPE( MultiTimers )                   :: clocks
       REAL(prec), ALLOCATABLE               :: plMatS(:,:), plMatP(:,:), plMatQ(:,:)
       REAL(prec), ALLOCATABLE               :: cg2dgS(:,:), cg2dgP(:,:)
+      REAL(prec), ALLOCATABLE               :: dg2cgS(:,:), dg2cgP(:,:)
 
       CONTAINS
 
@@ -237,7 +238,7 @@ IMPLICIT NONE
 !==================================================================================================!
 !
 !
- SUBROUTINE Build_HydrostaticPrimitive( myDGSEM, forceNoPickup )
+ SUBROUTINE Build_HydrostaticPrimitive( myDGSEM, initializeOnly )
  ! S/R Build
  ! 
  !
@@ -245,7 +246,7 @@ IMPLICIT NONE
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(HydrostaticPrimitive), INTENT(inout) :: myDGSEM
-   INTEGER, INTENT(in), OPTIONAL   :: forceNoPickup
+   LOGICAL, INTENT(in)                        :: initializeOnly
    !LOCAL
    INTEGER :: iEl, iS, iP, nS, nP, nQ, nPlot, tID, M
    REAL(prec), ALLOCATABLE ::sNew(:), sdg(:)
@@ -297,12 +298,14 @@ IMPLICIT NONE
          CALL myDGSEM % background(iEl) % Build( nS, nP, nQ, nHPEq )
       ENDDO
 
-      ALLOCATE( myDGSEM % surfW(0:nS,0:nS,1:myDGSEM % mesh % nHElems) )
+      ALLOCATE( myDGSEM % U(0:nS,0:nS,1:myDGSEM % mesh % nHElems) )
+      ALLOCATE( myDGSEM % V(0:nS,0:nS,1:myDGSEM % mesh % nHElems) )
       ALLOCATE( myDGSEM % bottomW(0:nS,0:nS,1:myDGSEM % mesh % nHElems) )
       ALLOCATE( myDGSEM % divU(0:nS,0:nP,0:nQ,1:myDGSEM % mesh % nElems) )
       ALLOCATE( myDGSEM % planetaryVorticity(0:nS,0:nP,0:nQ,1:myDGSEM % mesh % nElems) )
    
-      myDGSEM % surfW              = ZERO
+      myDGSEM % U                  = ZERO
+      myDGSEM % V                  = ZERO
       myDGSEM % bottomW            = ZERO
       myDGSEM % divU               = ZERO
       myDGSEM % planetaryVorticity = ZERO
@@ -340,7 +343,7 @@ IMPLICIT NONE
       ! and the relaxation fields. A negative initial iterate can be used to specify to start 
       ! from zeros.
       
-      IF( .NOT. PRESENT(forceNoPickup) )then
+      IF( InitializeOnly .EQV. .FALSE. )then
          
          ! This call reads the solution, the addons and the relaxation-parameter
          CALL myDGSEM % ReadPickup( myDGSEM % params % iterInit )
@@ -1478,7 +1481,7 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
          ! Do the implicit free surface step
 
          CALL myDGSEM % PressureCorrection( t, m, rk3_g(m)*dt )
-         RETURN
+         !RETURN
       ENDDO ! m, loop over the RK3 steps
    
    
@@ -1525,7 +1528,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( csabTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( csabTimer )
 
 
 !$OMP DO
@@ -1536,7 +1538,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( cdivuTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( cdivuTimer )
 
 !$OMP DO
       CALL myDGSEM % clocks % StartThisTimer( diagpTimer )
@@ -1546,7 +1547,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( diagpTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( diagpTimer )
       
 
 !$OMP DO
@@ -1557,7 +1557,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( diagwTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( diagwTimer )
 
 !$OMP DO
       CALL myDGSEM % clocks % StartThisTimer( csabTimer )
@@ -1567,7 +1566,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( csabTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( csabTimer)
 
 !$OMP DO
       CALL myDGSEM % clocks % StartThisTimer( efluxTimer )
@@ -1577,7 +1575,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO
 !$OMP FLUSH( myDGSEM ) 
       CALL myDGSEM % clocks % StopThisTimer( efluxTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( efluxTimer)
  
 
 
@@ -1589,7 +1586,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( mtdTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( mtdTimer )
 
 !$OMP END PARALLEL
 
@@ -1624,7 +1620,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( csabTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( csabTimer )
 
 
       CALL myDGSEM % clocks % StartThisTimer( cdivuTimer )
@@ -1635,7 +1630,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( cdivuTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( cdivuTimer )
       
 
       CALL myDGSEM % clocks % StartThisTimer( diagwTimer )
@@ -1646,7 +1640,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( diagwTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( diagwTimer )
 
 
       CALL myDGSEM % clocks % StartThisTimer( ffsTimer )
@@ -1657,13 +1650,11 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
       CALL myDGSEM % clocks % StopThisTimer( ffsTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( ffsTimer )
 
 
       CALL myDGSEM % clocks % StartThisTimer( fssTimer )
          CALL myDGSEM % freeSurface % Solve( ldt, PrescribedFreeSurface, ioerr )
       CALL myDGSEM % clocks % StopThisTimer( fssTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( fssTimer )
 
 
       CALL myDGSEM % clocks % StartThisTimer( vadjTimer )
@@ -1682,7 +1673,6 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM, dpdx, dpdy )
       CALL myDGSEM % clocks % StopThisTimer( vadjTimer )
-      CALL myDGSEM % clocks % AccumulateTimings( vadjTimer )
 
 !$OMP END PARALLEL
 
@@ -1767,7 +1757,7 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
    REAL(prec), INTENT(inout)                 :: u(0:myDGSEM % nS,0:myDGSEM % nP)
    ! LOCAL
    INTEGER :: iS, iP, nS, nP
-   REAL(prec) :: v(0:myDGSEM % nS,0:myDGSEM % nP)
+   REAL(prec) :: v(0:myDGSEM % nS,0:myDGSEM % nP), intv(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: locv(0:myDGSEM % nS)
 
       nS = myDGSEM % nS
@@ -1776,11 +1766,11 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 
       DO iP = 0, nP
          locv = v(0:nS,iP)
-         v(0:nS,iP) = MATMUL( myDGSEM % cg2dgS, locv )
+         intv(0:nS,iP) = MATMUL( myDGSEM % cg2dgS, locv )
       ENDDO
  
       DO iS = 0, nS
-         locv = v(iS,0:nP)
+         locv = intv(iS,0:nP)
          v(iS,0:nP) = MATMUL( myDGSEM % cg2dgP, locv )
       ENDDO
 
@@ -1977,9 +1967,110 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 
       ENDDO
 
-      myDGSEM % surfW(0:nS,0:nS,iEl) = wi
   
  END SUBROUTINE DiagnoseW_HydrostaticPrimitive
+!
+!
+!
+SUBROUTINE DiagnoseTransport_HydrostaticPrimitive( myDGSEM, iEl )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( HydrostaticPrimitive ), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                          :: iEl 
+   ! LOCAL
+   INTEGER    :: iS, iP, iQ, iLayer, nS, nLayers, elID, k, M
+   REAL(prec) :: xiK
+   REAL(prec) :: ztop(0:myDGSEM % nS, 0:myDGSEM % nP)
+   REAL(prec) :: zbot(0:myDGSEM % nS, 0:myDGSEM % nP)
+   REAL(prec) :: x1(0:myDGSEM % nS, 0:myDGSEM % nP)
+   REAL(prec) :: y1(0:myDGSEM % nS, 0:myDGSEM % nP)
+   REAL(prec) :: ucell(0:myDGSEM % nS, 0:myDGSEM % nP, 0:myDGSEM % nQ) 
+   REAL(prec) :: vcell(0:myDGSEM % nS, 0:myDGSEM % nP, 0:myDGSEM % nQ)
+   REAL(prec) :: u(0:myDGSEM % nS, 0:myDGSEM % nP, 0:myDGSEM % nQ), locU(0:myDGSEM % nQ)
+   REAL(prec) :: v(0:myDGSEM % nS, 0:myDGSEM % nP, 0:myDGSEM % nQ), locV(0:myDGSEM % nQ)
+   REAL(prec) :: uu(0:myDGSEM % nS, 0:myDGSEM % nP), vv(0:myDGSEM % nS, 0:myDGSEM % nP)
+   REAL(prec) :: ui(0:myDGSEM % nS, 0:myDGSEM % nP), uip1(0:myDGSEM % nS, 0:myDGSEM % nP)
+   REAL(prec) :: vi(0:myDGSEM % nS, 0:myDGSEM % nP), vip1(0:myDGSEM % nS, 0:myDGSEM % nP)
+   REAL(prec) :: intnodes(0:myDGSEM % intStorage % nS), qw(0:myDGSEM % intStorage % nS)
+   REAL(prec) :: xi(0:myDGSEM % nS), xiI, xiIp1, lagTop(0:myDGSEM % nQ)
+   REAL(prec) :: temp(0:myDGSEM % nS)
+   REAL(prec) :: dw(0:myDGSEM % nS, 0:myDGSEM % nP)
+
+
+      nS      = myDGSEM % nS
+      nLayers = myDGSEM % mesh % nLayers
+      M       = myDGSEM % intStorage % nS
+
+      CALL myDGSEM % dgStorage % GetNodes( xi, locDU, temp )
+      CALL myDGSEM % dgStorage % GetTopInterpolants( lagTop )
+      CALL myDGSEM % intStorage % GetNodes( intnodes )
+      CALL myDGSEM % intStorage % GetQuadratureWeights( qw )
+
+      ! Set the bottom vertical velocity to the up-slope projection of the lateral flow
+      ui = ZERO
+      vi = ZERO
+ 
+      DO iLayer = 1, nLayers
+
+         elID = myDGSEM % mesh % stackMap(iEl,iLayer)
+         CALL myDGSEM % GetVelocity( elID, u, v )
+
+!         CALL myDGSEM % mesh % GetPositions( elID, x, y, z )
+         CALL myDGSEM % mesh % GetBoundaryLocation( elID, x1, y1, ztop, Top )
+         CALL myDGSEM % mesh % GetBoundaryLocation( elID, x1, y1, zbot, Bottom )
+
+         xiI = -ONE
+         DO iQ = 0, nS
+            
+            xiIp1 = xi(iQ)
+            du    = ZERO
+            dv    = ZERO
+
+            DO k = 0, M 
+               xiK = HALF*(xiIp1-xiI)*( intnodes(k) + ONE ) + xiI
+
+               DO iP = 0, nS
+                  DO iS = 0, nS
+                     locU = u(iS,iP,0:nS)
+                     uu(iS,iP) = myDGSEM % intStorage % interp % EvaluateInterpolant( xiK, locU )
+                     locV = v(iS,iP,0:nS)
+                     vv(iS,iP) = myDGSEM % intStorage % interp % EvaluateInterpolant( xiK, locv )
+                  ENDDO
+               ENDDO
+               
+               du = du + uu*qw(k)
+               du = dv + uu*qw(k)
+
+            ENDDO
+               
+            uip1 = ui + du*HALF*(ztop-zbot)*HALF*(xiIp1-xiI)
+            vip1 = vi + dv*HALF*(ztop-zbot)*HALF*(xiIp1-xiI)
+
+            ucell(:,:,iQ) = uip1
+            vcell(:,:,iQ) = vip1
+
+            xiI = xiIp1
+
+         ENDDO
+
+         DO iP = 0, nS
+            DO iS = 0, nS
+               temp = ucell(iS,iP,0:nS)
+               ui(iS,iP) = DOT_PRODUCT( lagTop, temp )
+               temp = vcell(iS,iP,0:nS)
+               vi(iS,iP) = DOT_PRODUCT( lagTop, temp )
+            ENDDO
+         ENDDO 
+
+      ENDDO
+
+      myDGSEM % U(0:nS,0:nS,iEl) = ui
+      myDGSEM % V(0:nS,0:nS,iEl) = vi
+  
+ END SUBROUTINE DiagnoseTransport_HydrostaticPrimitive
 !
 !
 !
@@ -2676,19 +2767,17 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
             YFlux( outState, backgroundState )*nHat(2) + &
             ZFlux( outState, backgroundState )*nHat(3) 
 
-      uIn = ( inState(1) + backgroundState(1) )*nHat(1) +&
-            ( inState(2) + backgroundState(2) )*nHat(2) +&
-            ( inState(wEq) + backgroundState(wEq) )*nHat(3)
+      uIn = ( inState(wEq) + backgroundState(wEq) )*nHat(3)
 
-      uEx = ( outState(1) + backgroundState(1) )*nHat(1) +&
-            ( outState(2) + backgroundState(2) )*nHat(2) +&
-            ( outState(wEq) + backgroundState(wEq) )*nHat(3)
+      uEx = ( outState(wEq) + backgroundState(wEq) )*nHat(3)
 
       uN = max( abs(uIn), abs(uEx) )
 
-      numFlux = HALF*( fEx + fIn - abs(uN)*jump )
+    !  numFlux = HALF*( fEx + fIn - abs(uN)*jump )
 
-
+      numFlux(1) = HALF*( instate(pEq) + outstate(pEq) )*nHat(1)
+      numFlux(2) = HALF*( instate(pEq) + outState(pEq) )*nHat(2)
+      numFlux(3) = HALF*( fEx(3) + fIn(3) - uN*jump(3) )
 
  END FUNCTION RiemannSolver
 !
@@ -2704,9 +2793,9 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
    REAL(prec) :: backgroundSol(1:nHPEq)
    REAL(prec) :: fx(1:nPrognostic)
 
-      fx(1) = ( TWO*backgroundSol(1)*solAtX(1) + solAtX(pEq) )             ! 2Uu + P
-      fx(2) = ( backgroundSol(1)*solAtX(2) + backgroundSol(2)*solAtX(1) )  ! Uv + Vu 
-      fx(3) = ( backgroundSol(1)*solAtX(3) + backgroundSol(3)*solAtX(1) )  ! Ub + Bu
+      fx(1) = solAtX(pEq) !( TWO*backgroundSol(1)*solAtX(1) + solAtX(pEq) )             ! 2Uu + P
+      fx(2) = ZERO !( backgroundSol(1)*solAtX(2) + backgroundSol(2)*solAtX(1) )  ! Uv + Vu 
+      fx(3) = ZERO !( backgroundSol(1)*solAtX(3) + backgroundSol(3)*solAtX(1) )  ! Ub + Bu
 
  END FUNCTION XFlux
 !
@@ -2722,9 +2811,9 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
    REAL(prec) :: backgroundSol(1:nHPEq)
    REAL(prec) :: fy(1:nPrognostic)
 
-      fy(1) = ( backgroundSol(1)*solAtX(2) + backgroundSol(2)*solAtX(1) )  ! Uv + Vu             
-      fy(2) = ( TWO*backgroundSol(2)*solAtX(2) + solAtX(pEq) )             ! 2Vv + P
-      fy(3) = ( backgroundSol(2)*solAtX(3) + backgroundSol(3)*solAtX(2) )  ! Vb + Bv
+      fy(1) = ZERO !( backgroundSol(1)*solAtX(2) + backgroundSol(2)*solAtX(1) )  ! Uv + Vu             
+      fy(2) = solAtX(pEq) ! ( TWO*backgroundSol(2)*solAtX(2) + solAtX(pEq) )             ! 2Vv + P
+      fy(3) = ZERO !( backgroundSol(2)*solAtX(3) + backgroundSol(3)*solAtX(2) )  ! Vb + Bv
 
  END FUNCTION YFlux
 !
@@ -2740,9 +2829,9 @@ FUNCTION ZFlux( solAtX, backgroundSol ) RESULT( fz )
    REAL(prec) :: backgroundSol(1:nHPEq)
    REAL(prec) :: fz(1:nPrognostic)
 
-      fz(1) = ( backgroundSol(1)*solAtX(wEq) + backgroundSol(wEq)*solAtX(1) )  ! Uw + Wu             
-      fz(2) = ( backgroundSol(2)*solAtX(wEq) + backgroundSol(wEq)*solAtX(2) )  ! Vw + Wv
-      fz(3) = ( backgroundSol(3)*solAtX(wEq) + backgroundSol(wEq)*solAtX(3) )  ! Bw + Wb
+      fz(1) = ZERO ! ( backgroundSol(1)*solAtX(wEq) + backgroundSol(wEq)*solAtX(1) )  ! Uw + Wu             
+      fz(2) = ZERO !( backgroundSol(2)*solAtX(wEq) + backgroundSol(wEq)*solAtX(2) )  ! Vw + Wv
+      fz(3) = backgroundSol(3)*solAtX(wEq)!( backgroundSol(3)*solAtX(wEq) + backgroundSol(wEq)*solAtX(3) )  ! Bw + Wb
 
  END FUNCTION ZFlux
 !
@@ -2759,8 +2848,8 @@ FUNCTION ZFlux( solAtX, backgroundSol ) RESULT( fz )
    REAL(prec)     :: x, y, z
    REAL(prec)     :: q(1:nPrognostic)
 
-      q(1) = fCori*sol(2)   !  fv
-      q(2) = -fCori*sol(1)  ! -fu
+      q(1) = ZERO!fCori*sol(2)   !  fv
+      q(2) = ZERO!-fCori*sol(1)  ! -fu
       q(3) = ZERO
 
 
@@ -2914,7 +3003,7 @@ FUNCTION ZFlux( solAtX, backgroundSol ) RESULT( fz )
        freesurffile='freesurf.'//iterChar
     ELSE
        OPEN( UNIT=NEWUNIT(fUnit), &
-             FILE= 'HydrostaticPrimitive.init.tec', &
+             FILE= 'HPEState.init.tec', &
              FORM='formatted', &
              STATUS='replace')  
        freesurffile='freesurf.init'
@@ -3057,7 +3146,7 @@ FUNCTION ZFlux( solAtX, backgroundSol ) RESULT( fz )
 
         READ( fUnit, REC=thisRec )f
         CALL myDGSEM % SetPlanetaryVorticity( iEl, f )
-        
+        thisRec = thisRec + 1
      ENDDO
 
      CLOSE(UNIT=fUnit)

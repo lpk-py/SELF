@@ -1,4 +1,4 @@
-PROGRAM Advection3D_Driver
+PROGRAM HydrostaticPrimitives_Driver
 
 
 
@@ -8,58 +8,52 @@ USE Timing
 ! src/geom/
 USE HexMeshClass
 ! src/highend/shallowwater
-USE AdvectionParamsClass
-USE Advection3DClass
+USE HydrostaticParams_Class
+USE HydrostaticPrimitivesClass
 
  IMPLICIT NONE
 
- TYPE( Advection ) :: myAdv
+ TYPE( HydrostaticPrimitive ) :: myHyd
 
  INTEGER :: iter0, nT, dFreq
  INTEGER :: iT
  REAL(prec) :: tn, deltaT
- 
- CHARACTER(len=10) :: iterChar
- 
-    CALL myAdv % Build( )
- 
-    ! ////////////////////////////////// Time Stepping /////////////////////////////////////////// !
-       
-      iter0 = myAdv % params % iterInit
-      nT = myAdv % params % nTimeSteps
-      dFreq = myAdv % params % dumpFreq
-      deltaT = myAdv % params % dt
 
-      WRITE( iterChar, '(I10.10)') iter0   
-      CALL myAdv % GlobalTimeDerivative( ZERO, 1 )   
+    
+      CALL myHyd % Build( InitializeOnly = .FALSE. )
 
-      CALL myAdv % clocks % StartThisTimer( 0 )
-         CALL myAdv % WriteTecplot( 'Advection.'//iterChar )
-      CALL myAdv % clocks % StopThisTimer( 0 )
-      CALL myAdv % clocks % AccumulateTimings( ) 
+       iter0 = myHyd % params % iterInit
+       nT = myHyd % params % nTimeSteps
+       dFreq = myHyd % params % dumpFreq
+       deltaT = myHyd % params % dt
+   ! ////////////////////////////////// Time Stepping //////////////////////////////////////////// !
+
+      CALL myHyd % clocks % StartThisTimer( fIOTimer )
+         CALL myHyd % WriteTecplot( iter0 )
+      CALL myHyd % clocks % StopThisTimer( fIOTimer )
 
 
       DO iT = iter0, iter0+nT-1 ! Loop over time-steps
 
           tn = real( iT, prec )*deltaT ! time at the beginning of this timestep          
-          CALL myAdv % ForwardStepRK3( tn ) ! Forward Step
+          CALL myHyd % ForwardStepRK3( tn ) ! Forward Step
 
           IF( mod( iT+1, dFreq) == 0 )THEN
 
-             WRITE(iterChar,'(I10.10)') iT+1
-             CALL myAdv % clocks % StartThisTimer( 0 )
-                CALL myAdv % WriteTecplot( 'Advection.'//iterChar )
-             CALL myAdv % clocks % StopThisTimer( 0 )
-             CALL myAdv % clocks % AccumulateTimings( ) 
+             CALL myHyd % clocks % StartThisTimer( fIOTimer )
+                CALL myHyd % WriteTecplot( iT+1 )
+             CALL myHyd % clocks % StopThisTimer( fIOTimer )
 
           ENDIF
 
        ENDDO
+
+    ! //////////////////////////////////////////////////////////////////////////////////////////// !
+
+    CALL myHyd % WritePickup( iter0+nT ) 
+    CALL myHyd % mesh % WriteTecplot( )
     
-    CALL myAdv % WritePickup( iT ) 
-    CALL myAdv % mesh % WriteTecplot( )
-    
-    CALL myAdv % Trash( )
+    CALL myHyd % Trash( )
 
 
-END PROGRAM Advection3D_Driver
+END PROGRAM HydrostaticPrimitives_Driver

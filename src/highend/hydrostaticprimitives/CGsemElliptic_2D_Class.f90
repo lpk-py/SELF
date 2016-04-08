@@ -1387,7 +1387,7 @@ SUBROUTINE CoarseToFine_CGsemElliptic_2D( myCGSEM, iEl, x, y, sol, source )
      WRITE(iterChar,'(I10.10)') iter
 
      OPEN( UNIT=NEWUNIT(fUnit), &
-           FILE='CGsemElliptic_2D.'//iterChar//'.pickup', &
+           FILE='freesurf.'//iterChar//'.pickup', &
            FORM='unformatted',&
            ACCESS='direct',&
            STATUS='replace',&
@@ -1431,7 +1431,7 @@ SUBROUTINE CoarseToFine_CGsemElliptic_2D( myCGSEM, iEl, x, y, sol, source )
      WRITE(iterChar,'(I10.10)') iter
 
      OPEN( UNIT=NEWUNIT(fUnit), &
-           FILE='CGsemElliptic_2D.'//iterChar//'.pickup', &
+           FILE='freesurf.'//iterChar//'.pickup', &
            FORM='unformatted',&
            ACCESS='direct',&
            STATUS='old',&

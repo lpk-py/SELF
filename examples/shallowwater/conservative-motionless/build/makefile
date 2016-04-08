@@ -11,110 +11,76 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-#OPT=-O3
+#OPT=-O3 -fopenmp
 OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
 SRCDIR=../../../../src/
+
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
 INIDIR=${DIR}/
 
+echo "SRDIR set to :" ${SRCDIR}
+echo "INIDIR set to : " ${INIDIR}
 
+
+
+SWOBJS = ModelPrecision.o \
+         ModelFlags.o \
+         ConstantsDictionary.o \
+         CommonRoutines.o \
+         LinkedListClass.o \
+         HashTableClass.o \
+         Legendre.o \
+         Chebyshev.o \
+         Lagrange_1D_Class.o \
+         Lagrange_2D_Class.o \
+         NodalStorage_2D_Class.o \
+         DGSEMSolutionStorageClass_2D.o \
+         NodeClass_2D.o \
+         EdgeClass.o \
+         CurveClass_2D.o \
+         VectorClass.o \
+         GeometrySupportRoutines.o \
+         MappedGeometryClass_2D.o \
+         QuadElementClass.o \
+         QuadMeshClass.o \
+         SWParamsClass.o \
+         ConservativeShallowWaterClass.o 
 
 # ---------------------------------------------------------------------- #
-#                 ~/src/highend/hydrostaticprimitives/                   #
+#                     ~/src/highend/shallowwater/                        #
 # ---------------------------------------------------------------------- #
+         
+initialize_sw : ${SWOBJS} ShallowWater_InitialConditions.o
+	${FC} ${OPT} ${SWOBJS} ShallowWater_InitialConditions.o -o $@
 
-HYDOBJS = ModelPrecision.o \
-          ConstantsDictionary.o \
-          ModelFlags.o \
-          CommonRoutines.o \
-          Timing.o \
-          LinkedListClass.o \
-          HashTableClass.o \
-          KeyRingClass.o \
-          Chebyshev.o \
-          Legendre.o \
-          Lagrange_1D_Class.o \
-          Lagrange_2D_Class.o \
-          Lagrange_3D_Class.o \
-          NodalStorage_1D_Class.o \
-          NodalStorage_2D_Class.o \
-          NodalStorage_3D_Class.o \
-          DGSEMSolutionStorageClass_3D.o \
-          GeometrySupportRoutines.o \
-          MappedGeometryClass_1D.o \
-          MappedGeometryClass_2D.o \
-          MappedGeometryClass_3D.o \
-          SegmentMeshClass.o \
-          NodeClass_2D.o \
-          NodeClass_3D.o \
-          VectorClass.o \
-          CurveClass_2D.o \
-          CurveClass_3D.o \
-          EdgeClass.o \
-          FaceClass.o \
-          SurfaceClass_3D.o \
-          QuadElementClass.o \
-          HexElementClass.o \
-          QuadMeshClass.o \
-          HexMeshClass.o \
-          StackedHexMeshClass.o \
-          HydrostaticParams_Class.o \
-          CGsemPreconditioner_2D_Class.o \
-          CGsemElliptic_2D_Class.o \
-          HydrostaticPrimitivesClass.o
+integrate_sw : ${SWOBJS} ShallowWater_Driver.o
+	${FC} ${OPT} ${SWOBJS} ShallowWater_Driver.o -o $@
+         
+SWParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
+	${FC} ${OPT} -c ${INIDIR}localmods/SWParamsClass.f90 -o $@
 
-init_hyd : ${HYDOBJS} HydrostaticPrimitives_InitialConditions.o
-	${FC} ${OPT} ${HYDOBJS} HydrostaticPrimitives_InitialConditions.o -o $@
-          
-integrate_hyd : ${HYDOBJS} HydrostaticPrimitives_Driver.o
-	${FC} ${OPT} ${HYDOBJS} HydrostaticPrimitives_Driver.o -o $@
+ConservativeShallowWaterClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                      Lagrange_2D_Class.o NodalStorage_2D_Class.o DGSEMSolutionStorageClass_2D.o \
+                      EdgeClass.o QuadElementClass.o QuadMeshClass.o SWParamsClass.o
+	${FC} ${OPT} -c ${INIDIR}localmods/ConservativeShallowWaterClass.f90 -o $@
 
-# Modules
-HydrostaticPrimitivesClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o CommonRoutines.o \
-                               Timing.o Lagrange_1D_Class.o Lagrange_2D_Class.o Lagrange_3D_Class.o \
-                               NodalStorage_1D_Class.o NodalStorage_2D_Class.o NodalStorage_3D_Class.o \
-                               DGSEMSolutionStorageClass_3D.o \
-                               QuadMeshClass.o FaceClass.o HexElementClass.o HexMeshClass.o \
-                               StackedHexMeshClass.o HydrostaticParams_Class.o CGsemElliptic_2D_Class.o
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticPrimitivesClass.f90 -o $@
+ShallowWater_InitialConditions.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ConservativeShallowWaterClass.o
+	${FC} ${OPT} -c ${INIDIR}localmods/ShallowWater_InitialConditions.f90 -o $@
 
-StackedHexMeshClass.o: ModelPrecision.o ConstantsDictionary.o ModelFlags.o Lagrange_2D_Class.o \
-                       Lagrange_3D_Class.o QuadMeshClass.o MappedGeometryClass_3D.o \
-                       SurfaceClass_3D.o HexElementClass.o FaceClass.o NodeClass_3D.o HexMeshClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/StackedHexMeshClass.f90 -o $@
-
-CGsemElliptic_2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
-                           NodalStorage_2D_Class.o QuadMeshClass.o MappedGeometryClass_2D.o \
-                           HydrostaticParams_Class.o CGsemPreconditioner_2D_Class.o 
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/CGsemElliptic_2D_Class.f90 -o $@
-
-CGsemPreconditioner_2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
-                                 NodalStorage_2D_Class.o QuadMeshClass.o MappedGeometryClass_2D.o
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/CGsemPreconditioner_2D_Class.f90 -o $@
+ShallowWater_Driver.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ConservativeShallowWaterClass.o
+	${FC} ${OPT} -c ${INIDIR}localmods/ShallowWater_Driver.f90 -o $@
 
 
-HydrostaticParams_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticParams_Class.f90 -o $@
 
-
-# Test Programs
-HydrostaticPrimitives_InitialConditions.o : ModelPrecision.o StackedHexMeshClass.o HydrostaticParams_Class.o \
-                                            HydrostaticPrimitivesClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticPrimitives_InitialConditions.f90 -o $@
-
-
-HydrostaticPrimitives_Driver.o : ModelPrecision.o StackedHexMeshClass.o HydrostaticParams_Class.o \
-                                 HydrostaticPrimitivesClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/HydrostaticPrimitives_Driver.f90 -o $@
 
 # ---------------------------------------------------------------------- #
 #                           ~/src/common/                                #
 # ---------------------------------------------------------------------- #
 
-# Modules
+# MODULE list #
 ModelPrecision.o :
 	${FC} ${OPT} -c ${SRCDIR}common/ModelPrecision.f90 -o $@
 
@@ -142,20 +108,17 @@ RunParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRou
 Timing.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}common/Timing.f90 -o $@
 
-# Test programs
-
 # ---------------------------------------------------------------------- #
 #                       ~/src/iterativesolve/                            #
 # ---------------------------------------------------------------------- #
 
-# Modules
 IterativeSolvers_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o \
                            IterativeSolversParams_Class.o
 	${FC} ${OPT} -c ${SRCDIR}iterativesolve/IterativeSolvers_Class.f90 -o $@
 
-# Test programs
+# Test programs for the iterative solvers
 IterativeSolversParams_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
-	${FC} ${OPT} -c ${SRCDIR}iterativesolve/IterativeSolversParams_Class.f90 -o $@
+	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/GMRES/IterativeSolversParams_Class.f90 -o $@
 
 EllipticFV1D_Class.o : ModelPrecision.o ConstantsDictionary.o IterativeSolvers_Class.o \
                        IterativeSolversParams_Class.o
@@ -168,12 +131,13 @@ EllipticFV1D_GMRES_Class.o : ModelPrecision.o ConstantsDictionary.o IterativeSol
 Driver_EllipticFV1D.o : ModelPrecision.o ConstantsDictionary.o IterativeSolvers_Class.o Timing.o \
                         IterativeSolversParams_Class.o EllipticFV1D_GMRES_Class.o
 	${FC} ${OPT} -c ${SRCDIR}iterativesolve/Testing/GMRES/Driver_EllipticFV1D.f90 -o $@
-           
+
+
 # ---------------------------------------------------------------------- #
 #                           ~/src/interp/                                #
 # ---------------------------------------------------------------------- #
 
-# Modules
+# MODULE list #
 Chebyshev.o : ModelPrecision.o ConstantsDictionary.o
 	${FC} ${OPT} -c ${SRCDIR}interp/Chebyshev.f90 -o $@
 
@@ -189,13 +153,12 @@ Lagrange_2D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o La
 Lagrange_3D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o Lagrange_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}interp/Lagrange_3D_Class.f90 -o $@
 
-# Test Programs
 
 # ---------------------------------------------------------------------- #
 #                            ~/src/nodal/                                #
 # ---------------------------------------------------------------------- #
 
-# Modules
+# MODULE list #
 NodalStorage_1D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Legendre.o \
                           Lagrange_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}nodal/NodalStorage_1D_Class.f90 -o $@
@@ -208,13 +171,10 @@ NodalStorage_3D_Class.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o Le
                           Lagrange_1D_Class.o Lagrange_3D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}nodal/NodalStorage_3D_Class.f90 -o $@
 
-# Test Programs
-
 # ---------------------------------------------------------------------- #
 #                          ~/src/filters/                                #
 # ---------------------------------------------------------------------- #
 
-# Modules
 ModalCutoffFilter1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
                                   Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}filters/ModalCutoffFilter1D_Class.f90 -o $@
@@ -223,23 +183,19 @@ RollOffFilter1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Co
                           Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter1D_Class.f90 -o $@
 
+ModalCutoffFilter3D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                              Legendre.o Lagrange_3D_Class.o NodalStorage_3D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}filters/ModalCutoffFilter1D_Class.f90 -o $@
+
 RollOffFilter3D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
                           Legendre.o Lagrange_3D_Class.o NodalStorage_3D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter3D_Class.f90 -o $@
-
-# TestPrograms
-TestFilter_1D.o : ModelPrecision.o ModelFlags.o NodalStorage_1D_Class.o RollOffFilter1D_Class.o 
-	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_1D.f90 -o $@
-
-TestFilter_3D.o : ModelPrecision.o ModelFlags.o NodalStorage_3D_Class.o RollOffFilter3D_Class.o 
-	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_3D.f90 -o $@
-
 
 # ---------------------------------------------------------------------- #
 #                            ~/src/dgsem/                                #
 # ---------------------------------------------------------------------- #
 
-# Modules
+# MODULE list #
 DGSEMSolutionStorageClass_1D.o : ModelPrecision.o ConstantsDictionary.o NodalStorage_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}dgsem/DGSEMSolutionStorageClass_1D.f90 -o $@
 
@@ -248,31 +204,13 @@ DGSEMSolutionStorageClass_2D.o : ModelPrecision.o ConstantsDictionary.o NodalSto
 	
 DGSEMSolutionStorageClass_3D.o : ModelPrecision.o ConstantsDictionary.o NodalStorage_3D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}dgsem/DGSEMSolutionStorageClass_3D.f90 -o $@
-
-# Test Programs
-
-# ---------------------------------------------------------------------- #
-#                            ~/src/cgsem/                                #
-# ---------------------------------------------------------------------- #
-
-# Modules
-#Elliptic1DParams_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
-#	${FC} ${OPT} -c ${SRCDIR}cgsem/Elliptic1DParams_Class.f90 -o $@
-
-#Elliptic1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Lagrange_1D_Class.o \
-#                     NodalStorage_1D_Class.o MappedGeometryClass_1D.o SegmentMeshClass.o \
-#                     IterativeSolvers_Class.o Elliptic1DParams_Class.o 
-#	${FC} ${OPT} -c ${SRCDIR}cgsem/Elliptic1D_Class.f90 -o $@
-
-# Test Programs
-#Elliptic1D_Driver.o : ModelPrecision.o IterativeSolvers_Class.o Elliptic1D_Class.o
-#	${FC} ${OPT} -c ${SRCDIR}cgsem/Elliptic1D_Driver.f90 -o $@
-
+	
 # ---------------------------------------------------------------------- #
 #                            ~/src/geom/                                 #
 # ---------------------------------------------------------------------- #
 
-# Modules 
+
+# MODULE list #
 NodeClass_1D.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o LinkedListClass.o
 	${FC} ${OPT} -c ${SRCDIR}geom/NodeClass_1D.f90 -o $@
 	
@@ -309,11 +247,7 @@ HexMeshParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Commo
 GeometrySupportRoutines.o : ModelPrecision.o ConstantsDictionary.o Lagrange_1D_Class.o \
                             CurveClass_2D.o CurveClass_3D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/GeometrySupportRoutines.f90 -o $@
-
-MappedGeometryClass_1D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o CommonRoutines.o \
-                           Lagrange_1D_Class.o 
-	${FC} ${OPT} -c ${SRCDIR}geom/MappedGeometryClass_1D.f90 -o $@
-
+	
 MappedGeometryClass_2D.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o CommonRoutines.o \
                            Lagrange_2D_Class.o CurveClass_2D.o VectorClass.o GeometrySupportRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}geom/MappedGeometryClass_2D.f90 -o $@
@@ -339,27 +273,6 @@ QuadMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o LinkedList
                   Chebyshev.o Lagrange_2D_Class.o CurveClass_2D.o  MappedGeometryClass_2D.o \
                   QuadElementClass.o EdgeClass.o NodeClass_2D.o
 	${FC} ${OPT} -c ${SRCDIR}geom/QuadMeshClass.f90 -o $@	
-
-SegmentMeshClass.o : ModelPrecision.o ConstantsDictionary.o ModelFlags.o \
-                     Lagrange_1D_Class.o MappedGeometryClass_1D.o 
-	${FC} ${OPT} -c ${SRCDIR}geom/SegmentMeshClass.f90 -o $@
-
-TestMappedGeometry_2D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_2D_Class.o \
-                          NodalStorage_2D_Class.o CurveClass_2D.o GeometryParamsClass.o MappedGeometryClass_2D.o
-	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestMappedGeometry_2D.f90 -o $@
-
-
-# Test Programs
-TestSegmentMesh.o : ModelPrecision.o ModelFlags.o NodalStorage_1D_Class.o SegmentMeshClass.o 
-	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestSegmentMesh.f90 -o $@
-
-TestMappedGeometry_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_3D_Class.o \
-                          NodalStorage_3D_Class.o SurfaceClass_3D.o GeometryParamsClass.o MappedGeometryClass_3D.o
-	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestMappedGeometry_3D.f90 -o $@
-
-TestHexMesh.o : ModelFlags.o NodalStorage_3D_Class.o HexMeshParamsClass.o HexMeshClass.o 
-	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestHexMesh.f90 -o $@
-
 
 
 

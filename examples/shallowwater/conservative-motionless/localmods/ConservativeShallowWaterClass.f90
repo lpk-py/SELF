@@ -1173,29 +1173,28 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
                      1:myDGSEM % nEq )
    INTEGER    :: m, iP, jP, nX, nY, nZ, nEq, iEqn, iEl
 
-     nEq = myDGSEM % nEq 
-     dt = myDGSEM % params % dt
-     G2D = ZERO
+      nEq = myDGSEM % nEq 
+      dt = myDGSEM % params % dt
+      G2D = ZERO
     
-     DO m = 1,3 ! Loop over RK3 steps
+      DO m = 1,3 ! Loop over RK3 steps
 
-        t = tn + rk3_b(m)*dt
-        ! Calculate the tendency
-        CALL myDGSEM % GlobalTimeDerivative( t )
+         t = tn + rk3_b(m)*dt
+         ! Calculate the tendency
+         CALL myDGSEM % GlobalTimeDerivative( t )
         
-        DO iEl = 1, myDGSEM % mesh % nElems ! Loop over all of the elements
+         DO iEl = 1, myDGSEM % mesh % nElems ! Loop over all of the elements
 
-           CALL myDGSEM % GetTendency( iEl, dSdt )
-           G2D(:,:,:,iEl) = rk3_a(m)*G2D(:,:,:, iEl) + dSdt
+            CALL myDGSEM % GetTendency( iEl, dSdt )
+            G2D(:,:,:,iEl) = rk3_a(m)*G2D(:,:,:, iEl) + dSdt 
 
-           myDGSEM % sol(iEl) % solution = myDGSEM % sol(iEl) % solution + rk3_g(m)*dt*G2D(:,:,:,iEl)
+            myDGSEM % sol(iEl) % solution = myDGSEM % sol(iEl) % solution + rk3_g(m)*dt*G2D(:,:,:,iEl)
            
 
          ENDDO ! iEl, loop over all of the elements
          
          
       ENDDO ! m, loop over the RK3 steps
-   
    
        
  END SUBROUTINE ForwardStepRK3_ShallowWater
@@ -1262,13 +1261,10 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
    REAL(prec) :: flux(1:nSWeq)
    REAL(prec) :: inState(0:myDGSEM % nS,1:nSWeq)
    REAL(prec) :: exState(0:myDGSEM % nS,1:nSWeq)
-   REAL(prec) :: avgState(0:myDGSEM % nS,1:nSWeq)
-   REAL(prec) :: avgState2(0:myDGSEM % nS,1:nSWeq)
-   REAL(prec) :: inBathy(0:myDGSEM % nS,1:3)
-   REAL(prec) :: exBathy(0:myDGSEM % nS,1:3)
-   REAL(prec) :: wavespeed, h, x, y 
+   REAL(prec) :: x, y, g 
    REAL(preC) :: nHat(1:2), nHatLength 
     
+      g = myDGSEM % params % g
       CALL myDGSEM % dgStorage % GetNumberOfNodes( nS, nP )
 
       CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
@@ -1282,39 +1278,26 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
       CALL myDGSEM % mesh % GetEdgeIncrement( iEdge, inc )
       
       CALL myDGSEM % GetBoundarySolutionAtBoundary( e1, s1, inState )
-      CALL myDGSEM % GetBathymetryAtBoundary( e1, s1, inBathy )
       
       IF( e2 > 0 )then ! this is an interior edge
       
          k = start-inc
          CALL myDGSEM % GetBoundarySolutionAtBoundary( e2, s2, exState )
-         CALL myDGSEM % GetBathymetryAtBoundary( e2, s2, exBathy )
-         
          
          DO iNode = 0, nS ! Loop over the nodes
           
-            h = HALF*(inBathy(iNode, 1) + exBathy(k, 1)) ! calculate the depth
-            
             CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, iNode, s1 ) ! Get nHat
            
             ! Calculate the RIEMANN flux
-            flux = RiemannSolver( inState(iNode,:), exState(k,:), h, nHat, myDGSEM % params )*nHatLength
+            flux = RiemannSolver( inState(iNode,:), exState(k,:), nHat, g )*nHatLength
 
             ! Store the flux for the elements which share this edge
             CALL myDGSEM % SetBoundaryFluxAtBoundaryNode( e1, s1, iNode, flux )
             CALL myDGSEM % SetBoundaryFluxAtBoundaryNode( e2, s2, k, -flux )
              
-            !avgState(iNode,:) = HALF*( inState(iNode,:) + exState(k,:) )
-            !avgState2(k,:)    = HALF*( inState(iNode,:) + exState(k,:) )
             k = k + inc
 
          ENDDO ! iNode, loop over the nodes
-
-         ! Set the boundary solutions to the average of the two solutions at the edge - this will 
-         ! only affect the relative vorticity calculation. If you are using V2 of CalculateRelativeVorticity,
-         ! the edge velocity is used in a weak form calculation of the relative vorticity.
-        ! CALL myDGSEM % SetBoundarySolutionAtBoundary( e1, s1, avgState )
-        ! CALL myDGSEM % SetBoundarySolutionAtBoundary( e2, s2, avgState2 )
          
       ELSE ! this edge is a boundary edge
 
@@ -1322,17 +1305,15 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
        
             CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, iNode, s1 ) ! Get nHat
 
-            h = inBathy(iNode, 1) ! get the depth on the primary element boundary (s1)
-            
             ! Get the boundary point locations
             CALL myDGSEM % mesh % GetBoundaryLocationAtNode( e1, x, y, iNode, s1 )
 
             ! Calculate the external state
-            exState(iNode,1:nSWEq) = GetExternalState( nSWEq, nHat, x, y, h, tn, e2, &
+            exState(iNode,1:nSWEq) = GetExternalState( nSWEq, nHat, x, y, tn, e2, &
                                                       inState(iNode,1:nSWeq), myDGSEM % params )
 
             ! Calculate the RIEMANN flux
-            flux = RiemannSolver( inState(iNode,:), exState(iNode,:), h, nHat, myDGSEM % params )*nHatLength
+            flux = RiemannSolver( inState(iNode,:), exState(iNode,:), nHat, g )*nHatLength
 
             CALL myDGSEM % SetBoundaryFluxAtBoundaryNode( e1, s1, iNode, flux )
 
@@ -1490,8 +1471,6 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
            CALL myDGSEM % GetPlanetaryVorticityAtNode( iEl, iS, iP, plv )
            CALL myDGSEM % GetBathymetryAtNode( iEl, iS, iP, bathy )
            CALL myDGSEM % mesh % GetPositionAtNode( iEl, x, y, iS, iP )
-           
-           vorticity = plv
                   
            tend(iS,iP,1:nSWEq) = tend(iS,iP,1:nSWEq)+ Source( tn, sol, relaxSol, timescale, &
                                                               plv, bathy, &
@@ -1535,7 +1514,7 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
 !
 !
 !
- FUNCTION RiemannSolver( inState, outState, h, nHat, locParams ) RESULT( numFlux )
+ FUNCTION RiemannSolver( inState, outState, nHat, g ) RESULT( numFlux )
  ! FUNCTION RiemannSolver 
  !
  ! =============================================================================================== !
@@ -1543,20 +1522,17 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
    IMPLICIT NONE
    REAL(prec) :: inState(1:nSWEq)
    REAL(prec) :: outState(1:nSWEq)
-   REAL(prec) :: h
    REAL(prec) :: nHat(1:2) ! normal direction
    REAL(prec) :: numFlux(1:nSWEq)
-   TYPE( SWParams ) :: locParams
+   REAL(prec) :: g 
    ! LOCAL
    REAL(prec) :: uL, uR, vL, vR, pL, pR, uOut, uIn
-   REAL(prec) :: gamm1, gamm2, locG
    REAL(prec) :: jump(1:nSWEq), aS(1:nSWEq)
    REAL(prec) :: uNorm, fac
 
 
       jump = outState - inState
     
-      locG = locParams % g
       uL = inState(1)
       vL = inState(2)
       pL = inState(3)
@@ -1570,16 +1546,16 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
       uIn = uL*nHat(1) + vL*nHat(2)
 
 
-      fac = max( abs(HALF*( uOut + sqrt( uOut*uOut + 2.0_prec*locg*(pR*pR*pR) ) )/pR ), &
-                 abs(HALF*( uOut - sqrt( uOut*uOut + 2.0_prec*locg*(pR*pR*pR) ) )/pR ), &
-                 abs(HALF*( uIn + sqrt( uIn*uIn + 2.0_prec*locg*(pL*pL*pL) ) )/pL ), &
-                 abs(HALF*( uIn - sqrt( uIn*uIn + 2.0_prec*locg*(pL*pL*pL) ) )/pL ) )
+      fac = max( abs(HALF*( uOut + sqrt( uOut*uOut + 2.0_prec*g*(pR*pR*pR) ) )/pR ), &
+                 abs(HALF*( uOut - sqrt( uOut*uOut + 2.0_prec*g*(pR*pR*pR) ) )/pR ), &
+                 abs(HALF*( uIn + sqrt( uIn*uIn + 2.0_prec*g*(pL*pL*pL) ) )/pL ), &
+                 abs(HALF*( uIn - sqrt( uIn*uIn + 2.0_prec*g*(pL*pL*pL) ) )/pL ) )
 
-      aS(1) = (uOut/pR)*uR + HALF*locg*pR*pR*nHat(1) +&
-              (uIn/pL)*uL + HALF*locg*pL*pL*nHat(1)
+      aS(1) = (uOut/pR)*uR + HALF*g*pR*pR*nHat(1) +&
+              (uIn/pL)*uL + HALF*g*pL*pL*nHat(1)
 
-      aS(2) = (uOut/pR)*vR + HALF*locg*pR*pR*nHat(2) +&
-               (uIn/pL)*vL + HALF*locg*pL*pL*nHat(2)
+      aS(2) = (uOut/pR)*vR + HALF*g*pR*pR*nHat(2) +&
+               (uIn/pL)*vL + HALF*g*pL*pL*nHat(2)
 
       aS(3) = uOut + uIn
 
@@ -1610,7 +1586,7 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
       fx(2) = solAtX(1)*solAtX(2)/(solAtX(3))
 
       fx(3) = solAtX(1)
-                                                
+                                   
 
  END FUNCTION XFlux
 !
@@ -1637,7 +1613,6 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
       fy(2) = solAtX(2)*solAtX(2)/(solAtX(3)) + g*HALF*solAtX(3)*solAtX(3)
 
       fy(3) = solAtX(2)
-                                              
 
  END FUNCTION YFlux
 !
@@ -1665,21 +1640,21 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
      dhdy  = bathy(3)
      
 
-
-      q(1) = vorticity*sol(2) + g*sol(3)*dhdx - lDrag*sol(1)/h -& 
-              (sol(1) - relax(1))*timescale                    !u-momentum source = f*v
+      q(1) = g*sol(3)*dhdx+ vorticity*sol(2)! - lDrag*sol(1)/h  - & 
+             !(sol(1) - relax(1))*timescale                    !u-momentum source = f*v
     
-      q(2) = -vorticity*sol(1) + g*sol(3)*dhdy - lDrag*sol(2)/h -&
-              (sol(2) - relax(2))*timescale                  !v-momentum source = -f*u
+      q(2) = g*sol(3)*dhdy- vorticity*sol(1)! - lDrag*sol(2)/h -&
+              !(sol(2) - relax(2))*timescale                  !v-momentum source = -f*u
  
-      q(3) = -(sol(3) - relax(3))*timescale   ! pressure source   
+      q(3) = ZERO !-(sol(3) - relax(3))*timescale   ! pressure source   
+
 
 
  END FUNCTION Source
 !
 !
 !                         
- FUNCTION GetExternalState( nEqn, nHat, x, y, h, t, bcFlag, intState, locParams) RESULT( extState )
+ FUNCTION GetExternalState( nEqn, nHat, x, y, t, bcFlag, intState, locParams) RESULT( extState )
  ! S/R GetExternalState
  ! 
  ! =============================================================================================== !
@@ -1687,7 +1662,7 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
    IMPLICIT NONE
    INTEGER    :: nEqn
    REAL(prec) :: intState(1:nEqn)
-   REAL(prec) :: x,y,t,h
+   REAL(prec) :: x,y,t
    REAL(prec) :: nHat(1:2)
    INTEGER    :: bcFlag, formulation
    REAL(prec) :: extState(1:nEqn)
@@ -1755,10 +1730,10 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
      CALL myDGSEM % dgStorage % GetEasternInterpolants( least )
      CALL myDGSEM % dgStorage % GetWesternInterpolants( lwest )
          
-     CALL myDGSEM % GetBathymetryAtBoundary( iEl, 1, hSouth )
-     CALL myDGSEM % GetBathymetryAtBoundary( iEl, 2, hEast )
-     CALL myDGSEM % GetBathymetryAtBoundary( iEl, 3, hNorth )
-     CALL myDGSEM % GetBathymetryAtBoundary( iEl, 4, hWest ) 
+     CALL myDGSEM % GetBathymetryAtBoundary( iEl, South, hSouth )
+     CALL myDGSEM % GetBathymetryAtBoundary( iEl, East, hEast )
+     CALL myDGSEM % GetBathymetryAtBoundary( iEl, North, hNorth )
+     CALL myDGSEM % GetBathymetryAtBoundary( iEl, West, hWest ) 
      DO iP = 0,nP ! Loop over the y-points
 
         DO iS = 0,nS ! Loop over the x-points
@@ -1770,8 +1745,8 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
            h = bathy(1)
 
            ! Calculate the x and y fluxes
-           xF = (/ h, ZERO /)
-           yF = (/ ZERO, h /)
+           xF = (/ h*h, ZERO /)*HALF
+           yF = (/ ZERO, h*h /)*HALF
 
            !And now the contravariant flux
            sContFlux(iS,1:2) = dydp*xF - dxdp*yF
@@ -1779,12 +1754,12 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
         ENDDO ! iS, Loop over the x-points
 
         ! East edge
-         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iP, 2 ) 
-         fR = ( hEast(iP,1)*normVec )*normLength
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iP, East ) 
+         fR = ( HALF*hEast(iP,1)*hEast(iP,1)*normVec )*normLength
            
          ! West edge
-         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iP, 4 ) 
-         fL = ( hWest(iP,1)*normVec )*normLength
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iP, West ) 
+         fL = ( HALF*hWest(iP,1)*hWest(iP,1)*normVec )*normLength
          
         ! At this y-level, calculate the DG-advective derivative
          DO iEq = 1, 2
@@ -1814,8 +1789,8 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
            h = bathy(1)
 
            ! Calculate the x and y fluxes
-           xF = (/ h, ZERO /)
-           yF = (/ ZERO, h /)
+           xF = (/ h*h, ZERO /)*HALF
+           yF = (/ ZERO, h*h /)*HALF
 
            !And now the contravariant flux
            pContFlux(iP,:) = -dyds*xF + dxds*yF
@@ -1823,12 +1798,12 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
         ENDDO ! iP, Loop over the y-points
 
         ! North edge
-         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, 3 ) 
-         fR = ( hNorth(iS,1)*normVec )*normLength
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, North ) 
+         fR = ( HALF*hNorth(iS,1)*hNorth(iS,1)*normVec )*normLength
            
          ! South edge
-         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, 1 ) 
-         fL = ( hSouth(iS,1)*normVec )*normLength
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, South ) 
+         fL = ( HALF*hSouth(iS,1)*hSouth(iS,1)*normVec )*normLength
 
         ! At this x-level, calculate the y-DG-advective derivative
          DO iEq = 1, 2
@@ -1839,7 +1814,9 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
          DO iP = 0, nP ! Loop over the y-points
             DO iEq = 1, 2  ! Loop over the number of equations
                 CALL myDGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
-                tend(iS, iP, iEq) = ( tend(iS, iP, iEq)+ pContFluxDer(iP,iEq) )/J
+                CALL myDGSEM % GetBathymetryAtNode( iEl, iS, iP, bathy )
+                h = bathy(1)
+                tend(iS, iP, iEq) = ( tend(iS, iP, iEq)+ pContFluxDer(iP,iEq) )/(J*h)
             ENDDO ! Loop over the number of equations
          ENDDO ! Loop over the x-points
 
@@ -1973,20 +1950,20 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
     
     WRITE(fUnit,*) 'VARIABLES = "X", "Y", "Depth" "U", "V", "Eta" '
  
-    DO iEl = 1, myDGsem % mesh % nElems
+   DO iEl = 1, myDGsem % mesh % nElems
 
-       CALL myDGSEM % CoarseToFine( iEl, x, y, depth, u, v, eta, vorticity )
-        WRITE(zoneID,'(I5.5)') iEl
-        WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nPlot+1,', J=', nPlot+1,',F=POINT'
+      CALL myDGSEM % CoarseToFine( iEl, x, y, depth, u, v, eta, vorticity )
+      WRITE(zoneID,'(I5.5)') iEl
+      WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nPlot+1,', J=', nPlot+1,',F=POINT'
 
-        DO iP = 0, nPlot
-           DO iS = 0, nPlot
-              WRITE (fUnit,*)  x( iS, iP ), y( iS, iP ), depth(iS,iP), &
-                               u(iS,iP)/eta(iS,iP), v(iS,iP)/eta(iS,iP), eta(iS,iP)-depth(iS,iP), &
-           ENDDO
-        ENDDO
+      DO iP = 0, nPlot
+         DO iS = 0, nPlot
+            WRITE (fUnit,*) x( iS, iP ), y( iS, iP ), depth(iS,iP), &
+                            u(iS,iP)/eta(iS,iP), v(iS,iP)/eta(iS,iP), eta(iS,iP)-depth(iS,iP)
+         ENDDO
+      ENDDO
         
-    ENDDO
+   ENDDO
 
     CLOSE(UNIT=fUnit)
 
