@@ -1,6 +1,5 @@
-\BOOKMARK [0][-]{section*.1}{Contents}{}% 1
-\BOOKMARK [0][-]{chapter.1}{Overview and Motivation}{}% 2
-\BOOKMARK [0][-]{chapter.2}{QuickStart}{}% 3
-\BOOKMARK [0][-]{chapter.3}{The DGSEM\137ShallowWater Class}{}% 4
-\BOOKMARK [1][-]{section.3.1}{The Data Structure}{chapter.3}% 5
-\BOOKMARK [1][-]{section.3.2}{Routines}{chapter.3}% 6
+\BOOKMARK [0][-]{section*.1}{Contents}{}
+\BOOKMARK [0][-]{chapter.1}{Equations and Discretization}{}
+\BOOKMARK [1][-]{section.1.1}{Flavors of the Shallow Water Equations}{chapter.1}
+\BOOKMARK [1][-]{section.1.2}{Nodal Discontinuous Galerkin Discretization}{chapter.1}
+\BOOKMARK [0][-]{section*.3}{Bibliography}{}

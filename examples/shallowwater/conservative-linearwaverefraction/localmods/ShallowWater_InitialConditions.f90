@@ -45,7 +45,6 @@ USE ConservativeShallowWaterClass
    INTEGER    :: iS, iP, iEl, nS, nP, nEl
    REAL(prec) :: x, y, xs, ys
    REAL(prec) :: h(0:myDGSEM % nS,0:myDGSEM % nP,1:3)
-   REAL(prec) :: hfilt(0:myDGSEM % nS,0:myDGSEM % nP)
    
       xs = myDGSEM % params % xScale
       ys = myDGSEM % params % yScale
@@ -64,9 +63,7 @@ USE ConservativeShallowWaterClass
                
             ENDDO
          ENDDO
-       !  hfilt = myDGSEM % filter % ApplyFilter( h(:,:,1) ) 
-       !  h(:,:,1) = hfilt
-
+         
          CALL myDGSEM % SetBathymetry( iEl, h )
          CALL myDGSEM % CalculateBathymetryAtBoundaries( iEl )
          
@@ -107,7 +104,7 @@ USE ConservativeShallowWaterClass
                f(iS,iP) = f0         
                ! Setting the dipole free surface height
            
-               sol(iS,iP,3) = h(1)! + 0.4_prec*exp(-( (x-0.75_prec*xs)**2 + (y-HALF*ys)**2 )/((0.05_prec*xs)**2) ) 
+               sol(iS,iP,3) = h(1) + 0.4_prec*exp(-( (x-0.75_prec*xs)**2 + (y-HALF*ys)**2 )/((0.05_prec*xs)**2) ) 
                
             ENDDO
          ENDDO

@@ -4,8 +4,8 @@ ModelFormulation = 'Conservative',
 &TIME_MANAGEMENT
 dt = 1.0,
 iterInit = 0,
-nTimeSteps = 1,
-dumpFreq = 1,
+nTimeSteps = 1500,
+dumpFreq = 10,
 /
 &SPACE_MANAGEMENT
 polyDeg = 12,

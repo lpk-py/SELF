@@ -183,15 +183,9 @@ RollOffFilter1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Co
                           Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter1D_Class.f90 -o $@
 
-
-ModalCutoffFilter2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
-                              Legendre.o Lagrange_2D_Class.o NodalStorage_2D_Class.o
-	${FC} ${OPT} -c ${SRCDIR}filters/ModalCutoffFilter2D_Class.f90 -o $@
-
-
 ModalCutoffFilter3D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
                               Legendre.o Lagrange_3D_Class.o NodalStorage_3D_Class.o
-	${FC} ${OPT} -c ${SRCDIR}filters/ModalCutoffFilter3D_Class.f90 -o $@
+	${FC} ${OPT} -c ${SRCDIR}filters/ModalCutoffFilter1D_Class.f90 -o $@
 
 RollOffFilter3D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
                           Legendre.o Lagrange_3D_Class.o NodalStorage_3D_Class.o

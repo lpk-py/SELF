@@ -21,8 +21,6 @@ USE Lagrange_2D_Class
 ! src/nodal/
 USE NodalStorage_2D_Class
 USE DGSEMSolutionStorageClass_2D
-! src/filters/
-!USE ModalCutoffFilter2D_Class
 ! src/geometry/
 USE EdgeClass
 USE QuadElementClass  
@@ -62,7 +60,6 @@ IMPLICIT NONE
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: relax(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: bathymetry(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: vorticity(:)
-     ! TYPE( ModalCutoffFilter2D )           :: filter
       TYPE( SWParams )                      :: params
       REAL(prec), ALLOCATABLE               :: plMatS(:,:), plMatP(:,:)
 
@@ -157,7 +154,7 @@ IMPLICIT NONE
    INTEGER, INTENT(in), OPTIONAL      :: forceNoPickup
    !LOCAL
    INTEGER :: iEl, globElID, pID2, nS, nP, nPlot
-   INTEGER :: M
+   INTEGER :: rStartRel, rEndRel
    CHARACTER(10) :: pickupIterChar
    CHARACTER(40) :: meshFile
    REAL(prec), ALLOCATABLE :: h(:,:,:), sNew(:)
@@ -179,9 +176,7 @@ IMPLICIT NONE
       h(:,:,2) = ZERO ! dhdx
       h(:,:,3) = ZERO ! dhdy
       CALL myDGSEM % dGStorage % Build( nS, nP, GAUSS, DG )
-
-     ! M = (2*nS+1)/3 ! Set the modal cuttoff for the bathymetry so that integration of the quadratic bathymetry
-     ! CALL myDGSEM % filter % Build( myDGSEM % dgStorage, M, M )
+ 
       CALL myDGSEM % BuildQuadMesh( )
       
       ! Set up the solution, relaxation fields, bathymetry, and vorticity
@@ -254,7 +249,6 @@ IMPLICIT NONE
 
      CALL myDGSEM % dGStorage % Trash( )
      CALL myDGSEM % mesh % Trash( )
-   !  CALL myDGSEM % filter % Trash( )
 
      DEALLOCATE( myDGSEM % sol ) 
      DEALLOCATE( myDGSEM % relax )

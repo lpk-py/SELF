@@ -1,6 +1,7 @@
-\contentsline {chapter}{Contents}{i}
-\contentsline {chapter}{\chapternumberline {1}Overview and Motivation}{1}
-\contentsline {chapter}{\chapternumberline {2}QuickStart}{3}
-\contentsline {chapter}{\chapternumberline {3}The DGSEM\_ShallowWater Class}{7}
-\contentsline {section}{\numberline {3.1}The Data Structure}{7}
-\contentsline {section}{\numberline {3.2}Routines}{7}
+\contentsline {chapter}{Contents}{i}{section*.1}
+\contentsline {chapter}{\chapternumberline {1}Equations and Discretization}{1}{chapter.1}
+\contentsline {section}{\numberline {1.1}Flavors of the Shallow Water Equations}{1}{section.1.1}
+\contentsline {section}{\numberline {1.2}Nodal Discontinuous Galerkin Discretization}{3}{section.1.2}
+\contentsline {subsection}{Algorithm in One-Dimensions}{5}{equation.1.2.11}
+\contentsline {subsection}{Algorithm in Two-Dimensions}{6}{equation.1.2.19}
+\contentsline {chapter}{Bibliography}{9}{section*.3}

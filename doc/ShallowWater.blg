@@ -1,0 +1,50 @@
+This is BibTeX, Version 0.99c (TeX Live 2009/Debian)
+The top-level auxiliary file: ShallowWater.aux
+The style file: plainnat.bst
+Database file #1: hpe-refs.bib
+Warning--string name "jcp" is undefined
+--line 99 of file hpe-refs.bib
+Warning--I didn't find a database entry for "Flad2016"
+Warning--empty journal in Taylor1997
+You've used 3 entries,
+            2773 wiz_defined-function locations,
+            787 strings with 7169 characters,
+and the built_in function-call counts, 1411 in all, are:
+= -- 128
+> -- 70
+< -- 1
++ -- 24
+- -- 21
+* -- 117
+:= -- 221
+add.period$ -- 9
+call.type$ -- 3
+change.case$ -- 16
+chr.to.int$ -- 3
+cite$ -- 7
+duplicate$ -- 62
+empty$ -- 119
+format.name$ -- 24
+if$ -- 285
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 3
+newline$ -- 23
+num.names$ -- 12
+pop$ -- 29
+preamble$ -- 1
+purify$ -- 13
+quote$ -- 0
+skip$ -- 44
+stack$ -- 0
+substring$ -- 78
+swap$ -- 2
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 33
+warning$ -- 1
+while$ -- 15
+width$ -- 0
+write$ -- 45
+(There were 3 warnings)

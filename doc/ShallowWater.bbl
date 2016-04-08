@@ -1,0 +1,29 @@
+\begin{thebibliography}{3}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Iskandarani et~al.(1995)Iskandarani, Haidvogel, and
+  Boyd]{Iskandarani1995}
+M.~Iskandarani, D.B. Haidvogel, and J.P. Boyd.
+\newblock A staggered spectral element model with application to the oceanic
+  shallow water equations.
+\newblock \emph{International Journal For Numerical Methods in Fluids},
+  20:\penalty0 393--414, 1995.
+
+\bibitem[Kopriva(2006)]{Kopriva2006}
+D.A. Kopriva.
+\newblock Metric identities and the discontinuous galerkin spectral element
+  method on curvilinear meshes.
+\newblock \emph{Journal of Scientific Computing}, 26-3:\penalty0 301--327,
+  2006.
+
+\bibitem[Taylor et~al.(1997)Taylor, Tribbia, and Iskandarani]{Taylor1997}
+M.~Taylor, J.~Tribbia, and M.~Iskandarani.
+\newblock The spectral element method for the shallow water equations on the
+  sphere.
+\newblock 130:\penalty0 92--108, 1997.
+
+\end{thebibliography}
