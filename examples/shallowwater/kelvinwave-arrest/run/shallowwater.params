@@ -1,0 +1,35 @@
+&MODEL_FORM
+ModelFormulation = 'Conservative',
+nCutoff = 8,
+/
+&TIME_MANAGEMENT
+dt = 0.01,
+iterInit = 1000,
+nTimeSteps = 4000
+dumpFreq = 500,
+/
+&SPACE_MANAGEMENT
+SpecMeshFile = 'box.mesh',
+polyDeg = 10,
+nXElem = 20,
+nYElem = 20,
+nPlot = 20,
+xScale = 4000.0,
+yScale = 4000.0,
+/
+&PHYSICAL_PARAMETERS
+g = 1.0,
+f0 = 1.0E-4,
+betaX = 0.0,
+betaY = 0.0,
+linearDrag = 0.0,
+/
+&DIPOLE_PARAMETERS
+eta0 = 0.0002,
+x0 = 1000.0,
+y0 = 2000.0,
+y1 = 1850.0,
+L  = 100.0,
+h0 = 1.0,
+tScale = 0.0,
+/

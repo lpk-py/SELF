@@ -1,0 +1,26 @@
+&MODEL_FORM
+/
+&TIME_MANAGEMENT
+dt = 1.0,
+iterInit = 0,
+nTimeSteps = 1500,
+dumpFreq = 10,
+/
+&SPACE_MANAGEMENT
+polyDeg = 20,
+nXElem = 2,
+nYElem = 2,
+nPlot = 30,
+xScale = 1.0,
+yScale = 1.0,
+/
+&PHYSICAL_PARAMETERS
+g = 1.0,
+f0 = 0.0000,
+betaX = 0.0,
+betaY = 0.0,
+linearDrag = 0.0,
+/
+&DIPOLE_PARAMETERS
+
+/

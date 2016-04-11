@@ -72,7 +72,7 @@
 \pagestyle{myheadings}
 
 \chapter{Equations and Discretization}
-The inviscid shallow water equations are a system of coupled partial differential equations that is hyperbolic. The Nodal Discontinuous Galerkin Spectral Element Method (NDGSEM) is well suited for hyperbolic systems. It is highly accurate through its use of arbitrarily high order piecewise polynomial representation and exhibits minimal numerical dispersion and dissipation errors. It additionally allows for a flexible treatment of the geometry through the use of a structured or unstructured arrangement of \textit{spectral elements} that can represent boundaries through high order polynomial interpolants. The discretization yields dense and local matrix-vector multiplies for computing derivatives and only requires nearest neighbor communication to calculate exchanges between elements. This last property makes the NDGSEM trivial to parallelize. For these reasons, the NDGSEM is applied to the shallow water equation systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear} to demonstrate its accuracy and scalability for a system of equations that hold many of the important dynamics in geophysics. 
+The inviscid shallow water equations are a system of coupled partial differential equations that is hyperbolic. The Nodal Discontinuous Galerkin Spectral Element Method (NDGSEM) is well suited for hyperbolic systems. It is highly accurate through its use of arbitrarily high order piecewise polynomial representation of the approximated solution and geometry. It is well known for exhibiting minimal numerical dispersion and dissipation errors. It additionally allows for a flexible treatment of the geometry through the use of a structured or unstructured arrangement of \textit{spectral elements} that can represent boundaries through high order polynomial interpolants. The discretization yields dense and local matrix-vector multiplies for computing derivatives and only requires nearest neighbor communication to calculate exchanges between elements. This last property makes the NDGSEM trivial to parallelize. For these reasons, the NDGSEM is applied to the shallow water equation systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear} to demonstrate its accuracy and scalability for a system of equations that hold many of the important dynamics in geophysics. 
 
 \section{Flavors of the Shallow Water Equations}
 The shallow water equations can be written in either ``conservative'' (Eqs. \ref{eq:conservative}) or ``skew-symmetric'' (Eqs. \ref{eq:skewsymmetric}) form :
@@ -112,7 +112,7 @@ The linear shallow water equations \eqref{eq:linear} are given as
 \begin{align}
 u_t  + \nabla \cdot \left( p\hat{x} \right) - fv &=  q_u\\
 v_t  + \nabla \cdot \left( p\hat{y} \right) + fu &=  q_v\\
-p_t + \nabla \cdot ( g\vec{u} ) &= q_p
+p_t + \nabla \cdot ( gh\vec{u} ) &= q_p
 \end{align}\label{eq:linear}
 \end{subequations}
 
@@ -123,15 +123,49 @@ Any flavor of the shallow water equations arise from a conservation law, and as 
 The solution vector is represented by $\vec{s}$, $\vec{f}$ is a conservative flux tensor, and $\vec{q}$ is a vector of non-conservative source terms. The derivation of the discrete equations is presented through a discretization of \eqref{eq:conservationlaw}. 
 
 \section{Nodal Discontinuous Galerkin Discretization}
+The NDGSEM discretizes \eqref{eq:conservationlaw} in its weak form. The physical space over which \eqref{eq:conservationlaw} is solved is denoted by $\Omega$. Solutions to \eqref{eq:conservationlaw} are real functions that are piecewise continuous on $\Omega$. This space of functions is denoted $\mathbb{C}_0(\Omega)$, and is defined mathematically
+\begin{equation}
+\mathbb{C}_0(\Omega) \equiv \left\lbrace \phi(\vec{x}) \in \mathbb{R} : \int_{\Omega} \phi^2 d\Omega < \infty \right\rbrace,
+\end{equation}
+\textit{`` the set of all functions $\phi$ that are square integrable over the physical space $\Omega$ ''}.
+
+$\mathbb{C}_0(\Omega)$ has an inner product associated with it, defined by
+\begin{equation}
+(u,v) = \int_{\Omega} uv \hspace{1mm} d\Omega. \label{eq:innerproduct}
+\end{equation}
+From the definition of the inner product, the \textit{induced norm} of a function that is in the span of $\mathbb{C}_0(\Omega)$ is defined as
+\begin{equation}
+||u|| = \sqrt{(u,u)}.\label{eq:norm}
+\end{equation}
+Similar to vectors, the inner-product \eqref{eq:innerproduct} is a measure of the ``common information'' between $u$ and $v$. Two functions are said to be \textit{orthogonal} if
+\begin{equation}
+(u,v) = 0. \label{eq:orthogonality}
+\end{equation}
+
+Any piecewise continuous function can be represented as a linear combination of a \textit{basis functions} that span $\mathbb{C}_0(\Omega)$. The weak form of \eqref{eq:conservationlaw} is obtained by taking the inner product of \eqref{eq:conservationlaw} with each basis function of $\mathbb{C}_0(\Omega)$,  
+\begin{equation}
+(\vec{s}_t,\phi) + (\nabla \cdot \vec{f}, \phi) = (\vec{s},\phi), \hspace{3mm} \forall \phi \in \mathbb{C}_0(\Omega) \label{eq:step1}
+\end{equation}
+In Eqs. \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}, the conservative flux depends on the solution. In \eqref{eq:step1}, the divergence of the flux  requires that the solution is at least once differentiable. This constraint is relaxed in the weak form by performing integration by parts, which moves the differentiability criteria onto the \textit{test function} ($\phi$). Performing integrations by parts gives
+\begin{equation}
+(\vec{s}_t,\phi) + \oint_{\partial \Omega}\phi \vec{f} \cdot \hat{n} \hspace{1mm} dS - ( \vec{f},\nabla \phi) = (\vec{s},\phi), \hspace{3mm} \forall \phi \in \mathbb{C}_0(\Omega) \label{eq:weakform}
+\end{equation}
 
 
-The NDGSEM discretizes \eqref{eq:conservationlaw} in its weak form. To obtain the weak form, \eqref{eq:conservationlaw} is weighted with a test function and integrated over the physical domain, call it $\Omega$. To approximate the integrals in the weak form, the domain is first divided into non-overlapping elements  ($\Omega^\kappa$) . Integration is performed over each element and the solution and test function are permitted to be piecewise discontinuous across elements. These assumptions lead to the statement
+ To develop a discrete set of equations, all of $\mathbb{C}_0(\Omega)$ is approximated by piecewise continuous polynomials of degree $N$, a space we denote $\mathbb{P}^N_D$. The solution, conservative flux, and the non-conservative source term are approximated by a linear combination of a suitable basis for $\mathbb{P}^N$. Since the solution is piecewise continuous, the domain $\Omega$, is decomposed into a set of non-overlapping elements $\Omega_l$. The integration is  broken into integration over each of the elements,
   \begin{equation}
-  \int_{\Omega^\kappa} (\vec{s}_t + \vec{q} )\phi \hspace{1mm} d\Omega^\kappa  - \int_{\Omega^\kappa} \vec{f} \cdot \nabla \phi \hspace{1mm} d\Omega^\kappa + \oint_{\partial \Omega^\kappa} \phi \vec{f}\cdot \hat{n} \hspace{1mm} d A^\kappa = 0, \hspace{3mm} \forall \phi \in \mathbb{C}_0(\Omega_\kappa), \hspace{2mm} \kappa=1,2,...,K \label{eq:weakForm}
+ \sum_{l=0}^{nEl} \left\lbrace \int_{\Omega_l} (\vec{s}_t + \vec{q} )\phi_l \hspace{1mm} d\Omega_l  - \int_{\Omega_l} \vec{f} \cdot \nabla \phi_l \hspace{1mm} d\Omega_l + \oint_{\partial \Omega^\kappa} \phi_l \vec{f}\cdot \hat{n} \hspace{1mm} d A_l = 0 \right\rbrace, \hspace{3mm} \forall \phi_l \in \mathbb{P}^n. \label{eq:weak-decomp}
   \end{equation}
-where $\mathbb{C}_0(\Omega^\kappa)$ is the space of functions that are continuous over $\Omega^\kappa$.
 
-Equation \eqref{eq:weakForm} assumes that the integration over each element is independent; this \textit{compactness} results from allowing piecewise discontinuous solutions. The third term in \eqref{eq:weakForm} is the integral of the conservative flux over the element boundary. This is the only term that involves communication with other elements. For hyperbolic problems, this communication is only between \textit{neighboring elements} which share a common node (1-D), edge (2-D), or face (3-D).
+In the \textit{Discontinuous} Galerkin approximation, the $\phi_l$ are identically zero outside of the $l^{th}$ element, so that the contributions from each element are decoupled (except for the element boundary integration). This feature of DG is called \textit{compact support}. Again, the solution, flux, and source are approximated by a polynomial of degree $N$. We choose to write each term as a linear combination of polynomial basis function; here the Lagrange interpolating polynomials are used,
+\begin{subequations}
+    \begin{align}
+    \vec{s} &\approx I^N[\vec{s}] = \vec{S} =  \sum_{i,j=0}^N \vec{S}_{i,j} l_i(\xi^1) l_j(\xi^2) \\
+    \vec{q} &\approx I^N[\vec{q}]= \vec{Q} = \sum_{i,j=0}^N \vec{Q})_{i,j} l_i(\xi^1) l_j(\xi^2) \\
+    \vec{f} &\approx I^N[\vec{f}] =\vec{F}= \sum_{i,j=0}^N \vec{F}_{i,j} l_i(\xi^1) l_j(\xi^2)
+    \end{align}
+ \end{subequations}
+
 
   The formulation presented in \eqref{eq:weakForm} only requires that we know the geometry of each element and the connectivity of a collection of elements. This allows for the use of either structured or unstructured mesh frameworks. Additionally, the elements which comprise the mesh can have curvilinear geometry. Define the mapping from physical space $\vec{x}$ to computational space $\vec{\xi}$ using
   \begin{equation}
@@ -152,14 +186,7 @@ Equation \eqref{eq:weakForm} assumes that the integration over each element is i
     \vec{x} &\approx I^N( \vec{x} ) = \sum_{i,j,k=0}^N \vec{X}_{i,j,k} l_i(\xi^1) l_j(\xi^2) l_k(\xi^3)
     \end{align}
  \end{subequations}
-An additional simplification is to approximate the product of interpolants by an interpolant of degree $N$ which incurs an additional aliasing error.
-\begin{subequations}
-    \begin{align}
-    \tilde{s} &\approx I^N(I^N(J) I^N(\vec{s})) = \tilde{S} =  \sum_{i,j,k=0}^N (J \vec{S}_{i,j,k}) l_i(\xi^1) l_j(\xi^2) l_k(\xi^3) \\
-    \tilde{q} &\approx I^N(I^N(J) I^N(\vec{q}))= \tilde{Q} = \sum_{i,j,k=0}^N (J \vec{Q})_{i,j,k} l_i(\xi^1) l_j(\xi^2) l_k(\xi^3) \\
-    \tilde{f}_{(i,n)} &\approx I^N(I^N(Ja^i_{(n)})I^N(\vec{f}) ) =\tilde{F}_{(i,n)}= \sum_{i,j,k=0}^N (Ja^i_{(n)}\vec{F}_{(n)})_{i,j,k} l_i(\xi^1) l_j(\xi^2) l_k(\xi^3) 
-    \end{align}
- \end{subequations}
+
  
 Last, the space of test functions ($\mathbb{C}_0$) is approximated by the $\mathbb{P}^N$, the space of polynomials of degree $N$. Thus, the test function $\phi$ is replaced by each of the Lagrange interpolating polynomials, 
  \begin{equation}
@@ -170,47 +197,8 @@ Last, the space of test functions ($\mathbb{C}_0$) is approximated by the $\math
   \int_{\Omega^\xi} (\tilde{S}^\kappa_t + \tilde{Q}^\kappa) \phi_{m,n,p}  \hspace{1mm} d\Omega^\xi  - \int_{\Omega^\xi} \tilde{F}^\kappa \cdot \nabla_{\vec{\xi}} \phi_{m,n,p}   \hspace{1mm} d\Omega^\xi + \oint_{\partial \Omega^\xi} \phi_{m,n,p}  \tilde{F}^{\kappa,*}  \cdot \hat{n}^\xi \hspace{1mm} d A^\xi = 0, \hspace{2mm} m,n,p=0,1,...,N  \label{eq:approx_mappedWeakForm}
   \end{equation}
   
-The final step is to replace the integrals in \eqref{eq:approx_mappedWeakForm} with discrete quadrature. For this we use the Legendre-Gauss quadrature, which yields exact integration for each term in \eqref{eq:approx_mappedWeakForm}. Additionally, the interpolation nodes are specified as the Legendre-Gauss nodes, which simplifies the integration. The algorithm is now presented in one, two, and three dimesnions.
+The final step is to replace the integrals in \eqref{eq:approx_mappedWeakForm} with discrete quadrature. For this we use the Legendre-Gauss quadrature, which yields exact integration for each term in \eqref{eq:approx_mappedWeakForm}. Additionally, the interpolation nodes are specified as the Legendre-Gauss nodes, which simplifies the integration.
 
-\subsection{Algorithm in One-Dimensions}\label{sec:DGSEM_1D}
-In one-dimension, the global physical domain is partitioned into a set of line segments. The first term in \eqref{eq:approx_mappedWeakForm} becomes
-\begin{equation}
-\int_{\Omega^\xi} \tilde{S}^\kappa_t \phi_{m}  \hspace{1mm} d\Omega^\xi = \sum_{\alpha=0}^N\left[ \sum_{i=0}^N\left( (\tilde{S}^\kappa_{i})_tl_i(\xi_\alpha) \right)  l_m(\xi_\alpha) \omega_\alpha\right] \label{eq:discreteMass}
-\end{equation}
-where the $\xi_\alpha$ are the Legendre-Gauss nodes and the $\omega_m$ are the Legendre-Gauss weights. Since the interpolation nodes are equivalent to the quadrature nodes, \eqref{eq:discreteMass} is greatly simplified by the use of the Kronecker-delta property of Lagrange interpolating polynomials,
-\begin{equation}
-l_i(\xi_m) = \delta_{i,m}.
-\end{equation}
-This yields \eqref{eq:discreteMass} as
-\begin{equation}
-\int_{\Omega^\xi} \tilde{S}^\kappa_t \phi_{\alpha}  \hspace{1mm} d\Omega^\xi = (\tilde{S}^\kappa_{\alpha})_t \omega_\alpha.
-\end{equation}
-Similarly,
-\begin{equation}
-\int_{\Omega^\xi} \tilde{Q}^\kappa \phi_{\alpha}  \hspace{1mm} d\Omega^\xi = \tilde{Q}^\kappa_{\alpha} \omega_\alpha.
-\end{equation}
-The third term in \eqref{eq:approx_mappedWeakForm} becomes
-\begin{equation}
-\int_{\Omega^\xi} \tilde{F}^\kappa \cdot \nabla_{\vec{\xi}} \phi_{m}   \hspace{1mm} d\Omega^\xi = \sum_{i=0}^N  \tilde{F}^\kappa_i l'_m(\xi_i) \omega_i.
-\end{equation}
-Lastly, the boundary flux becomes
-\begin{equation}
-\oint_{\partial \Omega^\xi} \phi_{\alpha}  \tilde{F}^{\kappa,*}  \cdot \hat{n}^\xi \hspace{1mm} d A^\xi = \tilde{F}^{\kappa,*}(1)l_\alpha(1) - \tilde{F}^{\kappa,*}(-1)l_\alpha(-1). 
-\end{equation}
-Thus, the spatially discretized system can be written
-\begin{equation}
- \left( J_{m} \vec{S}_{m} \right)_t =  -\left[\sum_{i=0}^{N}\hat{D}_{m,i} \tilde{F}_{i}   + \left( \frac{ l_m(1)}{w_m} \tilde{F}^{*}(1) - \frac{ l_m(-1)}{w_m} \tilde{F}^{*}(-1) \right) \right] + J_{m}\vec{Q}_{m}; \hspace{5mm} m=0,1,...,N, \label{eq:discrete1d_system} 
-\end{equation}
-where
-\begin{equation}
- \hat{D}_{m,i} = -\frac{l'_m(\xi_i)w_i}{w^{\xi^1}_m}
-\end{equation}
-is the DG-Derivative matrix. 
-
-Up to this point, the treatment of the boundary flux has been relatively vague. In practice, the boundary flux is calculated using an approximate Riemman solver. This uses the solution state from the neighboring elements to approximate the flux across the shared boundary. The specification of the Riemman solver depends on the PDE system. Because of this, a discussion of the boundary flux is delayed until specific PDE systems are discussed.
-
-
-\subsection{Algorithm in Two-Dimensions}\label{sec:DGSEM_2D}
 
  \begin{equation}
  \begin{split}
@@ -220,9 +208,46 @@ Up to this point, the treatment of the boundary flux has been relatively vague. 
 \end{split} \label{eq:discrete2d_system} 
  \end{equation}
 
- Computing the divergence of the conservative flux in this framework can be viewed as calculating a sequence of derivatives in each computational direction. Two steps are required to compute the derivative in each direction. The first is an internal matrix-vector multiply, and the second is computing the weighted Riemann fluxes at the element boundaries. The latter is the only step which requires element-to-element communication.
+ Computing the divergence of the conservative flux in this framework can be viewed as calculating a sequence of derivatives in each computational direction. Two steps are required to compute the derivative in each direction. The first is an internal matrix-vector multiply, and the second is computing the weighted Riemann fluxes at the element boundaries. The latter is the only step which requires element-to-element communication. The approximate fluxes are presented for the systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}.
 
+\subsection{Riemman Fluxes}
+
+
+\subsection{Comparison with other SEM-Shallow Water Models}
 The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with a curvilinear mesh. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost; since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
+
+
+%\chapter{Testing the Linear Form}
+%The linear shallow water equations without planetary rotation support gravity waves. Constant planetary rotation can lead to inertia-gravity waves. Near a no-normal flow boundary, Kelvin waves can arise that travel at the gravity wave speed and have an ``offshore'' decay scale equivalent to the \textit{deformation radius}. By introducing variable bathymetry with planetary rotation, topographic waves can arise that propagate due to the conservation of potential vorticity. A similar wave, known as a Rossby wave, can propagate due to variation of the coriolis parameter. In the following sections, the behavior of each of these waves is detailed and numerical solutions are presented in the form of refinement studies. It will be shown that the NDGSEM solution converges spectrally under p-refinement, consistent with the error analysis theory for a spectral method. Additionally, it will be shown that the NDGSEM produces the appropriate wave speeds and with minimal dissipation.
+
+
+%\section{Gravity Waves}
+%\subsection{Plane Wave Propagation}
+%\subsection{Double Slit Experiment}
+
+%\section{Geostrophic Adjustment}
+
+%\section{Kelvin Wave Propagation}
+
+%\section{Rossby Wave Propagation}
+
+\chapter{Testing the Nonlinear Conservative Form}
+
+%\chapter{Testing the Nonlinear Skew-Symmetric Form}
+
+
+\clearpage
+
+\appendix
+
+\chapter{Spectral Element Primer}
+
+\section{Vector Spaces}
+
+
+\section{Spectral Approximations and Error Analysis}
+
+\chapter{Differential Geometry}
 
 \pagebreak
 
