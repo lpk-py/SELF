@@ -141,6 +141,10 @@ RollOffFilter1D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Co
                           Legendre.o Lagrange_1D_Class.o NodalStorage_1D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter1D_Class.f90 -o $@
 
+RollOffFilter2D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                          Legendre.o Lagrange_2D_Class.o NodalStorage_2D_Class.o
+	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter2D_Class.f90 -o $@
+
 RollOffFilter3D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
                           Legendre.o Lagrange_3D_Class.o NodalStorage_3D_Class.o
 	${FC} ${OPT} -c ${SRCDIR}filters/RollOffFilter3D_Class.f90 -o $@
@@ -149,9 +153,26 @@ RollOffFilter3D_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Co
 TestFilter_1D.o : ModelPrecision.o ModelFlags.o NodalStorage_1D_Class.o RollOffFilter1D_Class.o 
 	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_1D.f90 -o $@
 
+TestFilter_2D.o : ModelPrecision.o ModelFlags.o NodalStorage_2D_Class.o RollOffFilter2D_Class.o 
+	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_2D.f90 -o $@
+
 TestFilter_3D.o : ModelPrecision.o ModelFlags.o NodalStorage_3D_Class.o RollOffFilter3D_Class.o 
 	${FC} ${OPT} -c ${SRCDIR}filters/Testing/TestFilter_3D.f90 -o $@
 
+
+TFOBJS = ModelPrecision.o \
+         ModelFlags.o \
+         ConstantsDictionary.o \
+         CommonRoutines.o \
+         Legendre.o \
+         Lagrange_1D_Class.o \
+         Lagrange_2D_Class.o \
+         NodalStorage_2D_Class.o \
+         RollOffFilter2D_Class.o \
+         TestFilter_2D.o \
+
+tf2d : ${TFOBJS}
+	${FC} ${OPT} ${TFOBJS} -o $@
 
 # ---------------------------------------------------------------------- #
 #                            ~/src/dgsem/                                #

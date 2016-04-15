@@ -103,8 +103,8 @@ CONTAINS
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(RollOffFilter2D), INTENT(inout) :: thisFilter
-   TYPE(NodalStorage_2D), INTENT(in)         :: thisStorage
-   INTEGER, INTENT(in)                       :: sCutoff, pCutoff
+   TYPE(NodalStorage_2D), INTENT(in)     :: thisStorage
+   INTEGER, INTENT(in)                   :: sCutoff, pCutoff
    ! Local
    REAL(prec) :: s(0:thisStorage % nS), p(0:thisStorage % nP)
    REAL(prec) :: ws(0:thisStorage % nS), wp(0:thisStorage % nP)
