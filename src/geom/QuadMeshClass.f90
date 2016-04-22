@@ -150,6 +150,8 @@ IMPLICIT NONE
        PROCEDURE :: GetEdgeStart => GetEdgeStart_QuadMesh
        PROCEDURE :: SetEdgeIncrement => SetEdgeIncrement_QuadMesh
        PROCEDURE :: GetEdgeIncrement => GetEdgeIncrement_QuadMesh
+       PROCEDURE :: SetEdgeBoundaryID => SetEdgeBoundaryID_QuadMesh
+       PROCEDURE :: GetEdgeBoundaryID => GetEdgeBoundaryID_QuadMesh
        
        PROCEDURE :: ConstructEdges => ConstructEdges_QuadMesh
        PROCEDURE :: GetNodeToElementConnectivity => GetNodeToElementConnectivity_QuadMesh
@@ -1448,6 +1450,40 @@ SUBROUTINE SetEdgeKey_QuadMesh( myQuadMesh, iEdge, key )
 !
 !
 !
+ SUBROUTINE SetEdgeBoundaryID_QuadMesh( myQuadMesh, iEdge, boundaryID )
+ ! S/R SetEdgeBoundaryID
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( QuadMesh ), INTENT(inout) :: myQuadMesh
+   INTEGER, INTENT(in)              :: iEdge
+   INTEGER, INTENT(in)              :: boundaryID
+
+      CALL myQuadMesh % edges(iEdge) % SetBoundaryID( boundaryID )
+
+ END SUBROUTINE SetEdgeBoundaryID_QuadMesh
+!
+!
+!
+ SUBROUTINE GetEdgeBoundaryID_QuadMesh( myQuadMesh, iEdge, boundaryID )
+ ! S/R GetEdgeBoundaryID
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( QuadMesh ), INTENT(in) :: myQuadMesh
+   INTEGER, INTENT(in)           :: iEdge
+   INTEGER, INTENT(out)          :: boundaryID
+
+      CALL myQuadMesh % edges(iEdge) % GetBoundaryID( boundaryID )
+
+ END SUBROUTINE GetEdgeBoundaryID_QuadMesh
+!
+!
+!
 !==================================================================================================!
 !--------------------------------- Type Specific Routines -----------------------------------------!
 !==================================================================================================!
@@ -2270,6 +2306,11 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
                   
                   sideFlags(iEl,iSide) = InflowTwo
 
+               ELSEIF( TRIM(thisEdge) == 'INFLOW' )then
+                  
+                  sideFlags(iEl,iSide) = INFLOW
+
+
                ENDIF
 
                ! Reset thisEdge
@@ -2376,6 +2417,13 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
             CALL myQuadMesh % GetEdgeNodeIDs( iEdge, n )
             CALL myQuadMesh % SetNodeType( n(1), InflowTwo )
             CALL myQuadMesh % SetNodeType( n(2), InflowTwo )
+
+         ELSEIF( sideFlags(e1,s1) == INFLOW )then
+
+            CALL myQuadMesh % SetEdgeSecondaryElementID( iEdge, INFLOW )
+            CALL myQuadMesh % GetEdgeNodeIDs( iEdge, n )
+            CALL myQuadMesh % SetNodeType( n(1), INFLOW )
+            CALL myQuadMesh % SetNodeType( n(2), INFLOW )
          
          ENDIF
  

@@ -28,6 +28,7 @@ IMPLICIT NONE
    TYPE Edge
    
       INTEGER, PRIVATE      :: key               ! The edge key
+      INTEGER, PRIVATE      :: boundaryID        ! If the edge is part of the mesh boundary, the edge gets assigned a boundary edge ID
       INTEGER, PRIVATE      :: nodeIDs(1:2)      ! Node IDs which start and terminate this edge
       INTEGER, PRIVATE      :: elementIDs(1:2)   ! Neighboring elements IDs across the edge
       INTEGER, PRIVATE      :: elementSides(1:2) ! Local side IDs for the neighboring elements
@@ -61,6 +62,9 @@ IMPLICIT NONE
       PROCEDURE :: GetStart => GetStart_Edge
       PROCEDURE :: SetIncrement => SetIncrement_Edge
       PROCEDURE :: GetIncrement => GetIncrement_Edge
+      PROCEDURE :: SetBoundaryID => SetBoundaryID_Edge
+      PROCEDURE :: GetBoundaryID => GetBoundaryID_Edge
+
 
    END TYPE Edge
 
@@ -612,6 +616,38 @@ SUBROUTINE Build_Edge( myEdge )
       inc = thisEdge % inc
 
  END SUBROUTINE GetIncrement_Edge
+!
+!
+!
+ SUBROUTINE SetBoundaryID_Edge( thisEdge, boundaryID )
+ ! S/R SetBoundaryID
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( Edge ), INTENT(inout) :: thisEdge
+   INTEGER, INTENT(in)          :: boundaryID
+
+      thisEdge % boundaryID = boundaryID
+
+ END SUBROUTINE SetBoundaryID_Edge
+!
+!
+!
+ SUBROUTINE GetBoundaryID_Edge( thisEdge, boundaryID )
+ ! S/R GetBoundaryID
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( Edge ), INTENT(in) :: thisEdge
+   INTEGER, INTENT(out)      :: boundaryID
+
+      boundaryID = thisEdge % boundaryID
+
+ END SUBROUTINE GetBoundaryID_Edge
 !
 !
 !==================================================================================================!

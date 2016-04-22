@@ -1,0 +1,41 @@
+&ModelForm
+ModelFormulation = 'Conservative',
+nCutoff = 8,
+/
+&TimeManagement
+dt = 0.01,
+iterInit = 0,
+nTimeSteps = 1
+dumpFreq = 1,
+/
+&SpaceManagement
+SpecMeshFile = 'box.mesh',
+polyDeg = 10,
+nXElem = 20,
+nYElem = 20,
+nPlot = 20,
+xScale = 1.0D6,
+yScale = 1.0D6,
+/
+&PhysicalParameters
+g = 9.81,
+f0 = 1.0D-4,
+betaX = 0.0,
+betaY = 0.0,
+linearDrag = 0.0,
+/
+&JetParameters
+vMax = 1.0,
+x0 = 5.0D4,
+L  = 1.0D5,
+/
+&SpongeParameters
+Lsponge = 1.0D5,
+rFacMax = 1.0D-4,
+/
+&ShelfParameters
+hMin = 200.0,
+hMax = 3000.0,
+Lshelf = 1.0D5,
+/
+

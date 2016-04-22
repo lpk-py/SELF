@@ -133,7 +133,7 @@ $\mathbb{C}_0(\Omega)$ has an inner product associated with it, defined by
 \begin{equation}
 (u,v) = \int_{\Omega} uv \hspace{1mm} d\Omega. \label{eq:innerproduct}
 \end{equation}
-From the definition of the inner product, the \textit{induced norm} of a function that is in the span of $\mathbb{C}_0(\Omega)$ is defined as
+From the definition of the inner product, the \textit{induced norm} of a function that is in $\mathbb{C}_0(\Omega)$ is defined as
 \begin{equation}
 ||u|| = \sqrt{(u,u)}.\label{eq:norm}
 \end{equation}
@@ -146,55 +146,34 @@ Any piecewise continuous function can be represented as a linear combination of 
 \begin{equation}
 (\vec{s}_t,\phi) + (\nabla \cdot \vec{f}, \phi) = (\vec{s},\phi), \hspace{3mm} \forall \phi \in \mathbb{C}_0(\Omega) \label{eq:step1}
 \end{equation}
-In Eqs. \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}, the conservative flux depends on the solution. In \eqref{eq:step1}, the divergence of the flux  requires that the solution is at least once differentiable. This constraint is relaxed in the weak form by performing integration by parts, which moves the differentiability criteria onto the \textit{test function} ($\phi$). Performing integrations by parts gives
+In Eqs. \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}, the conservative flux depends on the solution. In \eqref{eq:step1}, the divergence of the flux  requires that the solution is at least once differentiable. This differentiability constraint is relaxed in the weak form by performing integration by parts, which moves the differentiability criteria onto the basis function ($\phi$). Performing integrations by parts gives
 \begin{equation}
 (\vec{s}_t,\phi) + \oint_{\partial \Omega}\phi \vec{f} \cdot \hat{n} \hspace{1mm} dS - ( \vec{f},\nabla \phi) = (\vec{s},\phi), \hspace{3mm} \forall \phi \in \mathbb{C}_0(\Omega) \label{eq:weakform}
 \end{equation}
 
 
- To develop a discrete set of equations, all of $\mathbb{C}_0(\Omega)$ is approximated by piecewise continuous polynomials of degree $N$, a space we denote $\mathbb{P}^N_D$. The solution, conservative flux, and the non-conservative source term are approximated by a linear combination of a suitable basis for $\mathbb{P}^N$. Since the solution is piecewise continuous, the domain $\Omega$, is decomposed into a set of non-overlapping elements $\Omega_l$. The integration is  broken into integration over each of the elements,
+ To develop a discrete set of equations, all of $\mathbb{C}_0(\Omega)$ is approximated by piecewise continuous polynomials of degree $N$, a space we denote $\mathbb{P}^N$. The solution, conservative flux, and the non-conservative source term are approximated by a linear combination of a suitable basis for $\mathbb{P}^N$. Since the solution is piecewise continuous, the domain $\Omega$, is decomposed into a set of non-overlapping elements $\Omega_l$. The integration is  broken into integration over each of the elements,
   \begin{equation}
- \sum_{l=0}^{nEl} \left\lbrace \int_{\Omega_l} (\vec{s}_t + \vec{q} )\phi_l \hspace{1mm} d\Omega_l  - \int_{\Omega_l} \vec{f} \cdot \nabla \phi_l \hspace{1mm} d\Omega_l + \oint_{\partial \Omega^\kappa} \phi_l \vec{f}\cdot \hat{n} \hspace{1mm} d A_l = 0 \right\rbrace, \hspace{3mm} \forall \phi_l \in \mathbb{P}^n. \label{eq:weak-decomp}
+ \sum_{\kappa=0}^{nEl} \left\lbrace \int_{\Omega_\kappa} (\vec{s}_t + \vec{q} )\phi_\kappa \hspace{1mm} d\Omega_\kappa  - \int_{\Omega_l} \vec{f} \cdot \nabla \phi_\kappa \hspace{1mm} d\Omega_\kappa + \oint_{\partial \Omega^\kappa} \phi_\kappa \vec{f}\cdot \hat{n} \hspace{1mm} d A_\kappa = 0 \right\rbrace, \hspace{3mm} \forall \phi_\kappa \in \mathbb{P}^n. \label{eq:weak-decomp}
   \end{equation}
 
 In the \textit{Discontinuous} Galerkin approximation, the $\phi_l$ are identically zero outside of the $l^{th}$ element, so that the contributions from each element are decoupled (except for the element boundary integration). This feature of DG is called \textit{compact support}. Again, the solution, flux, and source are approximated by a polynomial of degree $N$. We choose to write each term as a linear combination of polynomial basis function; here the Lagrange interpolating polynomials are used,
 \begin{subequations}
     \begin{align}
     \vec{s} &\approx I^N[\vec{s}] = \vec{S} =  \sum_{i,j=0}^N \vec{S}_{i,j} l_i(\xi^1) l_j(\xi^2) \\
-    \vec{q} &\approx I^N[\vec{q}]= \vec{Q} = \sum_{i,j=0}^N \vec{Q})_{i,j} l_i(\xi^1) l_j(\xi^2) \\
+    \vec{q} &\approx I^N[\vec{q}]= \vec{Q} = \sum_{i,j=0}^N \vec{Q}_{i,j} l_i(\xi^1) l_j(\xi^2) \\
     \vec{f} &\approx I^N[\vec{f}] =\vec{F}= \sum_{i,j=0}^N \vec{F}_{i,j} l_i(\xi^1) l_j(\xi^2)
     \end{align}
  \end{subequations}
 
 
-  The formulation presented in \eqref{eq:weakForm} only requires that we know the geometry of each element and the connectivity of a collection of elements. This allows for the use of either structured or unstructured mesh frameworks. Additionally, the elements which comprise the mesh can have curvilinear geometry. Define the mapping from physical space $\vec{x}$ to computational space $\vec{\xi}$ using
-  \begin{equation}
-  \vec{x} = \vec{x}(\vec{\xi}).\label{eq:mapping}
-  \end{equation}
-  Section \ref{sec:GeometryTheory} provides the details on the metric terms that are introduced along with the form of the divergence, gradient, and curl under such a mapping. For simplicity, the computational domain is formed from tensor products of intervals $[-1, 1]$ in each coordinate direction. This criteria restricts the elements to be logically segments (1-D), quadrilaterals (2-D), or hexahedrons (3-D). Under the mapping \eqref{eq:mapping}, the weak form \eqref{eq:weakForm} becomes
-  \begin{equation}
-  \int_{\Omega^\xi} (\tilde{s}^\kappa_t + \tilde{q}^\kappa) \phi \hspace{1mm} d\Omega^\xi  - \int_{\Omega^\xi} \tilde{f}^\kappa \cdot \nabla_{\vec{\xi}} \phi  \hspace{1mm} d\Omega^\xi + \oint_{\partial \Omega^\xi} \phi \tilde{f}^{\kappa,*}  \cdot \hat{n}^\xi \hspace{1mm} d A^\xi = 0, \hspace{2mm} \forall \phi \in \mathbb{C}^0(\Omega^\xi) \label{eq:mappedWeakForm}
-  \end{equation}
-  where $\tilde{s} = J^\kappa\vec{s}$, $\tilde{q} = J^\kappa\vec{q}$, $\tilde{f} = ( J^\kappa \vec{a}^{\kappa,i} \cdot \vec{f} ) \hat{a}^{\kappa,i}$, $J^{\kappa}$ is the Jacobian of the transformation over the $\kappa^{th}$ element, and $\vec{a}^{\kappa,i}$ are the contravariant basis vectors associated with the transformation of element $\kappa$ (the $\hat{a}$ denotes a unit vector).\\
-  
- Given a conservative flux, a non-conservative source, internal element metrics, and global element connectivity, the discrete algorithm solves \eqref{eq:mappedWeakForm} by approximating the integrands with interpolants and the integrals by discrete quadratures. First, the prognostic solution, source term, conservative flux, and mapping are approximated by Lagrange interpolants of degree N.
- \begin{subequations}
-    \begin{align}
-    \vec{s} &\approx I^N(\vec{s}) = \sum_{i,j,k=0}^N \vec{S}_{i,j,k} l_i(\xi^1) l_j(\xi^2) l_k(\xi^3) \\
-    \vec{q} &\approx I^N(\vec{q}) = \sum_{i,j,k=0}^N \vec{Q}_{i,j,k} l_i(\xi^1) l_j(\xi^2) l_k(\xi^3) \\
-    \vec{f} &\approx I^N(\vec{f}) = \sum_{i,j,k=0}^N \vec{F}_{i,j,k} l_i(\xi^1) l_j(\xi^2) l_k(\xi^3) \\
-    \vec{x} &\approx I^N( \vec{x} ) = \sum_{i,j,k=0}^N \vec{X}_{i,j,k} l_i(\xi^1) l_j(\xi^2) l_k(\xi^3)
-    \end{align}
- \end{subequations}
-
- 
-Last, the space of test functions ($\mathbb{C}_0$) is approximated by the $\mathbb{P}^N$, the space of polynomials of degree $N$. Thus, the test function $\phi$ is replaced by each of the Lagrange interpolating polynomials, 
+The basis functions for $\mathbb{P}^N$ are chosen as each of the Lagrange interpolating polynomials, 
  \begin{equation}
- \phi_{m,n,p} = l_m(\xi^1) l_n(\xi^2) l_p(\xi^3)
+ \phi_{m,n} = l_m(\xi^1) l_n(\xi^2)
  \end{equation}
- With this, equation \eqref{eq:mappedWeakForm} becomes
+ With this, equation \eqref{eq:weak-decomp} becomes
    \begin{equation}
-  \int_{\Omega^\xi} (\tilde{S}^\kappa_t + \tilde{Q}^\kappa) \phi_{m,n,p}  \hspace{1mm} d\Omega^\xi  - \int_{\Omega^\xi} \tilde{F}^\kappa \cdot \nabla_{\vec{\xi}} \phi_{m,n,p}   \hspace{1mm} d\Omega^\xi + \oint_{\partial \Omega^\xi} \phi_{m,n,p}  \tilde{F}^{\kappa,*}  \cdot \hat{n}^\xi \hspace{1mm} d A^\xi = 0, \hspace{2mm} m,n,p=0,1,...,N  \label{eq:approx_mappedWeakForm}
+  \int_{\Omega^\xi} (\vec{S}^\kappa_t + \vec{Q}^\kappa) \phi_{m,n}  \hspace{1mm} d\Omega^\xi  - \int_{\Omega^\xi} \vec{F}^\kappa \cdot \nabla_{\vec{\xi}} \phi_{m,n}   \hspace{1mm} d\Omega^\xi + \oint_{\partial \Omega^\xi} \phi_{m,n}  \vec{F}^{\kappa,*}  \cdot \hat{n} \hspace{1mm} d A^\xi = 0, \hspace{2mm} m,n=0,1,...,N  \label{eq:weak-decomp-basis}
   \end{equation}
   
 The final step is to replace the integrals in \eqref{eq:approx_mappedWeakForm} with discrete quadrature. For this we use the Legendre-Gauss quadrature, which yields exact integration for each term in \eqref{eq:approx_mappedWeakForm}. Additionally, the interpolation nodes are specified as the Legendre-Gauss nodes, which simplifies the integration.
@@ -208,13 +187,20 @@ The final step is to replace the integrals in \eqref{eq:approx_mappedWeakForm} w
 \end{split} \label{eq:discrete2d_system} 
  \end{equation}
 
- Computing the divergence of the conservative flux in this framework can be viewed as calculating a sequence of derivatives in each computational direction. Two steps are required to compute the derivative in each direction. The first is an internal matrix-vector multiply, and the second is computing the weighted Riemann fluxes at the element boundaries. The latter is the only step which requires element-to-element communication. The approximate fluxes are presented for the systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}.
+Each element can support curvilinear geometry. Define the mapping from physical space $\vec{x}$ to computational space $\vec{\xi}$ using
+  \begin{equation}
+  \vec{x} = \vec{x}(\vec{\xi}).\label{eq:mapping}
+  \end{equation}
+In this case, the solution and the source term are weighted by the Jacobian of the mapping and the flux is rotated to the \textit{contravariant} flux. Appendix \ref{chap:GeometryTheory} provides the details on the metric terms that are introduced along with the form of the divergence, gradient, and curl under such a mapping.
 
-\subsection{Riemman Fluxes}
+ Computing the divergence of the conservative flux in this framework can be viewed as calculating a sequence of derivatives in each computational direction. Two steps are required to compute the derivative in each direction. The first is an internal matrix-vector multiply, and the second is computing the weighted Riemann fluxes at the element boundaries. The latter is the only step which requires element-to-element communication. The approximate fluxes are now presented for the systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}.
+
+\subsection{Riemann Flux}
+Regardless of which system we are solving, the DG approximation requires that we compute an estimate of the flux across an element's edge given the solution on either side of the edge. In general, the solution is discontinuous across the edges. Let $\vec{s}_B$ denote the solution on the edge, and $\vec{s}_L$ and $\vec{s}_R$ denote the solution to the ``left'' and to the ``right'' of the edge. ``Left'' is the solution found by travelling in the direction opposite the edge normal.
 
 
 \subsection{Comparison with other SEM-Shallow Water Models}
-The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with a curvilinear mesh. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost; since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
+The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with isoparametric elemenets. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost. Since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
 
 
 %\chapter{Testing the Linear Form}
@@ -247,7 +233,7 @@ The discretization presented here distinguishes itself from previous shallow wat
 
 \section{Spectral Approximations and Error Analysis}
 
-\chapter{Differential Geometry}
+\chapter{Differential Geometry}\label{chap:GeometryTheory}
 
 \pagebreak
 

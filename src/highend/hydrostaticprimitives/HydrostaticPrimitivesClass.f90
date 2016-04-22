@@ -101,6 +101,7 @@ IMPLICIT NONE
       TYPE( NodalStorage_1D )               :: intStorage
       TYPE( NodalStorage_3D )               :: dGStorage
       TYPE( ShallowWater )                  :: barotropic
+      TYPE( DGSEMSolution_3D ), ALLOCATABLE :: prevSol(:)
       TYPE( DGSEMSolution_3D ), ALLOCATABLE :: sol(:)
       TYPE( DGSEMSolution_3D ), ALLOCATABLE :: baroclinic(:)
       TYPE( DGSEMSolution_3D ), ALLOCATABLE :: background(:)
@@ -148,6 +149,8 @@ IMPLICIT NONE
       PROCEDURE :: GetPlanetaryVorticityAtNode => GetPlanetaryVorticityAtNode_HydrostaticPrimitive
       PROCEDURE :: SetPlanetaryVorticityAtNode => SetPlanetaryVorticityAtNode_HydrostaticPrimitive
 
+      PROCEDURE :: GetPreviousTendency => GetPreviousTendency_HydrostaticPrimitive
+      PROCEDURE :: SetPreviousTendency => SetPreviousTendency_HydrostaticPrimitive
       PROCEDURE :: GetTendency => GetTendency_HydrostaticPrimitive
       PROCEDURE :: SetTendency => SetTendency_HydrostaticPrimitive
       PROCEDURE :: GetTendencyAtNode => GetTendencyAtNode_HydrostaticPrimitive
@@ -179,7 +182,7 @@ IMPLICIT NONE
       
        ! Type Specific Routines 
       PROCEDURE :: GlobalTimeDerivative            => GlobalTimeDerivative_HydrostaticPrimitive
-      PROCEDURE :: ForwardStepRK3                  => ForwardStepRK3_HydrostaticPrimitive
+      PROCEDURE :: ForwardStepAB2                  => ForwardStepAB2_HydrostaticPrimitive
       PROCEDURE :: EdgeFlux                        => EdgeFlux_HydrostaticPrimitive
       PROCEDURE :: MappedTimeDerivative            => MappedTimeDerivative_HydrostaticPrimitive 
       PROCEDURE :: CalculateSolutionAtBoundaries   => CalculateSolutionAtBoundaries_HydrostaticPrimitive
@@ -284,10 +287,12 @@ IMPLICIT NONE
 
       ! Set up the solution
       ALLOCATE( myDGSEM % sol(1:myDGSEM % mesh % nElems) )
+      ALLOCATE( myDGSEM % prevsol(1:myDGSEM % mesh % nElems) )
       ALLOCATE( myDGSEM % baroclinic(1:myDGSEM % mesh % nElems) )
       ALLOCATE( myDGSEM % background(1:myDGSEM % mesh % nElems) )
 
       DO iEl = 1, myDGSEM % mesh % nElems
+         CALL myDGSEM % prevSol(iEl) % Build( nS, nP, nQ )
          CALL myDGSEM % sol(iEl) % Build( nS, nP, nQ, nHPEq )
          CALL myDGSEM % baroclinic(iEl) % Build( nS, nP, nQ, nHPEq )
          CALL myDGSEM % background(iEl) % Build( nS, nP, nQ, nHPEq )
@@ -345,6 +350,7 @@ IMPLICIT NONE
      CALL myDGSEM % clocks % Write_MultiTimers( )
 
      DO iEl = 1, myDGSEM % mesh % nElems
+        CALL myDGSEM % prevSol(iEl) % Trash( )
         CALL myDGSEM % sol(iEl) % Trash( )
         CALL myDGSEM % background(iEl) % Trash( )
      ENDDO
@@ -1078,6 +1084,48 @@ IMPLICIT NONE
 !                                          Tendency                                                !
 !--------------------------------------------------------------------------------------------------!
 !
+ SUBROUTINE GetPreviousTendency_HydrostaticPrimitive( myDGSEM, iEl, theTend  )
+ ! S/R GetPreviousTendency
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(HydrostaticPrimitive), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)          :: iEl
+   REAL(prec), INTENT(out)      :: theTend(0:myDGSEM % nS, 0:myDGSEM % nP, 0:myDGSEM % nQ, 1:myDGSEM % nEq)
+   ! Local
+   INTEGER :: iEq
+      
+      DO iEq = 1, nPrognostic
+         CALL myDGSEM % prevsol(iEl) % GetTendencyWithVarID( iEq, theTend(:,:,:,iEq) )
+      ENDDO
+
+ END SUBROUTINE GetPreviousTendency_HydrostaticPrimitive
+!
+!
+!
+ SUBROUTINE SetPreviousTendency_HydrostaticPrimitive( myDGSEM, iEl, theTend  )
+ ! S/R SetTendency
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(HydrostaticPrimitive), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                        :: iEl
+   REAL(prec), INTENT(in)                     :: theTend(0:myDGSEM % nS, 0:myDGSEM % nP, 0:myDGSEM % nQ, 1:nPrognostic)
+   ! Local
+   INTEGER :: iEq
+      
+      DO iEq = 1, nPrognostic
+         CALL myDGSEM % prevsol(iEl) % SetTendencyWithVarID( iEq, theTend(:,:,:,iEq) )
+      ENDDO   
+
+ END SUBROUTINE SetPreviousTendency_HydrostaticPrimitive
+!
+!
+!
  SUBROUTINE GetTendency_HydrostaticPrimitive( myDGSEM, iEl, theTend  )
  ! S/R GetTendency
  !  
@@ -1345,58 +1393,53 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !
 !
 !
- SUBROUTINE ForwardStepRK3_HydrostaticPrimitive( myDGSEM, tn )
- ! S/R ForwardStepRK3( 3rd order Runge-Kutta)
+ SUBROUTINE ForwardStepAB2_HydrostaticPrimitive( myDGSEM, tn )
+ ! S/R ForwardStepAB2( 2nd Order Adams Bashforth )
  ! 
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(HydrostaticPrimitive), INTENT(inout) :: myDGSEM
-   REAL(prec), INTENT(in)                   :: tn
+   REAL(prec), INTENT(in)                     :: tn
    ! LOCAL
-   REAL(prec) :: t, dt
-   REAL(prec) :: G2D(0:myDGSEM % nS,&
-                     0:myDGSEM % nP,&
-                     0:myDGSEM % nQ,&
-                     1:nPrognostic,&
-                     1:myDGSEM % mesh % nElems) 
-   REAL(prec) :: dSdt(0:myDGSEM % nS,&
-                      0:myDGSEM % nP,&
-                      0:myDGSEM % nQ,&
+   REAL(prec) :: G(0:myDGSEM % nS, &
+                   0:myDGSEM % nP, &
+                   0:myDGSEM % nQ, &
+                   1:nPrognostic )
+   REAL(prec) :: dSdt(0:myDGSEM % nS, &
+                      0:myDGSEM % nP, &
+                      0:myDGSEM % nQ, &
                       1:nPrognostic )
+   REAL(prec) :: dt
    INTEGER    :: m, iEl
 
       dt = myDGSEM % params % dt
       G2D = ZERO
 
-      CALL myDGSEM % ForwardStepBarotropic( t, dt )
+      CALL myDGSEM % ForwardStepBarotropic( tn, dt )
 
-      DO m = 1,3 ! Loop over RK3 steps
-
-         t = tn + rk3_b(m)*dt
-        ! Calculate the tendency
-         CALL myDGSEM % GlobalTimeDerivative( t, m )
+      ! Calculate the tendency
+      CALL myDGSEM % GlobalTimeDerivative( tm, m )
         
-         DO iEl = 1, myDGSEM % mesh % nElems ! Loop over all of the elements
+      DO iEl = 1, myDGSEM % mesh % nElems ! Loop over all of the elements
 
-            CALL myDGSEM % GetTendency( iEl, dSdt )
-            G2D(:,:,:,:,iEl) = rk3_a(m)*G2D(:,:,:,:,iEl) + dSdt
+         CALL myDGSEM % GetTendency( iEl, dSdt )
+         CALL myDGSEM % GetPreviousTendency( iEl, G )
+         G = HALF*( 3.0_prec*dSdt - G )
 
-            myDGSEM % sol(iEl) % solution(:,:,:,1:nPrognostic) = myDGSEM % sol(iEl) % solution(:,:,:,1:nPrognostic) +&
-                                                                 rk3_g(m)*dt*G2D(:,:,:,:,iEl)
-
-         ENDDO ! iEl, loop over all of the elements
-
-         ! Do the implicit free surface step
-
-         CALL myDGSEM % PressureCorrection( t, m, rk3_g(m)*dt )
-         !RETURN
-      ENDDO ! m, loop over the RK3 steps
+         myDGSEM % sol(iEl) % solution(:,:,:,1:nPrognostic) = myDGSEM % sol(iEl) % solution(:,:,:,1:nPrognostic) +&
+                                                              dt*G
+         CALL myDGSEM % SetPreviousTendency( iEl, dSdt )
+      ENDDO ! iEl, loop over all of the elements
+ 
+      ! Correct the velocity
+      CALL myDGSEM % AdjustVelocity( )
+         
    
    
        
- END SUBROUTINE ForwardStepRK3_HydrostaticPrimitive
+ END SUBROUTINE ForwardStepAB2_HydrostaticPrimitive
 !
 !
 !
@@ -1430,7 +1473,8 @@ SUBROUTINE GetTendencyWithVarID_HydrostaticPrimitive( myDGSEM, iEl, varID, theTe
 !$OMP DO
       CALL myDGSEM % clocks % StartThisTimer( diagpTimer )
       DO iEl = 1, myDGSEM % mesh % nHElems
-         CALL myDGSEM % DiagnoseP( iEl )
+      !   CALL myDGSEM % DiagnoseP( iEl )
+      ! Add the barotropic pressure to the baroclinic pressure
       ENDDO
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
