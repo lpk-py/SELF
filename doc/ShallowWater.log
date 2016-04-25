@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  22 APR 2016 13:10
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  25 APR 2016 16:44
 entering extended mode
  %&-line parsing enabled.
 **ShallowWater.tex
@@ -1126,25 +1126,29 @@ t line 179.
 LaTeX Warning: Reference `eq:approx_mappedWeakForm' on page 5 undefined on inpu
 t line 179.
 
-[5]
+[5] <figures/normalflux.png, id=168, 468.59868pt x 440.847pt>
+File: figures/normalflux.png Graphic file (type png)
+
+<use figures/normalflux.png>
 
 Package natbib Warning: Citation `Flad2016' on page 6 undefined on input line 2
-03.
+10.
 
-[6] [7
-
-] [8
-
+[6 <./figures/normalflux.png>] [7] [8
 
 ] [9] [10
 
-] [11] (./ShallowWater.bbl [12
+
+] [11] [12
+
+] [13]
+(./ShallowWater.bbl [14
 
 ])
 
 Package natbib Warning: There were undefined citations.
 
-[13]
+[15]
 \tf@toc=\write7
 \openout7 = `ShallowWater.toc'.
 
@@ -1152,12 +1156,15 @@ Package natbib Warning: There were undefined citations.
 
 LaTeX Warning: There were undefined references.
 
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
  ) 
 Here is how much of TeX's memory you used:
- 22767 strings out of 493848
- 423127 string characters out of 1152823
+ 22782 strings out of 493848
+ 423352 string characters out of 1152823
  539068 words of memory out of 3000000
- 25556 multiletter control sequences out of 15000+50000
+ 25566 multiletter control sequences out of 15000+50000
  17273 words of font info for 52 fonts, out of 3000000 for 9000
  714 hyphenation exceptions out of 8191
  76i,18n,63p,1494b,341s stack positions out of 5000i,500n,10000p,200000b,50000s
@@ -1176,9 +1183,9 @@ usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/te
 xmf-texlive/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texmf-texlive
 /fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/share/texmf-texlive/fonts
 /type1/urw/helvetic/uhvb8a.pfb>
-Output written on ShallowWater.pdf (17 pages, 282757 bytes).
+Output written on ShallowWater.pdf (19 pages, 349422 bytes).
 PDF statistics:
- 282 PDF objects out of 1000 (max. 8388607)
- 58 named destinations out of 1000 (max. 500000)
- 98 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 297 PDF objects out of 1000 (max. 8388607)
+ 61 named destinations out of 1000 (max. 500000)
+ 103 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -199,6 +199,13 @@ In this case, the solution and the source term are weighted by the Jacobian of t
 Regardless of which system we are solving, the DG approximation requires that we compute an estimate of the flux across an element's edge given the solution on either side of the edge. In general, the solution is discontinuous across the edges. Let $\vec{s}_B$ denote the solution on the edge, and $\vec{s}_L$ and $\vec{s}_R$ denote the solution to the ``left'' and to the ``right'' of the edge. ``Left'' is the solution found by travelling in the direction opposite the edge normal.
 
 
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.6\textwidth]{figures/normalflux.png}
+\caption{}
+\end{center}
+\end{figure}
+
 \subsection{Comparison with other SEM-Shallow Water Models}
 The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with isoparametric elemenets. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost. Since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
 
