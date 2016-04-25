@@ -2306,9 +2306,9 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
                   
                   sideFlags(iEl,iSide) = InflowTwo
 
-               ELSEIF( TRIM(thisEdge) == 'INFLOW' )then
+!               ELSEIF( TRIM(thisEdge) == 'INFLOW' )then
                   
-                  sideFlags(iEl,iSide) = INFLOW
+!                  sideFlags(iEl,iSide) = INFLOW
 
 
                ENDIF
@@ -2418,12 +2418,12 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
             CALL myQuadMesh % SetNodeType( n(1), InflowTwo )
             CALL myQuadMesh % SetNodeType( n(2), InflowTwo )
 
-         ELSEIF( sideFlags(e1,s1) == INFLOW )then
+!         ELSEIF( sideFlags(e1,s1) == INFLOW )then
 
-            CALL myQuadMesh % SetEdgeSecondaryElementID( iEdge, INFLOW )
-            CALL myQuadMesh % GetEdgeNodeIDs( iEdge, n )
-            CALL myQuadMesh % SetNodeType( n(1), INFLOW )
-            CALL myQuadMesh % SetNodeType( n(2), INFLOW )
+!            CALL myQuadMesh % SetEdgeSecondaryElementID( iEdge, INFLOW )
+!            CALL myQuadMesh % GetEdgeNodeIDs( iEdge, n )
+!            CALL myQuadMesh % SetNodeType( n(1), INFLOW )
+!            CALL myQuadMesh % SetNodeType( n(2), INFLOW )
          
          ENDIF
  

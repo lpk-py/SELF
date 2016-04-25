@@ -3,14 +3,14 @@ ModelFormulation = 'Conservative',
 nCutoff = 8,
 /
 &TimeManagement
-dt = 0.01,
-iterInit = 0,
-nTimeSteps = 1
-dumpFreq = 1,
+dt = 0.1,
+iterInit = 5000,
+nTimeSteps = 5000,
+dumpFreq = 50,
 /
 &SpaceManagement
 SpecMeshFile = 'box.mesh',
-polyDeg = 10,
+polyDeg = 15,
 nXElem = 20,
 nYElem = 20,
 nPlot = 20,
@@ -31,7 +31,7 @@ L  = 1.0D5,
 /
 &SpongeParameters
 Lsponge = 1.0D5,
-rFacMax = 1.0D-4,
+rFacMax = 1.0D-1,
 /
 &ShelfParameters
 hMin = 200.0,

@@ -120,6 +120,7 @@ SUBROUTINE Build_Edge( myEdge )
      myEdge % elementSides = 0
      myEdge % start        = 1 
      myEdge % inc          = 1
+     myEdge % boundaryID   = 0
      myEdge % next => NULL()
      
  END SUBROUTINE Build_Edge 

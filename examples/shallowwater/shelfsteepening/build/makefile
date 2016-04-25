@@ -11,8 +11,8 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-#OPT=-O3 -fopenmp
-OPT=-O0 -fcheck=all -Wall
+OPT=-O3 -fopenmp -funroll-loops
+#OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
 SRCDIR=../../../../src/
 

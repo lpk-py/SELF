@@ -30,8 +30,8 @@ USE ConservativeShallowWaterClass
       dFreq = mysw % params % dumpFreq
       deltaT = mysw % params % dt
 
-      nDumps = (nT+1)/dFreq
-      ALLOCATE( KE(0:nT), PE(0:nT) )
+      nDumps = (nT)/dFreq
+      ALLOCATE( KE(0:nDumps), PE(0:nDumps) )
       KE = ZERO
       PE = ZERO
       
