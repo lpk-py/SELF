@@ -67,6 +67,7 @@ USE ConservativeShallowWaterClass
          
          CALL myDGSEM % SetBathymetry( iEl, h )
          CALL myDGSEM % CalculateBathymetryAtBoundaries( iEl )
+         CALL myDGSEM % CalculateBathymetryGradient( iEl )
          
       ENDDO
       
@@ -117,7 +118,7 @@ USE ConservativeShallowWaterClass
                CALL myDGSEM % GetBathymetryAtNode( iEl, iS, iP, h )
                f(iS,iP) = f0         
                ! Setting the dipole free surface height
-               sol(iS,iP,3) = h(1) + dn*tanh( (x-x0)/L )
+               sol(iS,iP,3) = dn*tanh( (x-x0)/L )
                rsol(iS,iP,3) = h(1)
                tScale(iS,iP) = tScale(iS,iP)*( tanh( (y - ys)/Ls ) + ONE )
 
@@ -141,7 +142,7 @@ USE ConservativeShallowWaterClass
                dpdy = -dpdy
                        
                ! Setting the velocity via geostrophy
-               sol(iS,iP,1) = -dpdy/f0 ! u
+               sol(iS,iP,1) = ZERO
                sol(iS,iP,2) = dpdx/f0
                
             ENDDO
@@ -160,12 +161,12 @@ USE ConservativeShallowWaterClass
          iEdge = myDGSEM % boundaryEdgeIDs(bID)
          CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
 
-         IF( e2 == INFLOW )THEN
+         IF( e2 == PRESCRIBED )THEN
             CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
             CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
             CALL myDGSEM % GetBoundarySolutionAtBoundary( e1, s1, state )
 
-            myDGSEM % externalState(:,:,bID) = state
+            myDGSEM % prescribedState(:,:,bID) = state
          ENDIF
 
       ENDDO
