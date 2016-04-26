@@ -54,6 +54,9 @@ SWOBJS = ModelPrecision.o \
 #                     ~/src/highend/shallowwater/                        #
 # ---------------------------------------------------------------------- #
          
+adjinitial_sw : ${SWOBJS} ShallowWater_InitialFromPickup.o
+	${FC} ${OPT} ${SWOBJS} ShallowWater_InitialFromPickup.o -o $@
+
 initialize_sw : ${SWOBJS} ShallowWater_InitialConditions.o
 	${FC} ${OPT} ${SWOBJS} ShallowWater_InitialConditions.o -o $@
 
@@ -70,6 +73,10 @@ ConservativeShallowWaterClass.o : ModelPrecision.o ModelFlags.o ConstantsDiction
 
 ShallowWater_InitialConditions.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ConservativeShallowWaterClass.o
 	${FC} ${OPT} -c ${INIDIR}localmods/ShallowWater_InitialConditions.f90 -o $@
+
+ShallowWater_InitialFromPickup.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ConservativeShallowWaterClass.o
+	${FC} ${OPT} -c ${INIDIR}localmods/ShallowWater_InitialFromPickup.f90 -o $@
+
 
 ShallowWater_Driver.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ConservativeShallowWaterClass.o
 	${FC} ${OPT} -c ${INIDIR}localmods/ShallowWater_Driver.f90 -o $@

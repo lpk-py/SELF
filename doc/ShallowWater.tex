@@ -78,9 +78,9 @@ The inviscid shallow water equations are a system of coupled partial differentia
 The shallow water equations can be written in either ``conservative'' (Eqs. \ref{eq:conservative}) or ``skew-symmetric'' (Eqs. \ref{eq:skewsymmetric}) form :
 \begin{subequations}
 \begin{align}
-U_t  + \nabla \cdot \left( \frac{\vec{U}U}{H} + \frac{gH^2}{2}\hat{x} \right) - fV &= gHh_x  + q_U\\
-V_t  + \nabla \cdot \left( \frac{\vec{U}V}{H} + \frac{gH^2}{2}\hat{y} \right) + fU &= gHh_y + q_V\\
-H_t + \nabla \cdot \vec{U} &= q_H
+U_t  + \nabla \cdot \left( \frac{\vec{U}U}{h + \eta} + g \left(h + \frac{\eta}{2} \right)\eta\hat{x} \right) - fV &= g\eta h_x  + q_U\\
+V_t  + \nabla \cdot \left( \frac{\vec{U}V}{h + \eta} + g \left(h + \frac{\eta}{2} \right)\eta\hat{y} \right) + fU &= g\eta h_y + q_V\\
+\eta_t + \nabla \cdot \vec{U} &= q_\eta
 \end{align}\label{eq:conservative}
 \end{subequations}
 
@@ -196,18 +196,70 @@ In this case, the solution and the source term are weighted by the Jacobian of t
  Computing the divergence of the conservative flux in this framework can be viewed as calculating a sequence of derivatives in each computational direction. Two steps are required to compute the derivative in each direction. The first is an internal matrix-vector multiply, and the second is computing the weighted Riemann fluxes at the element boundaries. The latter is the only step which requires element-to-element communication. The approximate fluxes are now presented for the systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}.
 
 \subsection{Riemann Flux}
-Regardless of which system we are solving, the DG approximation requires that we compute an estimate of the flux across an element's edge given the solution on either side of the edge. In general, the solution is discontinuous across the edges. Let $\vec{s}_B$ denote the solution on the edge, and $\vec{s}_L$ and $\vec{s}_R$ denote the solution to the ``left'' and to the ``right'' of the edge. ``Left'' is the solution found by travelling in the direction opposite the edge normal.
-
-
+\textit{This section needs some attention!}
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.6\textwidth]{figures/normalflux.png}
-\caption{}
+\includegraphics[width=0.4\textwidth]{figures/normalflux.png}
+\caption{ A depiction of the setup for computing the flux across an edge. The flux is split by upwinding the characteristic variables of the Jacobian matrix. }\label{fig:normalflux}
 \end{center}
 \end{figure}
+Regardless of which system we are solving, the DG approximation requires that we compute an estimate of the flux across an element's edge given the solution on either side of the edge. In general, the solution is discontinuous across the edges. Let $\vec{s}_L$ and $\vec{s}_R$ denote the solution to the ``left'' and to the ``right'' of the edge as depicted in Fig. \ref{fig:normalflux}. The goal is to compute the flux across an edge given the left and right states. The conservation law, \eqref{eq:conservationlaw}can be written
+\begin{equation}
+\vec{s}_t + \frac{\partial f^n}{\partial \vec{s}}\frac{\partial \vec{s}}{\partial n} = 0,
+\end{equation}
+where, for the sake of exposition, the source term has been dropped. The flux in the edge-normal direction is $f^n = \vec{f} \cdot \hat{n}$ and the directional derivative of the solution is $\frac{\partial \vec{s}}{\partial n}$. For a short period of time, $\Delta t$,
+\begin{equation}
+\vec{s}_t + \frac{\partial f}{\partial \vec{s}}|_{t=t_0} \frac{\partial \vec{s}}{\partial n}  = \mathcal{O}(\Delta t). \label{eq:linearizedForm}
+\end{equation}
+In \eqref{eq:linearizedForm}, the \textit{Jacobian} of the flux, $\frac{\partial f^n}{\partial \vec{s}}$, is evaluated at the fixed time $t=t_0$. For hyperbolic problems, like the shallow water equations, the Jacobian has real eigenvalues and can be diagonalized. Let
+\begin{equation}
+\frac{\partial f}{\partial \vec{s}}|_{t=t_0} = \boldsymbol{P} \boldsymbol{D} \boldsymbol{P}^{-1},\label{eq:diagonalized}
+\end{equation} 
+define the diagonalization, where $\boldsymbol{P}$ is a matrix whose columns are the eigenvectors and $\boldsymbol{D}$ is a diagonal matrix whose diagonal elements are the corresponding eigenvalues of the Jacobian. Substituting \eqref{eq:diagonalized} into \eqref{eq:linearizedForm} and multiplying on the left by $\boldsymbol{P}^{-1}$ gives
+\begin{equation}
+\vec{w}_t + \boldsymbol{D} \boldsymbol{P}^{-1}\frac{\partial \vec{s}}{\partial n}  = \mathcal{O}(\Delta t), \label{eq:diagForm}
+\end{equation}
+where $\vec{w} = P^{-1}\vec{s}$ are the \textit{characteristic} variables. Equation \eqref{eq:diagForm} can be rewritten, approximately as
+\begin{equation}
+\vec{w}_t + \boldsymbol{D} \frac{\partial \vec{w}}{\partial n}  \approx \mathcal{O}(\Delta t). \label{eq:diagonalizedForm}
+\end{equation}
+where variations in the eigenvectors with $n$ have been ignored. Equation \eqref{eq:diagonalizedForm} has approximate solutions
+\begin{equation}
+w^i = w^i_0( n - \lambda_i (t-t_0)) \label{eq:characteristicSolution}
+\end{equation}
+where $w^i$ and $\lambda_i$ are the $i^{th}$ eigenvector and eigenvalue, $w^i_0$ is the characteristic variable at time $t=t_0$, and $n$ is the physical distance normal to the edge. To evaluate the flux at the edge, we need to know the solution at the edge ($n=0$). At time $t_0 + \Delta t$,
+\begin{equation}
+w^i(0, \Delta t) = w^i_0(-\lambda_i\Delta t)
+\end{equation}  
+so that if $\lambda_i > 0$, the solution depends on the state to the left of the edge, and if $\lambda_i < 0$, the solution depends on the initial state to the right of the edge. Because of this, we split the diagonalization into two components,
+\begin{equation}
+\frac{\partial f}{\partial \vec{s}}|_{t=t_0} = \boldsymbol{P} \boldsymbol{D}^{+} \boldsymbol{P}^{-1} + \boldsymbol{P} \boldsymbol{D}^{-} \boldsymbol{P}^{-1} = \boldsymbol{A}^{+} + \boldsymbol{A}^{-},\label{eq:diagonalized-split}
+\end{equation}
+where $\boldsymbol{D}^{+}$ is the diagonal matrix with only positive eigenvalues and $\boldsymbol{D}^{-}$ is the diagonal matrix with only negative eigenvalues. The compact notation $\boldsymbol{A}^{+}$ and $\boldsymbol{A}^{-}$ is used for the Jacobian matrix associated with the splitting of the positive and negative eigenvalues. 
+
+Under similar assumptions used to obtain \eqref{eq:characteristicSolution}, the flux at the boundary can be approximated
+\begin{equation}
+\vec{f}^n \approx \vec{f}^{n,*} = A^{+}\vec{s}_L + A^{-}\vec{s}_R  \label{eq:fluxApprox}
+\end{equation}
+It can be shown that
+\begin{subequations}
+\begin{align}
+A^{+} &= \frac{A+|A|}{2} \\
+A^{-} &= \frac{A-|A|}{2}
+\end{align}
+\end{subequations}
+so that \eqref{eq:fluxApprox} can be written
+\begin{equation}
+\vec{f}^{n,*} = \frac{1}{2}\left( \vec{f}^n(\vec{s}_L) + \vec{f}^n(\vec{s}_R) -|A|(\vec{s}_L - \vec{s}_R) \right)\label{eq:RiemannFlux}
+\end{equation}
+Equation \eqref{eq:RiemannFlux} is the approximate Riemann flux. The choice of approximation for $|A|$ yields different linear flux schemes. In the shallow water software, we use the Lax-Friedrich's flux where $|A|$ is approximated by the maximum eigenvalue using either the left or the right state,
+\begin{equation}
+|A| = max( \lambda_i(\vec{s}_L), \lambda_i(\vec{s}_R) ).
+\end{equation}
+
 
 \subsection{Comparison with other SEM-Shallow Water Models}
-The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with isoparametric elemenets. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost. Since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
+The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with isoparametric elements. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost. Since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
 
 
 %\chapter{Testing the Linear Form}

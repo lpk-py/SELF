@@ -4,13 +4,13 @@ nCutoff = 8,
 /
 &TimeManagement
 dt = 0.1,
-iterInit = 5000,
-nTimeSteps = 5000,
-dumpFreq = 50,
+iterInit = 0,
+nTimeSteps = 500000,
+dumpFreq = 1000,
 /
 &SpaceManagement
 SpecMeshFile = 'box.mesh',
-polyDeg = 15,
+polyDeg = 10,
 nXElem = 20,
 nYElem = 20,
 nPlot = 20,
@@ -25,17 +25,20 @@ betaY = 0.0,
 linearDrag = 0.0,
 /
 &JetParameters
-vMax = 1.0,
+vMax = 1.75,
 x0 = 5.0D4,
-L  = 1.0D5,
+L  = 7.5D4,
 /
 &SpongeParameters
-Lsponge = 1.0D5,
-rFacMax = 1.0D-1,
+Lsponge = 5.0D4,
+rFacMax = 5.0D-2,
 /
 &ShelfParameters
 hMin = 200.0,
 hMax = 3000.0,
-Lshelf = 1.0D5,
+Lshelf = 2.5D5,
+dL = 5.0D4,
+steepeningCenter = 1.0D6,
+steepeningZoneLength = 5.0D4,
 /
 

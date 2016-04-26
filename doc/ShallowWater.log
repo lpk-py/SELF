@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  25 APR 2016 16:44
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  26 APR 2016 12:11
 entering extended mode
  %&-line parsing enabled.
 **ShallowWater.tex
@@ -1126,23 +1126,22 @@ t line 179.
 LaTeX Warning: Reference `eq:approx_mappedWeakForm' on page 5 undefined on inpu
 t line 179.
 
-[5] <figures/normalflux.png, id=168, 468.59868pt x 440.847pt>
+<figures/normalflux.png, id=160, 468.59868pt x 440.847pt>
 File: figures/normalflux.png Graphic file (type png)
 
-<use figures/normalflux.png>
+<use figures/normalflux.png> [5] [6 <./figures/normalflux.png>] [7]
 
-Package natbib Warning: Citation `Flad2016' on page 6 undefined on input line 2
-10.
+Package natbib Warning: Citation `Flad2016' on page 8 undefined on input line 2
+62.
 
-[6 <./figures/normalflux.png>] [7] [8
+[8] [9
 
-] [9] [10
+] [10
 
 
 ] [11] [12
 
-] [13]
-(./ShallowWater.bbl [14
+] [13] (./ShallowWater.bbl [14
 
 ])
 
@@ -1161,31 +1160,32 @@ LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
  ) 
 Here is how much of TeX's memory you used:
- 22782 strings out of 493848
- 423352 string characters out of 1152823
+ 22821 strings out of 493848
+ 423893 string characters out of 1152823
  539068 words of memory out of 3000000
- 25566 multiletter control sequences out of 15000+50000
- 17273 words of font info for 52 fonts, out of 3000000 for 9000
+ 25583 multiletter control sequences out of 15000+50000
+ 19735 words of font info for 60 fonts, out of 3000000 for 9000
  714 hyphenation exceptions out of 8191
- 76i,18n,63p,1494b,341s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 76i,18n,63p,1493b,341s stack positions out of 5000i,500n,10000p,200000b,50000s
 {/usr/share/texmf-texlive/fonts/enc/dvips/base/8r.enc}</usr/share/texmf-texli
 ve/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texmf-texlive/fonts/ty
 pe1/public/amsfonts/cm/cmex10.pfb></usr/share/texmf-texlive/fonts/type1/public/
 amsfonts/cm/cmmi12.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm
 /cmmi6.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmmi8.pfb><
-/usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/t
-exmf-texlive/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texmf-texlive/
-fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texmf-texlive/fonts/type1/p
-ublic/amsfonts/cm/cmss12.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfo
-nts/cm/cmss17.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmss
-bx10.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmsy10.pfb></
-usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/te
-xmf-texlive/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texmf-texlive
-/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/share/texmf-texlive/fonts
-/type1/urw/helvetic/uhvb8a.pfb>
-Output written on ShallowWater.pdf (19 pages, 349422 bytes).
+/usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmmib10.pfb></usr/share
+/texmf-texlive/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texmf-texli
+ve/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texmf-texlive/fonts/type
+1/public/amsfonts/cm/cmr8.pfb></usr/share/texmf-texlive/fonts/type1/public/amsf
+onts/cm/cmss12.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cms
+s17.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmssbx10.pfb><
+/usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/
+texmf-texlive/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/texmf-texliv
+e/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texmf-texlive/fonts/typ
+e1/public/amsfonts/symbols/msbm10.pfb></usr/share/texmf-texlive/fonts/type1/urw
+/helvetic/uhvb8a.pfb>
+Output written on ShallowWater.pdf (19 pages, 369154 bytes).
 PDF statistics:
- 297 PDF objects out of 1000 (max. 8388607)
- 61 named destinations out of 1000 (max. 500000)
+ 329 PDF objects out of 1000 (max. 8388607)
+ 75 named destinations out of 1000 (max. 500000)
  103 words of extra memory for PDF output out of 10000 (max. 10000000)
 

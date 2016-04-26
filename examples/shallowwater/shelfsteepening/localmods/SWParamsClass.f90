@@ -60,6 +60,9 @@ MODULE SWParamsClass
        REAL(prec)    :: hMin
        REAL(prec)    :: hMax
        REAL(prec)    :: Lshelf
+       REAL(prec)    :: dL
+       REAL(prec)    :: steepeningCenter
+       REAL(prec)    :: steepeningZoneLength
             
        CONTAINS
 
@@ -114,6 +117,9 @@ MODULE SWParamsClass
        REAL(prec)    :: hMin
        REAL(prec)    :: hMax
        REAL(prec)    :: Lshelf
+       REAL(prec)    :: dL
+       REAL(prec)    :: steepeningCenter
+       REAL(prec)    :: steepeningZoneLength
        
       NAMELIST / ModelForm / ModelFormulation, nCutoff
       NAMELIST / TimeManagement / dt, iterInit, nTimeSteps, dumpFreq
@@ -121,7 +127,7 @@ MODULE SWParamsClass
       NAMELIST / PhysicalParameters / g, f0, betaX, betaY, linearDrag
       NAMELIST / JetParameters / vMax, x0, L
       NAMELIST / SpongeParameters / Lsponge, rFacMax
-      NAMELIST / ShelfParameters / hMin, hMax, Lshelf
+      NAMELIST / ShelfParameters / hMin, hMax, Lshelf, dL, steepeningCenter, steepeningZoneLength
       
       ! MODEL_FORM
       ModelFormulation = 'LINEAR'
@@ -156,7 +162,9 @@ MODULE SWParamsClass
       hMin   = 200.0_prec
       hMax   = 3000.0_prec
       Lshelf = L
-
+      dL     = ZERO
+      steepeningCenter = 1000.0_prec*10.0_prec**(3)
+      steepeningZoneLength = 500.0_prec*10.0_prec**(3)
 
       OPEN( UNIT = NEWUNIT(nUnit), FILE = 'shallowwater.params')
          READ( UNIT = nUnit, NML = ModelForm )
@@ -212,6 +220,9 @@ MODULE SWParamsClass
       thisParam % hMin   = hMin
       thisParam % hMax   = hMax
       thisParam % Lshelf = Lshelf
+      thisParam % dL     = dL
+      thisParam % steepeningCenter = steepeningCenter
+      thisParam % steepeningZoneLength = steepeningZoneLength
       
  END SUBROUTINE Build_SWParams
 
