@@ -4,7 +4,7 @@ nCutoff = 8,
 /
 &TimeManagement
 dt = 0.1,
-iterInit = 0,
+iterInit = 500000,
 nTimeSteps = 500000,
 dumpFreq = 1000,
 /

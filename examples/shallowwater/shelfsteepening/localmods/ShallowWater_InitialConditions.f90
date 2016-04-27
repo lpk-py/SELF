@@ -43,12 +43,15 @@ USE ConservativeShallowWaterClass
    TYPE( ShallowWater ), INTENT(inout) :: myDGSEM
    ! Local
    INTEGER    :: iS, iP, iEl, nS, nP, nEl
-   REAL(prec) :: x, y, h0, h1, L
+   REAL(prec) :: x, y, h0, h1, L, dL, yc, Ly, Ls, xs
    REAL(prec) :: h(0:myDGSEM % nS,0:myDGSEM % nP,1:3)
    
       h0 = myDGSEM % params % hmin
       h1 = myDGSEM % params % hMax
       L  = myDGSEM % params % Lshelf
+      dL = myDGSEM % params % dL
+      yc = myDGSEM % params % steepeningCenter
+      Ly = myDGSEM % params % steepeningZoneLength   
 
       CALL myDGSEM % dgStorage % GetNumberOfNodes( nS, nP )
       nEl = myDGSEM % mesh % nElems
@@ -60,16 +63,19 @@ USE ConservativeShallowWaterClass
             
               CALL myDGSEM % mesh % GetPositionAtNode( iEl, x, y, iS, iP )
 
-               h(iS,iP,1) = h0 + (h1-h0)*tanh( x/L )
+               Ls = L - HALF*dL*( tanh((y-yc)/Ly) + ONE )
+               xs = Ls - L
+
+               h(iS,iP,1) = h0 + (h1-h0)*tanh( (x-xs)/Ls )
                
             ENDDO
          ENDDO
+      
          
          CALL myDGSEM % SetBathymetry( iEl, h )
          CALL myDGSEM % CalculateBathymetryAtBoundaries( iEl )
          CALL myDGSEM % CalculateBathymetryGradient( iEl )
-         
-      ENDDO
+      ENDDO  
       
  END SUBROUTINE Bathymetry
 !
@@ -99,7 +105,7 @@ USE ConservativeShallowWaterClass
       L    = myDGSEM % params % L
       f0   = myDGSEM % params % f0
       g    = myDGSEM % params % g
-      ys   = myDGSEM % params % yScale
+      ys   = TWO*myDGSEM % params % yScale
       Ls   = myDGSEM % params % Lsponge
 
       dn = f0*vmax*L/g
@@ -119,7 +125,7 @@ USE ConservativeShallowWaterClass
                f(iS,iP) = f0         
                ! Setting the dipole free surface height
                sol(iS,iP,3) = dn*tanh( (x-x0)/L )
-               rsol(iS,iP,3) = h(1)
+
                tScale(iS,iP) = tScale(iS,iP)*( tanh( (y - ys)/Ls ) + ONE )
 
             ENDDO

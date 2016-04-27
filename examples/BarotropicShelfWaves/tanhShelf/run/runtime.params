@@ -1,0 +1,21 @@
+&SolverCriteria
+MaximumIterates = 1000,
+nEPairs = 10,
+nMaxToSolve = 103,
+tolerance = 1.0E-8,
+/
+&SpaceManagement
+polyDeg = 10,
+nElems = 10,
+nPlot = 10,
+xScale = 1.0,
+/
+&Physical
+f0 = 1.0D-4,
+innerSlopeLength = 1.0D5,
+outerSlopeLength = 1.0D5,
+shelfwidth       = 2.0D7,
+hmin             = 50.0,
+shelfDepth       = 2050.0,
+offshoreDepth    = 2050.0,
+/
