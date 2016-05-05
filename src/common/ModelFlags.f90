@@ -54,11 +54,12 @@ MODULE ModelFlags
   ! --------- Discontinuous Galerkin ----------- !
   !==============================================!
    INTEGER, PARAMETER :: NO_NORMAL_FLOW = -100
-   INTEGER, PARAMETER :: RADIATION = -101
-   INTEGER, PARAMETER :: PRESCRIBED = -102
-   INTEGER, PARAMETER :: InflowOne = -103
-   INTEGER, PARAMETER :: InflowTwo = -104
-   INTEGER, PARAMETER :: SEA_FLOOR = -105
+   INTEGER, PARAMETER :: RADIATION      = -101
+   INTEGER, PARAMETER :: PRESCRIBED     = -102
+   INTEGER, PARAMETER :: InflowOne      = -103
+   INTEGER, PARAMETER :: InflowTwo      = -104
+   INTEGER, PARAMETER :: SEA_FLOOR      = -105
+   INTEGER, PARAMETER :: SHARED         = -106
   !
   !==============================================!
   ! ---------- Continuous Galerkin ------------- !
