@@ -11,16 +11,14 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-#OPT=-O3
-OPT=-O0 -fcheck=all -Wall
+OPT=-O3
+#OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
 SRCDIR=../src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
 INIDIR=${DIR}/init/
-
-
 
 
 
@@ -311,7 +309,35 @@ TestMappedGeometry_3D.o : ModelPrecision.o ConstantsDictionary.o Lagrange_3D_Cla
 TestHexMesh.o : ModelFlags.o NodalStorage_3D_Class.o HexMeshParamsClass.o HexMeshClass.o 
 	${FC} ${OPT} -c ${SRCDIR}geom/Testing/TestHexMesh.f90 -o $@
 
+DecomposeQuadMesh.o : ModelPrecision.o ConstantsDictionary.o NodalStorage_2D_Class.o QuadMeshClass.o \
+                      GeometryParamsClass.o
+	${FC} ${OPT} -c ${SRCDIR}geom/DecomposeQuadMesh.f90 -o $@
 
+DQMOBJ = ModelPrecision.o \
+         ConstantsDictionary.o \
+         ModelFlags.o \
+         CommonRoutines.o \
+         Legendre.o \
+         Chebyshev.o \
+         Lagrange_1D_Class.o \
+         Lagrange_2D_Class.o \
+         NodalStorage_2D_Class.o \
+         LinkedListClass.o \
+         HashTableClass.o \
+         CurveClass_2D.o \
+         CurveClass_3D.o \
+         VectorClass.o \
+         GeometrySupportRoutines.o \
+         MappedGeometryClass_2D.o \
+         QuadElementClass.o \
+         EdgeClass.o \
+         NodeClass_2D.o \
+         QuadMeshClass.o \
+         GeometryParamsClass.o \
+         DecomposeQuadMesh.o
+         
+dcqm : ${DQMOBJ}
+	${FC} ${OPT} ${DQMOBJ} -o $@
 # ---------------------------------------------------------------------- #
 #                     ~/src/highend/shallowwater/                        #
 # ---------------------------------------------------------------------- #

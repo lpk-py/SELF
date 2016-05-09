@@ -153,6 +153,7 @@ IMPLICIT NONE
        PROCEDURE :: SetEdgeBoundaryID => SetEdgeBoundaryID_QuadMesh
        PROCEDURE :: GetEdgeBoundaryID => GetEdgeBoundaryID_QuadMesh
        
+       PROCEDURE :: ConstructElementNeighbors => ConstructElementNeighbors_QuadMesh
        PROCEDURE :: ConstructEdges => ConstructEdges_QuadMesh
        PROCEDURE :: GetNodeToElementConnectivity => GetNodeToElementConnectivity_QuadMesh
        PROCEDURE :: ScaleTheMesh => ScaleTheMesh_QuadMesh
@@ -161,6 +162,7 @@ IMPLICIT NONE
 
        PROCEDURE :: ReadSpecMeshFile => ReadSpecMeshFile_QuadMesh
        PROCEDURE :: WriteTecplot => WriteTecplot_Quadmesh
+       PROCEDURE :: WriteMaterialTecplot => WriteMaterialTecplot_Quadmesh
        
     END TYPE QuadMesh
 
@@ -1679,9 +1681,11 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
          CALL myQuadMesh % GetEdgeElementIDs( iEdge, e )
          CALL myQuadMesh % GetEdgeElementSides( iEdge, s )
 
-         CALL myQuadMesh % SetElementNeighbor( e(1), s(1), e(2) )
-         CALL myQuadMesh % SetElementNeighbor( e(2), ABS(s(2)), e(1) )
-         
+         IF( e(2) > 0 )THEN
+            CALL myQuadMesh % SetElementNeighbor( e(1), s(1), e(2) )
+            CALL myQuadMesh % SetElementNeighbor( e(2), ABS(s(2)), e(1) )
+         ENDIF
+
       ENDDO ! iEdge, Loop over the edges
 
      
@@ -1848,6 +1852,7 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
 
 
       CALL myQuadMesh % GetNodeToElementConnectivity( )
+      CALL myQuadMesh % ConstructElementNeighbors( )
 
       ! Clear up memory
       DEALLOCATE( s, xc, yc )
@@ -2460,6 +2465,7 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
     !  ENDDO
       ! Get the node to element connectivity
       CALL myQuadMesh % GetNodeToElementConnectivity( )
+      CALL myQuadMesh % ConstructElementNeighbors( )
 
       ! Clear up memory
       DEALLOCATE( s, xc, yc, sideFlags )
@@ -2528,6 +2534,59 @@ SUBROUTINE ConstructEdges_QuadMesh( myQuadMesh )
 !
 !
 !
- 
+ SUBROUTINE WriteMaterialTecplot_Quadmesh( myQuadMesh, materialIDs, filename )
+ ! S/R WriteMaterialTecplot
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+  IMPLICIT NONE
+  CLASS(QuadMesh), INTENT(inout)     :: myQuadMesh
+  INTEGER, INTENT(in)                :: materialIDs(1:myQuadMesh % nElems)
+  CHARACTER(*), INTENT(in), OPTIONAL :: filename  
+  ! Local
+  INTEGER :: iS, iP, nS, nP, iEl,fUnit, eID
+  REAL(prec) :: x, y
+  CHARACTER(7) :: zoneID
 
+    CALL myQuadMesh % elements(1) % GetNumberOfNodes( nS, nP )
+
+    IF( PRESENT(filename) )THEN
+    
+       OPEN( UNIT=NEWUNIT(fUnit), &
+             FILE= TRIM(filename)//'.tec', &
+             FORM='formatted')
+    ELSE
+    
+       OPEN( UNIT=NEWUNIT(fUnit), &
+             FILE= 'materials.tec', &
+             FORM='formatted')
+
+    ENDIF
+    
+    WRITE(fUnit,*) 'VARIABLES = "X", "Y", "materialID" '
+
+
+    DO iEl = 1, myQuadMesh % nElems
+
+       CALL myQuadMesh % elements(iEl) % GetElementID( eID )
+       WRITE(zoneID,'(I7.7)') eID
+       WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nP+1,',F=POINT'
+
+       DO iP = 0, nP
+          DO iS = 0,nS
+             CALL myQuadMesh % GetPositionAtNode( iEl, x, y, iS, iP )
+             WRITE(fUnit,*)  x, y, materialIDs(iEl)
+          ENDDO
+      ENDDO
+
+    ENDDO
+    
+    CLOSE(UNIT=fUnit)
+
+    RETURN
+
+ END SUBROUTINE WriteMaterialTecplot_Quadmesh
+!
+!
+!
 END MODULE QuadMeshClass
