@@ -1,47 +1,31 @@
-! HexElementClass.f90 ( new with v2.1 - 25 Jan. 2016)
+! HexElementClass.f90
 ! 
-! ====================================== LICENSE ================================================= !
+! Copyright 2015 Joseph Schoonover <schoonover.numerics@gmail.com>
+! 
+! HexElementClass.f90 is part of the Spectral Element Libraries in Fortran (SELF).
+! 
+! Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
+! and associated documentation files (the "Software"), to deal in the Software without restriction, 
+! including without limitation the rights to use, copy, modify, merge, publish, distribute, 
+! sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is 
+! furnished to do so, subject to the following conditions: 
+! 
+! The above copyright notice and this permission notice shall be included in all copies or  
+! substantial portions of the Software. 
+! 
+! THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
+! BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+! NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+! DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
 !
-!  This program is free software; you can redistribute it and/or modify
-!  it under the terms of the GNU General Public License as published by
-!  the Free Software Foundation; either version 2 of the License, or
-!  (at your option) any later version.
-!  
-!  This program is distributed in the hope that it will be useful,
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!  GNU General Public License for more details.
-!  
-!  You should have received a copy of the GNU General Public License
-!  along with this program; if not, write to the Free Software
-!  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-!  MA 02110-1301, USA.
-! 
-! ==================================== Module History ============================================ ! 
-! 
-! o  (ver 2.1) January 2016
-!
-! ========================================= Logs ================================================= !
-! 2016-01-26  Joe  <joe@clay> : schoonover.numerics@gmail.com
-!
-! * In other modules in version 2.1, the "Get" accessor routines have been written as subroutines.
-!   It was not foreseen that this would be "clunky" in implementation where one would have to 
-!   call the Get subroutine and store an intermediate variable. To transform this "two-step-extra-
-!   variable" implementation, the Get Accessor routines are written here as functions, so that one
-!   could simply write (for example)
-!              myElement % GetWesternNeighbor()
-!   in order to access the location in memory containing the element's western neighbor (in this 
-!   example). The MappedGeometry_3D wrappers however, will not follow this convention since
-!   in many cases multiple output fields are needed.
-!   If it is found that this improves code readability and implementation, other modules' Get 
-!   routines will be converted to functions rather than subroutines. 
-!   
-! 
 ! //////////////////////////////////////////////////////////////////////////////////////////////// !
 
-
 MODULE HexElementClass
-
+! ========================================= Logs ================================================= !
+!2016-05-11  Joseph Schoonover  schoonover.numerics@gmail.com 
+!
+! //////////////////////////////////////////////////////////////////////////////////////////////// ! 
 
 ! src/common/
 USE ModelPrecision

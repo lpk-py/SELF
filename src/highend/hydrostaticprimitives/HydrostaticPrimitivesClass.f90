@@ -1,50 +1,32 @@
-! HydrostaticPrimitiveClass.f90 ( new with v2.1 - 18 March 2016)
+! HydrostaticPrimitivesClass.f90
 ! 
-! ====================================== LICENSE ================================================= !
+! Copyright 2015 Joseph Schoonover <schoonover.numerics@gmail.com>
+! 
+! HydrostaticPrimitivesClass.f90 is part of the Spectral Element Libraries in Fortran (SELF).
+! 
+! Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
+! and associated documentation files (the "Software"), to deal in the Software without restriction, 
+! including without limitation the rights to use, copy, modify, merge, publish, distribute, 
+! sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is 
+! furnished to do so, subject to the following conditions: 
+! 
+! The above copyright notice and this permission notice shall be included in all copies or  
+! substantial portions of the Software. 
+! 
+! THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
+! BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+! NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+! DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
 !
-!  This program is free software; you can redistribute it and/or modify
-!  it under the terms of the GNU General Public License as published by
-!  the Free Software Foundation; either version 2 of the License, or
-!  (at your option) any later version.
-!  
-!  This program is distributed in the hope that it will be useful,
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!  GNU General Public License for more details.
-!  
-!  You should have received a copy of the GNU General Public License
-!  along with this program; if not, write to the Free Software
-!  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-!  MA 02110-1301, USA.
-! 
-! ==================================== Module History ============================================ ! 
-! 
-! o  (ver 2.1) January 2016
-!
-! ========================================= Logs ================================================= !
-! yyyy-mm-dd  Joe  <joe@clay>
-!
-!   
-! 
 ! //////////////////////////////////////////////////////////////////////////////////////////////// !
-
-
+ 
+ 
 MODULE HydrostaticPrimitivesClass
-! HydrostaticPrimitiveClass.f90
+! ========================================= Logs ================================================= !
+!2016-05-11  Joseph Schoonover  schoonover.numerics@gmail.com 
 !
-! schoonover.numerics@gmail.com
-! 
-! o (ver 2.1) March 2016
-!
-! This module provides a basic template for DGSEM in 3-D. The test system provided here is the
-! advection-diffusion equation. DG for advection diffusion is recommended for scenarios in which
-! the Peclet number is greater than one, ie, advection dominates diffusion.
-!
-! The Timing module (common/Timing.f90) is used to estimate the workload balance in the global 
-! time-derivative routine.
-! 
-!  
-! ================================================================================================ !
+! //////////////////////////////////////////////////////////////////////////////////////////////// ! 
 
 ! src/common/
 USE ModelPrecision

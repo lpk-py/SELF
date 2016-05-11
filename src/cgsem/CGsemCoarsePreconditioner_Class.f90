@@ -1,8 +1,8 @@
-!  CGsemPreconditioner_2D_Class.f90
+!  CGsemCoarsePreconditioner_Class.f90
 !  
 !  Copyright 2015 Joseph Schoonover <schoonover.numerics@gmail.com>
 !  
-!  CGsemPreconditioner_2D_Class.f90 is part of the Spectral Element Libraries in Fortran (SELF).
+!  CGsemCoarsePreconditioner_Class.f90 is part of the Spectral Element Libraries in Fortran (SELF).
 !
 !  Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 !  and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -20,14 +20,20 @@
 !  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 !  
 ! //////////////////////////////////////////////////////////////////////////////////////////////// !
-!
 
-MODULE CGsemPreconditioner_2D_Class
+
 ! ========================================= Logs ================================================= !
 ! yyyy-mm-dd  Joe  <joe@clay>
+!    This module defines the data structure used for implementing the Continuous Galerkin
+!    Spectral Element Method. 
+!
+!    The module  is set up so that we solve div( Flux ) = Source
+!   
 ! 
 ! //////////////////////////////////////////////////////////////////////////////////////////////// !
 
+
+MODULE CGsemCoarsePreconditioner_Class
 
 ! src/common/
 USE ModelPrecision
@@ -42,7 +48,10 @@ USE EdgeClass
 USE NodeClass_2D
 USE VectorClass
 USE MappedGeometryClass_2D
-
+!/src/filters
+USE ModalCutoffFilter2D_Class
+! src/cgsem/
+USE CGsemParams_Class
 
 
 IMPLICIT NONE
@@ -58,12 +67,15 @@ IMPLICIT NONE
          TYPE( NodalStorage_2D )       :: SpectralOps
          TYPE( QuadMesh )              :: mesh         
          REAL(prec), ALLOCATABLE       :: fluxCoeff(:,:,:)
-         INTEGER, ALLOCATABLE          :: pcToOrig(:,:,:,:), origToPC(:,:,:,:)
+         TYPE( ModalCutoffFilter2D )   :: filter
+!         REAL(prec), ALLOCATABLE       :: lowToHighS(:,:), lowToHighP(:,:)
+!         REAL(prec), ALLOCATABLE       :: highToLowS(:,:), highToLowP(:,:)
 
 
          CONTAINS
 
          PROCEDURE :: Build         => Build_CGsemPreconditioner_2D
+         PROCEDURE :: BuildQuadMesh => BuildQuadMesh_CGsemPreconditioner_2D
          PROCEDURE :: Trash         => Trash_CGsemPreconditioner_2D
          PROCEDURE :: ConstructPCMatrix
          
@@ -85,7 +97,7 @@ IMPLICIT NONE
 
 CONTAINS
 
- SUBROUTINE Build_CGsemPreconditioner_2D( myPC, pctol, pcIters, origMesh )
+ SUBROUTINE Build_CGsemPreconditioner_2D( myPC, highOps, params )
  ! S/R Build
  !
  ! 
@@ -93,24 +105,24 @@ CONTAINS
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( CGsemPreconditioner_2D ), INTENT(inout) :: myPC
-   REAL(prec), INTENT(in)                         :: pctol
-   INTEGER, INTENT(in)                            :: pcIters
-   TYPE(QuadMesh)                                 :: origMesh
+   TYPE( NodalStorage_2D ), INTENT(in)            :: highOps
+   TYPE( CGsemParams ), INTENT(in)                :: params
    ! LOCAL
-   INTEGER :: nS, nP, nID, iNode
+   INTEGER :: nS, nP, nID, iNode, highPdeg
+ !  REAL(prec), ALLOCATABLE :: lowS(:), lowP(:), highS(:), highP(:)
 
-      nS = 1
+      nS = params % polyDeg
       nP = nS
+
+      highPDeg = params % polyDeg
       
-      myPC % tolerance = pctol
-      myPC % maxIters  = pcIters
+      myPC % tolerance = params % pcTolerance
+      myPC % maxIters  = params % pcIterates
       myPC % nS        = nS
       myPC % nP        = nP 
      
       CALL myPC % SpectralOps % Build( nS, nP, GAUSS_LOBATTO, CG )
-      CALL myPC % mesh % ConstructLinearMeshFromOther( origMesh, &
-                                                       myPC % pcToOrig, &
-                                                       myPC % origToPC )
+      CALL myPC % BuildQuadMesh( params )
 
       DO iNode = 1, myPC % mesh % nNodes
          CALL myPC % mesh % GetNodeType( iNode, nID )
@@ -122,8 +134,70 @@ CONTAINS
       ! Allocate space for the solution, source term, and diffusivity coefficient
       ALLOCATE( myPC % fluxCoeff(0:nS, 0:nP, 1:myPC % mesh % nElems) )
       myPC % fluxCoeff = ONE
+
+      CALL myPC % filter % Build( myPC % SpectralOps, params % pcDegree, params % pcDegree )
+!      ALLOCATE( lowS(0:nS), lowP(0:nP), highS(0:highPDeg), highP(0:highPDeg) )
+
+!      CALL highOps % interp % GetNodes( highS, highP )
+!      CALL myPC % SpectralOps % interp % GetNodes( lowS, lowP )
+
+!      ALLOCATE( myPC % lowToHighS(0:highPDeg,0:nS), myPC % lowToHighP(0:highPDeg,0:nP) )
+!      ALLOCATE( myPC % highToLowS(0:nS,0:highPDeg), myPC % highToLowP(0:nP,0:highPDeg) )
       
+!      CALL myPC % SpectralOps % interp % CalculateInterpolationMatrix( highPDeg, highPDeg, &
+!                                                                       highS, highP, &
+!                                                                       myPC % lowToHighS, &
+!                                                                       myPC % lowToHighP )
+!      CALL highOps % interp % CalculateInterpolationMatrix( nS, nP, &
+!                                                            lowS, lowP, &
+!                                                            myPC % highToLowS, &
+!                                                            myPC % highToLowP ) 
+
+!      DEALLOCATE( lowS, lowP, highS, highP )
+
  END SUBROUTINE Build_CGsemPreconditioner_2D
+!
+!
+!
+ SUBROUTINE BuildQuadMesh_CGsemPreconditioner_2D( myCGSEM, params )
+ ! S/R BuildQuadMesh
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( CGsemPreconditioner_2D ), INTENT(inout) :: myCGSEM
+   TYPE( CGsemParams ), INTENT(in)          :: params
+   ! LOCAL
+   INTEGER :: iEdge, eID, iNode, nID
+
+      IF( TRIM( params % SpecMeshFile ) == nada )THEN
+         PRINT*,' Loading default 2-D mesh.'
+         CALL  myCGSEM % mesh % LoadDefaultMesh( myCGSEM % SpectralOps % interp, &
+                                                 params % nXelem, &
+                                                 params % nYelem )
+      ELSE
+      ! Builds the lateral mesh
+         PRINT*, 'Reading 2-D mesh from '//trim(params % SpecMeshFile)//'.'
+         CALL myCGSEM % mesh % ReadSpecMeshFile( myCGSEM % SpectralOps % interp, &
+                                                 params % SpecMeshFile )
+      ENDIF
+
+
+      DO iEdge = 1, myCGSEM % mesh % nEdges
+         CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, eID )
+         IF( eID == NO_NORMAL_FLOW )THEN
+            CALL myCGSEM % mesh % SetEdgeSecondaryElementID( iEdge, DIRICHLET )
+         ENDIF
+      ENDDO
+
+      DO iNode = 1, myCGSEM % mesh % nNodes
+         CALL myCGSEM % mesh % GetNodeType( iNode, nID )
+         IF( nID == NO_NORMAL_FLOW )THEN
+            CALL myCGSEM % mesh % SetNodeType( iNode, DIRICHLET )
+         ENDIF
+      ENDDO
+
+ END SUBROUTINE BuildQuadMesh_CGsemPreconditioner_2D
 !
 !
 !
@@ -144,10 +218,13 @@ CONTAINS
       CALL myPC % mesh % Trash( )
 
       ! Deallocate space for the solution, source term, and diffusivity coefficient
-      DEALLOCATE( myPC % fluxCoeff, &
-                  myPC % pcToOrig, &
-                  myPC % origToPC )
+      DEALLOCATE( myPC % fluxCoeff )!, &
+!                  myPC % lowToHighS, &
+!                  myPC % lowToHighP, &
+!                  myPC % highToLowS, & 
+!                  myPC % highToLowP )
                   
+      CALL myPC % filter % Trash( )
 
  END SUBROUTINE Trash_CGsemPreconditioner_2D
 !
@@ -157,7 +234,7 @@ CONTAINS
 !==================================================================================================!
 !
 !
- SUBROUTINE MapFromOrigToPC_Preconditioner_2D( myPC, uOrig, uLin, nS, nP, nEl )
+ SUBROUTINE MapFromOrigToPC_Preconditioner_2D( myPC, uHigh, uLow, nS, nP, nEl )
  ! S/R MapFromOrigToPC
  ! 
  !  This subroutine maps the array "uOrig" to the "uLin".
@@ -169,30 +246,21 @@ CONTAINS
    IMPLICIT NONE
    CLASS( CGsemPreconditioner_2D ), INTENT(in) :: myPC
    INTEGER, INTENT(in)                         :: nS, nP, nEl
-   REAL(prec), INTENT(in)                      :: uOrig(0:nS,0:nP,1:nEl)
-   REAL(prec), INTENT(out)                     :: uLin(0:1,0:1,1:myPC % mesh % nElems)
+   REAL(prec), INTENT(in)                      :: uHigh(0:nS,0:nP,1:nEl)
+   REAL(prec), INTENT(out)                     :: uLow(0:myPC % nS,0:myPC % nP,1:myPC % mesh % nElems)
    ! LOCAL
    INTEGER :: iEl, iS, iP
    INTEGER :: i, j, k
+   REAL(prec) :: uInt(0:nS,0:myPC % nP)
 
-      DO k = 1, myPC % mesh % nElems
-         DO j = 0, 1
-            DO i = 0, 1
 
-               iS  = myPC % pcToOrig(i,j,k,1)
-               iP  = myPC % pcToOrig(i,j,k,2)
-               iEl = myPC % pcToOrig(i,j,k,3)
-               uLin(i,j,k) = uOrig(iS,iP,iEl)
-
-            ENDDO
-         ENDDO
-      ENDDO
+      uLow = uHigh
 
  END SUBROUTINE MapFromOrigToPC_Preconditioner_2D
 !
 !
 !
- SUBROUTINE MapFromPCToOrig_Preconditioner_2D( myPC, uOrig, uLin, nS, nP, nEl )
+ SUBROUTINE MapFromPCToOrig_Preconditioner_2D( myPC, uHigh, uLow, nS, nP, nEl )
  ! S/R MapFromPCToOrig
  ! 
  !  This subroutine maps the array "uLin" to the array "uOrig".
@@ -204,24 +272,13 @@ CONTAINS
    IMPLICIT NONE
    CLASS( CGsemPreconditioner_2D ), INTENT(in) :: myPC
    INTEGER, INTENT(in)                         :: nS, nP, nEl
-   REAL(prec), INTENT(out)                     :: uOrig(0:nS,0:nP,1:nEl)
-   REAL(prec), INTENT(in)                      :: uLin(0:1,0:1,1:myPC % mesh % nElems)
+   REAL(prec), INTENT(out)                     :: uHigh(0:nS,0:nP,1:nEl)
+   REAL(prec), INTENT(in)                      :: uLow(0:myPC % nS,0:myPC % nP,1:myPC % mesh % nElems)
    ! LOCAL
    INTEGER :: iEl, iS, iP
    INTEGER :: i, j, k
 
-      DO iEl = 1, nEl
-         DO iP = 0, nP
-            DO iS = 0, nS
-
-               i = myPC % origToPC(iS,iP,iEl,1)
-               j = myPC % origToPC(iS,iP,iEl,2)
-               k = myPC % origToPC(iS,iP,iEl,3)
-               uOrig(iS,iP,iEl) = uLin(i,j,k)
-
-            ENDDO
-         ENDDO
-      ENDDO
+      uHigh = uLow
 
  END SUBROUTINE MapFromPCToOrig_Preconditioner_2D
 !
@@ -439,6 +496,7 @@ CONTAINS
    REAL(prec), INTENT(out)               :: dudy(0:myPC % nS, 0:myPC % nP) 
    ! LOCAL
    INTEGER :: iS, iP, nS, nP
+   REAL(prec) :: locU(0:myPC % nS, 0:myPC % nP)
    REAL(prec) :: duds(0:myPC % nS, 0:myPC % nP)
    REAL(prec) :: dudp(0:myPC % nS, 0:myPC % nP)
    REAL(prec) :: dMatS(0:myPC % nS, 0:myPC % nS)
@@ -450,10 +508,11 @@ CONTAINS
       nS = myPC % nS
       nP = myPC % nP
       CALL myPC % SpectralOps % GetDerivativeMatrix( dMatS, dMatP ) 
-
+      locU = myPC % filter % ApplyFilter( u )
+   
       DO iP = 0, nP ! Loop over the second computational direction
  
-         sTemp = u(0:nS,iP)
+         sTemp = locU(0:nS,iP)
          ! Calculate the derivative in the first computational direction
          duds(0:nS,iP) = MATMUL( dMatS, sTemp )
 
@@ -461,7 +520,7 @@ CONTAINS
 
       DO iS = 0, nS ! Loop over the first computational direction
 
-         pTemp = u(iS,0:nP)
+         pTemp = locU(iS,0:nP)
          ! Calculate the derivative in the second computational direction
          dudp(iS,0:nP) = MATMUL( dMatP, pTemp )
 
@@ -592,7 +651,7 @@ CONTAINS
       DO iEl = 1, nEl
          temp(0:nS,0:nP) = u(0:nS,0:nP,iEl)
          CALL myPC % FluxDivergence( iEl, temp, Atemp )
-         Au(0:nS,0:nP,iEl) = Atemp(0:nS,0:nP)
+         Au(0:nS,0:nP,iEl) =  Atemp(0:nS,0:nP)
       ENDDO
 !$OMP END DO
 !$OMP  FLUSH ( Au )
@@ -701,7 +760,6 @@ CONTAINS
       
       u = ZERO
       r0 = sqrt( myPC % DotProduct( r, r ) ) 
-         
 !      print*, r0
       DO iter = 1,nIt ! Loop over the CG iterates
       
@@ -731,15 +789,12 @@ CONTAINS
 
       ENDDO ! iter, loop over the CG iterates 
 
-      IF( rNorm/r0 > TOL )THEN
+      IF( SQRT(rNorm)/r0 > TOL )THEN
       !   PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
       !   PRINT*, 'Last L-2 residual : ', sqrt(rNorm)
          ioerr=-1
       ENDIF   
 
-      IF( nIt == 0 )THEN
-         u = r
-      ENDIF
       CALL myPC % UnMask( u )
       CALL myPC % MapFromPCtoOrig( x, u, nS, nP, nEl ) !
 
@@ -760,9 +815,7 @@ CONTAINS
    REAL(prec)              :: ei(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
    REAL(prec)              :: Aei(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
    REAL(prec)              :: thismask(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
-   REAL(prec)              :: s, p
    REAL(prec), ALLOCATABLE :: A(:,:) 
-   CHARACTER(5) :: zoneID
 
       nS  = myPC % nS
       nP  = myPC % nP
@@ -824,30 +877,8 @@ CONTAINS
 
       CLOSE(fUnit)
 
+               
 
-      OPEN( UNIT=NewUnit(fUnit), &
-            FILE='mask.tec', &
-            FORM='FORMATTED')
+ END SUBROUTINE
 
-      
-      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "mask"'
-    
-      DO iEl = 1, myPC % mesh % nElems
-
-         WRITE(zoneID,'(I5.5)') iEl
-         WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nP+1,',F=POINT'
-
-         DO iP = 0, nS
-            DO iS = 0, nS
-               CALL myPC % mesh % GetPositionAtNode( iEl, s, p, iS, iP )
-               WRITE(fUnit,*)  s, p, thismask(iS,iP,iEl)
-            ENDDO
-         ENDDO
-
-      ENDDO
-      
-      CLOSE( fUnit )
-
- END SUBROUTINE ConstructPCMatrix
-
-END MODULE CGsemPreconditioner_2D_Class
+END MODULE CGsemCoarsePreconditioner_Class
