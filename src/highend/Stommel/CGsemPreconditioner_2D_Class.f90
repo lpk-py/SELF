@@ -1,39 +1,32 @@
-! CGsemPreconditioner_2D_2D_Class.f90 ( new with v2.1 - 25 March 2016)
+! CGsemPreconditioner_2D_Class.f90
 ! 
-! ====================================== LICENSE ================================================= !
+! Copyright 2015 Joseph Schoonover <schoonover.numerics@gmail.com>
+! 
+! CGsemPreconditioner_2D_Class.f90 is part of the Spectral Element Libraries in Fortran (SELF).
+! 
+! Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
+! and associated documentation files (the "Software"), to deal in the Software without restriction, 
+! including without limitation the rights to use, copy, modify, merge, publish, distribute, 
+! sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is 
+! furnished to do so, subject to the following conditions: 
+! 
+! The above copyright notice and this permission notice shall be included in all copies or  
+! substantial portions of the Software. 
+! 
+! THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
+! BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+! NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+! DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
 !
-!  This program is free software; you can redistribute it and/or modify
-!  it under the terms of the GNU General Public License as published by
-!  the Free Software Foundation; either version 2 of the License, or
-!  (at your option) any later version.
-!  
-!  This program is distributed in the hope that it will be useful,
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!  GNU General Public License for more details.
-!  
-!  You should have received a copy of the GNU General Public License
-!  along with this program; if not, write to the Free Software
-!  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-!  MA 02110-1301, USA.
-! 
-! ==================================== Module History ============================================ ! 
-! 
-! o  (ver 1.0) April 2015
-! o  (ver 2.1) March 2016
-!
-! ========================================= Logs ================================================= !
-! yyyy-mm-dd  Joe  <joe@clay>
-!    This module defines the data structure used for implementing the Continuous Galerkin
-!    Spectral Element Method. 
-!
-!    The module  is set up so that we solve div( Flux ) = Source
-!   
-! 
 ! //////////////////////////////////////////////////////////////////////////////////////////////// !
-
-
+ 
+ 
 MODULE CGsemPreconditioner_2D_Class
+! ========================================= Logs ================================================= !
+!2016-05-13  Joseph Schoonover  schoonover.numerics@gmail.com 
+!
+! //////////////////////////////////////////////////////////////////////////////////////////////// ! 
 
 ! src/common/
 USE ModelPrecision
@@ -64,7 +57,6 @@ IMPLICIT NONE
          TYPE( NodalStorage_2D )       :: SpectralOps
          TYPE( QuadMesh )              :: mesh         
          REAL(prec), ALLOCATABLE       :: fluxCoeff(:,:,:)
-         REAL(prec), ALLOCATABLE       :: qX(:,:,:), qY(:,:,:)
          INTEGER, ALLOCATABLE          :: pcToOrig(:,:,:,:), origToPC(:,:,:,:)
 
 
@@ -72,7 +64,6 @@ IMPLICIT NONE
 
          PROCEDURE :: Build         => Build_CGsemPreconditioner_2D
          PROCEDURE :: Trash         => Trash_CGsemPreconditioner_2D
-         PROCEDURE :: ConstructPCMatrix
          
          PROCEDURE :: MapFromOrigToPC => MapFromOrigToPC_Preconditioner_2D
          PROCEDURE :: MapFromPCToOrig => MapFromPCToOrig_Preconditioner_2D
@@ -128,11 +119,8 @@ CONTAINS
       
       ! Allocate space for the solution, source term, and diffusivity coefficient
       ALLOCATE( myPC % fluxCoeff(0:nS, 0:nP, 1:myPC % mesh % nElems) )
-      ALLOCATE( myPC % qX(0:nS, 0:nP, 1:myPC % mesh % nElems) )
-      ALLOCATE( myPC % qY(0:nS, 0:nP, 1:myPC % mesh % nElems) )
       myPC % fluxCoeff = ONE
-      myPC % qX     = ZERO
-      myPC % qY     = ZERO
+
       
  END SUBROUTINE Build_CGsemPreconditioner_2D
 !
@@ -157,9 +145,7 @@ CONTAINS
       ! Deallocate space for the solution, source term, and diffusivity coefficient
       DEALLOCATE( myPC % fluxCoeff, &
                   myPC % pcToOrig, &
-                  myPC % origToPC, &
-                  myPC % qX, &
-                  myPC % qY )
+                  myPC % origToPC )
                   
 
  END SUBROUTINE Trash_CGsemPreconditioner_2D
@@ -598,7 +584,6 @@ CONTAINS
       nP  = myPC % nP
       nEl = myPC % mesh % nElems
      
-      CALL myPC % SpectralOps % GetQuadratureWeights( ws, wp )
       CALL myPC % UnMask( u ) ! unmask the solution
 
 !$OMP PARALLEL PRIVATE( temp, Atemp, ux, uy )
@@ -761,107 +746,4 @@ CONTAINS
 !
 !
 ! 
- SUBROUTINE ConstructPCMatrix( myPC )
- !
- !
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( CGsemPreconditioner_2D ), INTENT(inout) :: myPC
-   ! LOCAL
-   INTEGER                 :: iEl, iS, iP, jEl, jS, jP, nEl, nS, nP
-   INTEGER                 :: row, col, nfree, fUnit
-   REAL(prec)              :: ei(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
-   REAL(prec)              :: Aei(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
-   REAL(prec)              :: thismask(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
-   REAL(prec)              :: s, p
-   REAL(prec), ALLOCATABLE :: A(:,:) 
-   CHARACTER(5) :: zoneID
-
-      nS  = myPC % nS
-      nP  = myPC % nP
-      nEl = myPC % mesh % nElems
-
-      nfree = 0 
-      thismask = ONE
-      CALL myPC % Mask( thismask )
-      DO iEl = 1, nEl
-         DO iP = 0, nP
-            DO iS = 0, nS
-               nfree = nfree + thismask(iS,iP,iEl)
-            ENDDO
-         ENDDO
-      ENDDO
-
-      ALLOCATE(A(1:nfree,1:nfree))
-
-      row = 0
-      DO iEl = 1, nEl
-         DO iP = 0, nP
-            DO iS = 0, nS
-
-               IF( AlmostEqual(thismask(iS,iP,iEl),ONE) )THEN
-                  ei = ZERO
-                  ei(iS,iP,iEl) = ONE
-                  row = row + 1
-                  
-                  CALL myPC % MatrixAction( ei, Aei )
-
-                  col = 0
-                  DO jEl = 1, nEl
-                     DO jP = 0, nP
-                        DO jS = 0, nS
-                           
-                           IF( AlmostEqual( thisMask(jS,jP,jEl),ONE ) )THEN
-                              col = col + 1
-                              A(row,col) = Aei(jS,jP,jEl)
-                           ENDIF
-                   
-                        ENDDO
-                     ENDDO
-                  ENDDO
-  
-               ENDIF
-
-            ENDDO
-         ENDDO
-      ENDDO
-
-
-      OPEN( UNIT = NewUnit(fUnit), &
-            FILE = 'PCmat.txt', &
-            FORM = 'FORMATTED' )
-
-      DO row = 1, nfree
-         WRITE(fUnit,*) A(row,:)
-      ENDDO
-
-      CLOSE(fUnit)
-
-
-      OPEN( UNIT=NewUnit(fUnit), &
-            FILE='mask.tec', &
-            FORM='FORMATTED')
-
-      
-      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "mask"'
-    
-      DO iEl = 1, myPC % mesh % nElems
-
-         WRITE(zoneID,'(I5.5)') iEl
-         WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nP+1,',F=POINT'
-
-         DO iP = 0, nS
-            DO iS = 0, nS
-               CALL myPC % mesh % GetPositionAtNode( iEl, s, p, iS, iP )
-               WRITE(fUnit,*)  s, p, thismask(iS,iP,iEl)
-            ENDDO
-         ENDDO
-
-      ENDDO
-      
-      CLOSE( fUnit )
-
- END SUBROUTINE ConstructPCMatrix
-
 END MODULE CGsemPreconditioner_2D_Class

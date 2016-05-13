@@ -51,7 +51,16 @@ IMPLICIT NONE
 
    CALL SetCoriolisParameter( ellipticSolver )
    CALL SetBathymetry( ellipticSolver )
+
+   ! Now that the bathymetry and the coriolis parameter are set, the potential vorticity gradient
+   ! can be calculated and stored in the "Stommel" class. Recall that the potential vorticity in 
+   ! the Stommel model is f/h, where "f" is the coriolis parameter and "h" is the fluid depth.
    CALL CalculatePVGradient( ellipticSolver )
+
+   ! Now that the bathymetry and the coriolis parameter are set, the flux coefficent for the
+   ! drag operator can be reset. * Recall that the flux coefficient is cDrag/h^2 where "cDrag"
+   ! is the linear drag coefficient and "h" is the fluid depth.
+   CALL ellipticSolver % ResetFluxCoefficient( )
 
    CALL SetEkmanPumping( ellipticSolver, params )
 
@@ -183,36 +192,24 @@ CONTAINS
    TYPE( StommelParams ), INTENT(in) :: params
    ! LOCAL
    INTEGER    :: i, j, k, N, nEl
-   REAL(prec) :: f(0:myCGSEM % nS, 0:myCGSEM % nP)
-   REAL(prec) :: fx(0:myCGSEM % nS, 0:myCGSEM % nP)
-   REAL(prec) :: fy(0:myCGSEM % nS, 0:myCGSEM % nP)
-   REAL(prec) :: h(0:myCGSEM % nS, 0:myCGSEM % nP)
-   REAL(prec) :: hx(0:myCGSEM % nS, 0:myCGSEM % nP)
-   REAL(prec) :: hy(0:myCGSEM % nS, 0:myCGSEM % nP)
+   REAL(prec) :: q(0:myCGSEM % nS, 0:myCGSEM % nP)
+   REAL(prec) :: qx(0:myCGSEM % nS, 0:myCGSEM % nP)
+   REAL(prec) :: qy(0:myCGSEM % nS, 0:myCGSEM % nP)
 
       N   = myCGSEM % nS
       nEl = myCGSEM % mesh % nElems
 
       DO k = 1, nEl
 
-         h = myCGSEM % h(:,:,k)
-         f = myCGSEM % f(:,:,k)
+         q = myCGSEM % f(:,:,k)/myCGSEM % h(:,:,k)
 
-         CALL myCGSEM % CalculateGradient( k, f, fx, fy)
-         CALL myCGSEM % CalculateGradient( k, h, hx, hy)
+         CALL myCGSEM % CalculateGradient( k, q, qx, qy)
 
-         myCGSEM % qX(:,:,k) = fx - f*hx/h
-         myCGSEM % qY(:,:,k) = fy - f*hy/h
+         myCGSEM % qX(:,:,k) = qx
+         myCGSEM % qY(:,:,k) = qy
 
       ENDDO
 
-      CALL myCGSEM % preconditioner % MapFromOrigToPC( myCGSEM % qX, &
-                                                       myCGSEM % preconditioner % qX, &
-                                                       nS, nP, myCGSEM % mesh % nElems )
- 
-      CALL myCGSEM % preconditioner % MapFromOrigToPC( myCGSEM % qY, &
-                                                       myCGSEM % preconditioner % qY, &
-                                                       nS, nP, myCGSEM % mesh % nElems )
 
  END SUBROUTINE CalculatePVGradient
 !

@@ -1,39 +1,33 @@
-! Stommel_2D_Class.f90 ( new with v2.1 - 25 March 2016)
+! Stommel_Class.f90
 ! 
-! ====================================== LICENSE ================================================= !
+! Copyright 2015 Joseph Schoonover <schoonover.numerics@gmail.com>
+! 
+! Stommel_Class.f90 is part of the Spectral Element Libraries in Fortran (SELF).
+! 
+! Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
+! and associated documentation files (the "Software"), to deal in the Software without restriction, 
+! including without limitation the rights to use, copy, modify, merge, publish, distribute, 
+! sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is 
+! furnished to do so, subject to the following conditions: 
+! 
+! The above copyright notice and this permission notice shall be included in all copies or  
+! substantial portions of the Software. 
+! 
+! THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
+! BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+! NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+! DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
 !
-!  This program is free software; you can redistribute it and/or modify
-!  it under the terms of the GNU General Public License as published by
-!  the Free Software Foundation; either version 2 of the License, or
-!  (at your option) any later version.
-!  
-!  This program is distributed in the hope that it will be useful,
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!  GNU General Public License for more details.
-!  
-!  You should have received a copy of the GNU General Public License
-!  along with this program; if not, write to the Free Software
-!  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-!  MA 02110-1301, USA.
-! 
-! ==================================== Module History ============================================ ! 
-! 
-! o  (ver 1.0) April 2015
-! o  (ver 2.1) March 2016
-!
-! ========================================= Logs ================================================= !
-! yyyy-mm-dd  Joe  <joe@clay>
-!    This module defines the data structure used for implementing the Continuous Galerkin
-!    Spectral Element Method. 
-!
-!    The module  is set up so that we solve div( Flux ) = Source
-!   
-! 
 ! //////////////////////////////////////////////////////////////////////////////////////////////// !
-
+ 
+ 
 
 MODULE Stommel_Class
+! ========================================= Logs ================================================= !
+!2016-05-13  Joseph Schoonover  schoonover.numerics@gmail.com 
+!
+! //////////////////////////////////////////////////////////////////////////////////////////////// ! 
 
 ! src/common/
 USE ModelPrecision
@@ -58,23 +52,24 @@ IMPLICIT NONE
       TYPE Stommel
          INTEGER                        :: maxIters, mInnerIters, nPlot, nS, nP
          REAL(prec)                     :: tolerance
-         TYPE( CGsemPreconditioner_2D ) :: preconditioner
+         REAL(prec)                     :: Cd
+      !   TYPE( CGsemPreconditioner_2D ) :: preconditioner
          TYPE( NodalStorage_2D )        :: SpectralOps
          TYPE( QuadMesh )               :: mesh     
          REAL(prec), ALLOCATABLE        :: solution(:,:,:)
          REAL(prec), ALLOCATABLE        :: source(:,:,:)
          REAL(prec), ALLOCATABLE        :: fluxCoeff(:,:,:)
          REAL(prec), ALLOCATABLE        :: fCori(:,:,:), h(:,:,:)
-         REAL(prec), ALLOCATABLE        :: qX(:,:,:), qY(:,:,:)
+         REAL(prec), ALLOCATABLE        :: Q(:,:,:)
          REAL(prec), ALLOCATABLE        :: resi(:)
          REAL(prec), ALLOCATABLE        :: plMatS(:,:), plMatP(:,:)
 
          CONTAINS
 
-         PROCEDURE :: Build         => Build_Stommel
-         PROCEDURE :: BuildQuadMesh => BuildQuadMesh_Stommel
-         PROCEDURE :: Trash         => Trash_Stommel
-       
+         PROCEDURE :: Build                => Build_Stommel
+         PROCEDURE :: BuildQuadMesh        => BuildQuadMesh_Stommel
+         PROCEDURE :: Trash                => Trash_Stommel
+         PROCEDURE :: ResetFluxCoefficient => ResetFluxCoefficient_Stommel
          
 
          PROCEDURE :: Mask                          => Mask_Stommel
@@ -87,12 +82,12 @@ IMPLICIT NONE
          PROCEDURE :: MatrixAction                  => MatrixAction_Stommel
          PROCEDURE :: Residual                      => Residual_Stommel
          PROCEDURE :: DotProduct                    => DotProduct_Stommel
-         PROCEDURE :: Solve                         => Solve_PCConjugateGradient
+         PROCEDURE :: Solve                         => Solve_GMRES
          
          PROCEDURE :: CoarseToFine  => CoarseToFine_Stommel
          PROCEDURE :: WriteTecplot  => WriteTecplot_Stommel
          PROCEDURE :: WriteResidual => WriteResidual_Stommel
-         PROCEDURE :: ConstructMatrix
+
       END TYPE Stommel
 
       
@@ -106,8 +101,8 @@ CONTAINS
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( Stommel ), INTENT(inout) :: myCGSEM
-   TYPE( CGsemParams ), INTENT(in)          :: params
+   CLASS( Stommel ), INTENT(inout)  :: myCGSEM
+   TYPE( StommelParams ), INTENT(in) :: params
    ! LOCAL
    INTEGER                 :: nS, nP, nPlot
    REAL(prec), ALLOCATABLE :: sNew(:)
@@ -122,7 +117,8 @@ CONTAINS
       myCGSEM % nS          = nS
       myCGSEM % nP          = nP 
       myCGSEM % nPlot       = nPlot
-     
+      myCGSEM % Cd          = params % cDrag
+
       CALL myCGSEM % SpectralOps % Build( nS, nP, GAUSS_LOBATTO, CG )
       CALL myCGSEM % BuildQuadMesh( params )
       
@@ -132,18 +128,16 @@ CONTAINS
                 myCGSEM % fluxCoeff(0:nS, 0:nP, 1:myCGSEM % mesh % nElems), &
                 myCGSEM % fCori(0:nS, 0:nP, 1:myCGSEM % mesh % nElems), &
                 myCGSEM % h(0:nS, 0:nP, 1:myCGSEM % mesh % nElems), &
-                myCGSEM % qX(0:nS, 0:nP, 1:myCGSEM % mesh % nElems), &
-                myCGSEM % qY(0:nS, 0:nP, 1:myCGSEM % mesh % nElems) )
+                myCGSEM % Q(0:nS, 0:nP, 1:myCGSEM % mesh % nElems) )
 
-      ALLOCATE( myCGSEM % resi(0:myCGSEM % maxIters) )
+      ALLOCATE( myCGSEM % resi(0:myCGSEM % maxIters*myCGSEM % mInnerIters) )
 
       myCGSEM % solution  = ZERO
       myCGSEM % source    = ZERO      ! f*wEk --> vortex tube stretching
-      myCGSEM % fluxCoeff = myCGSEM % params % cDrag
-      myCGSEM % h         = ZERO
+      myCGSEM % fluxCoeff = ONE
+      myCGSEM % h         = ONE
       myCGSEM % fCori     = ZERO
-      myCGSEM % qX        = ZERO
-      myCGSEM % qY        = ZERO
+      myCGSEM % Q         = ZERO
 
       ALLOCATE( sNew(0:nPlot) )
       sNew = UniformPoints( -ONE, ONE, nPlot )
@@ -155,13 +149,9 @@ CONTAINS
       DEALLOCATE( sNew )
       
 
-     CALL myCGSEM % preconditioner % Build( params % pcTolerance, &
-                                            params % pcIterates, &
-                                            myCGSEM % mesh )
-
-     CALL myCGSEM % preconditioner % MapFromOrigToPC( myCGSEM % fluxCoeff, &
-                                                      myCGSEM % preconditioner % fluxCoeff, &
-                                                      nS, nP, myCGSEM % mesh % nElems )
+     !CALL myCGSEM % preconditioner % Build( params % pcTolerance, &
+     !                                       params % pcIterates, &
+     !                                       myCGSEM % mesh )
 
      
       
@@ -175,8 +165,8 @@ CONTAINS
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
-   CLASS( Stommel ), INTENT(inout) :: myCGSEM
-   TYPE( CGsemParams ), INTENT(in)          :: params
+   CLASS( Stommel ), INTENT(inout)   :: myCGSEM
+   TYPE( StommelParams ), INTENT(in) :: params
    ! LOCAL
    INTEGER :: iEdge, eID, iNode, nID
 
@@ -207,6 +197,9 @@ CONTAINS
          ENDIF
       ENDDO
 
+      CALL myCGSEM % mesh % ScaleTheMesh( myCGSEM % SpectralOps % interp, &
+                                          params % xScale, params % yScale  )
+
  END SUBROUTINE BuildQuadMesh_Stommel
 !
 !
@@ -234,14 +227,29 @@ CONTAINS
                   myCGSEM % resi, &
                   myCGSEM % fCori, &
                   myCGSEM % h, &
-                  myCGSEM % qX, &
-                  myCGSEM % qY )
+                  myCGSEM % Q )
                   
       DEALLOCATE( myCGSEM % plMatS, myCGSEM % plMatP )
 
-      CALL myCGSEM % preconditioner % Trash( )
+      !CALL myCGSEM % preconditioner % Trash( )
 
  END SUBROUTINE Trash_Stommel
+!
+!
+!
+ SUBROUTINE ResetFluxCoefficient_Stommel( myCGSEM ) 
+ ! S/R ResetFluxCoefficient
+ !
+ ! =============================================================================================== !
+   IMPLICIT NONE
+   CLASS( Stommel ), INTENT( inout ) :: myCGSEM 
+
+      myCGSEM % fluxCoeff = myCGSEM % Cd/(myCGSEM % h**2)
+     ! CALL myCGSEM % preconditioner % MapFromOrigToPC( myCGSEM % fluxCoeff, &
+     !                                                  myCGSEM % preconditioner % fluxCoeff, &
+     !                                                  myCGSEM % nS, myCGSEM % nP, &
+     !                                                  myCGSEM % mesh % nElems )
+ END SUBROUTINE ResetFluxCoefficient_Stommel
 !
 !
 !==================================================================================================!
@@ -402,7 +410,7 @@ CONTAINS
 
          ELSE ! then this is not a prescribed boundary, and we choose to mask out the secondary element
 
-            IF( eID > 0 )THEN ! this is an internal edge, and we should mask out the secondary element
+            IF( e2 > 0 )THEN ! this is an internal edge, and we should mask out the secondary element
                CALL myCGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
                CALL myCGSEM % mesh % GetEdgeSecondaryElementSide( iEdge, s2 )
                CALL MaskSide( e2, s2, myCGSEM % mesh, u, nS, nP, nEl )
@@ -896,7 +904,7 @@ CONTAINS
    REAL(prec) :: wp(0:myCGSEM % nP)
    REAL(prec) :: sTemp(0:myCGSEM % nS)
    REAL(prec) :: pTemp(0:myCGSEM % nP)
-   REAL(prec) :: J, dxds, dxdp, dyds, dydp
+   REAL(prec) :: dxds, dxdp, dyds, dydp, Fx, Fy
 
       nS = myCGSEM % nS
       nP = myCGSEM % nP
@@ -915,8 +923,16 @@ CONTAINS
             CALL myCGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
 
             ! Contravariant flux calculation
-            F1(iS,iP) = myCGSEM % fluxCoeff(iS,iP,iEl)*( dudx(iS,iP)*dydp - dudy(iS,iP)*dxdp )*ws(iS)
-            F2(iS,iP) = myCGSEM % fluxCoeff(iS,iP,iEl)*( dudy(iS,iP)*dxds - dudx(iS,iP)*dyds )*wp(iP)        
+!            F1(iS,iP) = myCGSEM % fluxCoeff(iS,iP,iEl)*( dudx(iS,iP)*dydp - dudy(iS,iP)*dxdp )*ws(iS)
+!            F2(iS,iP) = myCGSEM % fluxCoeff(iS,iP,iEl)*( dudy(iS,iP)*dxds - dudx(iS,iP)*dyds )*wp(iP)  
+            Fx = myCGSEM % fluxCoeff(iS,iP,iEl)*dudx(iS,iP) - &
+                 myCGSEM % Q(iS,iP,iEl)*dudy(iS,iP)
+            
+            Fy = myCGSEM % fluxCoeff(iS,iP,iEl)*dudy(iS,iP) + &
+                 myCGSEM % Q(iS,iP,iEl)*dudx(iS,iP)
+                 
+            F1(iS,iP) = myCGSEM % fluxCoeff(iS,iP,iEl)*( Fx*dydp - Fy*dxdp )*ws(iS)
+            F2(iS,iP) = myCGSEM % fluxCoeff(iS,iP,iEl)*( Fy*dxds - Fx*dyds )*wp(iP) 
 
          ENDDO ! iS
       ENDDO ! iP
@@ -952,32 +968,32 @@ CONTAINS
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Stommel), INTENT(inout) :: myCGSEM
-   REAL(prec), INTENT(inout)              :: u(0:myCGSEM % nS, &
-                                               0:myCGSEM % nP, &
-                                               1:myCGSEM % mesh % nElems )
-   REAL(prec), INTENT(out)                :: Au(0:myCGSEM % nS, &
-                                                0:myCGSEM % nP, &
-                                                1:myCGSEM % mesh % nElems  )
+   REAL(prec), INTENT(inout)     :: u( 0:myCGSEM % nS, &
+                                       0:myCGSEM % nP, &
+                                       1:myCGSEM % mesh % nElems )
+   REAL(prec), INTENT(out)       :: Au(0:myCGSEM % nS, &
+                                       0:myCGSEM % nP, &
+                                       1:myCGSEM % mesh % nElems  )
    ! Local
-   INTEGER :: iEl, nS, nP, nEl
+   INTEGER :: iEl, iS, iP, nS, nP, nEl
    REAL(prec) :: temp(0:myCGSEM % nS, &
                       0:myCGSEM % nP )
    REAL(prec) :: Atemp(0:myCGSEM % nS, &
                        0:myCGSEM % nP )
-   REAL(prec) :: ux(0:myCGSEM % nS, 0:myCGSEM % nP)
-   REAL(prec) :: uy(0:myCGSEM % nS, 0:myCGSEM % nP)
+   REAL(prec) :: J, qX, qY
    REAL(prec) :: ws(0:myCGSEM % nS)
    REAL(prec) :: wp(0:myCGSEM % nP)
-   REAL(prec) :: bx, by, J
+   REAL(prec) :: ux(0:myCGSEM % nS, 0:myCGSEM % nP)
+   REAL(prec) :: uy(0:myCGSEM % nS, 0:myCGSEM % nP)
 
 
       nS  = myCGSEM % nS
       nP  = myCGSEM % nP
       nEl = myCGSEM % mesh % nElems
-      CALL myCGSEM % SpectralOps % GetQuadratureWeights( ws, wp )
       CALL myCGSEM % UnMask( u ) ! unmask the solution
+      CALL myCGSEM % SpectralOps % GetQuadratureWeights( ws, wp )
 
-!$OMP PARALLEL PRIVATE( temp, Atemp, ux, uy )
+!$OMP PARALLEL PRIVATE( temp, Atemp,J, locR, bX, bY, ux, uy )
 !$OMP DO 
       DO iEl = 1, nEl
          temp(0:nS,0:nP) = u(0:nS,0:nP,iEl)
@@ -986,7 +1002,6 @@ CONTAINS
       ENDDO
 !$OMP END DO
 !$OMP  FLUSH ( Au )
-
 
 !$OMP END PARALLEL
 
@@ -1010,13 +1025,13 @@ CONTAINS
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Stommel ), INTENT(inout) :: myCGSEM
-   REAL(prec), EXTERNAL                     :: dirF
-   REAL(prec), INTENT(out)                  :: r(0:myCGSEM % nS, &
-                                                 0:myCGSEM % nP, &
-                                                 1:myCGSEM % mesh % nElems )
+   REAL(prec), EXTERNAL            :: dirF
+   REAL(prec), INTENT(out)         :: r(0:myCGSEM % nS, &
+                                        0:myCGSEM % nP, &
+                                        1:myCGSEM % mesh % nElems )
    ! LOCAL
    INTEGER    :: iS, iP, nS, nP, nEl, iEl, nEdges
-   REAL(prec) :: J
+   REAL(prec) :: J!, qX, qY
    REAL(prec) :: ws(0:myCGSEM % nS)
    REAL(prec) :: wp(0:myCGSEM % nP)
    REAL(prec) :: Au(0:myCGSEM % nS, &
@@ -1033,20 +1048,16 @@ CONTAINS
       CALL myCGSEM % SpectralOps % GetQuadratureWeights( ws, wp )
       CALL myCGSEM % MatrixAction( myCGSEM % solution, Au )
 
-!$OMP PARALLEL PRIVATE( J, locR, bX, bY, ux, uy )
+!$OMP PARALLEL PRIVATE( J )
 !$OMP DO      
       DO iEl = 1, nEl
 
-         CALL myCGSEM % CalculateGradient( iEl, myCGSEM % solution , ux, uy )
          DO iP = 0, nP
             DO iS = 0, nS
                CALL myCGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
-               bX = myCGSEM % qX(iS,iP,iEl)  ! Note that the "beta" terms contain the planetary vorticity
-               bY = myCGSEM % qY(iS,iP,iEl)  ! AND the topographic gradients
 
-               r(iS,iP,iEl) = myCGSEM % source(iS,iP,iEl)*J*ws(iS)*wp(iP) - &
-                              ( bY*ux - bX*uy )*J*ws(iS)*wp(iP) - &
-                              Au(iS,iP,iEl)! gather source terms
+               r(iS,iP,iEl) = myCGSEM % source(iS,iP,iEl)*J*ws(iS)*wp(iP)
+
             ENDDO
          ENDDO
       ENDDO
@@ -1090,6 +1101,7 @@ CONTAINS
 
      ! Add the contributions from the shared edges and corners
      CALL myCGSEM % GlobalSum( r )
+     r = r - Au
 
      ! Mask the edges in preparation for residual calculation
      CALL myCGSEM % Mask( r )
@@ -1146,14 +1158,14 @@ CONTAINS
 !
 !
 !
- SUBROUTINE Solve_PCConjugateGradient( myCGSEM, dirF, ioerr )
+ SUBROUTINE Solve_GMRES( myCGSEM, dirF, ioerr )
  !  S/R Solve
  !
- !  This subroutine solves the system Ax = b using the preconditioned conjugate gradient method.
- !  The matrix action, residual, preconditioning routines are supplied by a non-abstracted 
- !  type-extension of PCConjugateGradient. These routines should return an array indexed from 1 to 
- !  nDOF. Thus, in addition to a MatrixAction and Residual, the user should map their data-structure
- !  to a 1-D array.  
+ !  This subroutine solves the system Ax = b using the un-preconditioned GMRES.
+ !  The matrix action and residual routines are supplied by a non-abstracted type-extension of
+ !  GMRES. These routines should return an array indexed from 1 to nDOF. Thus,
+ !  in addition to a MatrixAction and Residual, the user should map their data-structure to a 1-D 
+ !  array.  
  !
  !  On output ioerr is set to an error checking flag. 
  !  If ioerr ==  0, the method converged within the maximum number of iterations.
@@ -1164,88 +1176,150 @@ CONTAINS
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Stommel ), INTENT(inout) :: myCGSEM
-   REAL(prec), EXTERNAL                     :: dirF
-   INTEGER, INTENT(out)                     :: ioerr
+   REAL(prec), EXTERNAL            :: dirF
+   INTEGER, INTENT(out)            :: ioerr
    ! LOCAL
-   INTEGER    :: nS, nP, nEl,pcioerr
-   INTEGER    :: innerIter, outerIter
-   INTEGER    :: nInnerIt, nOuterIt
+   INTEGER    :: i, j, k, l, iS, iP, iEl
+   INTEGER    :: nIt, m, nr 
    REAL(prec) :: TOL
-   REAL(prec) :: u(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
    REAL(prec) :: r(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
-   REAL(prec) :: v(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
-   REAL(prec) :: z(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
+   REAL(prec) :: v(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems, 1:myCGSEM % mInnerIters+1)
    REAL(prec) :: w(0:myCGSEM % nS, 0:myCGSEM % nP, 1:myCGSEM % mesh % nElems)
-   REAL(prec) :: rNorm
-   REAL(prec) :: a, b, num, den, r0
+   REAL(prec) :: rho(1:myCGSEM % mInnerIters, 1:myCGSEM % mInnerIters)
+   REAL(prec) :: h(1:myCGSEM % mInnerIters+1, 1:myCGSEM % mInnerIters)
+   REAL(prec) :: c(1:myCGSEM % mInnerIters), s(1:myCGSEM % mInnerIters), bhat(1:myCGSEM % mInnerIters+1)
+   REAL(prec) :: y(1:myCGSEM % mInnerIters+1)
+   REAL(prec) :: b, d, g, r0, rc
    
-      nS  = myCGSEM % nS
-      nP  = myCGSEM % nP
-      nEl = myCGSEM % mesh % nElems
-
       ioerr = -2
-      nOuterIt = myCGSEM % maxIters
-      nInnerIt = myCGSEM % mInnerIters
+      nIt = myCGSEM % maxIters
+      m   = myCGSEM % mInnerIters
       TOL = myCGSEM % tolerance
+      r = ZERO
+
+      CALL myCGSEM % Residual( dirF, r )
+      r0 = sqrt(myCGSEM % DotProduct( r, r ) )
+     
+      l = 0 
       myCGSEM % resi = ZERO
-
-      DO outerIter = 0, nOuterIt-1
-
-         u = myCGSEM % solution
-         CALL myCGSEM % Residual( dirF, r )
-         r0 = sqrt( myCGSEM % DotProduct( r, r ) ) 
-         
-         myCGSEM % resi(outerIt) = r0
-         rNorm = r0
-         IF( r0 < TOL )THEN
-            RETURN
-         ENDIF
- 
-         DO iter = 1, nInnerIt ! Loop over the CG iterates
-
-            CALL myCGSEM % UnMask( r )
-            CALL myCGSEM % preconditioner % Solve( w, r, nS, nP, nEl, pcioerr )
-           ! w = r
+      myCGSEM % resi(l) = r0
+      
+      v    = ZERO  
+      rho  = ZERO
+      bhat = ZERO 
+      s    = ZERO
+      c    = ZERO
+      y    = ZERO
    
-            num = myCGSEM % DotProduct( r, w )
+     
+      DO j = 1,nIt
 
-            IF( iter == 1) THEN
-               v = w
-            ELSE
-               b = num/den
-               v = w + b*v
-            ENDIF
+         b       = sqrt( myCGSEM % DotProduct( r, r ) )
+         v(:,:,:,1)  = r/b
+         bhat(1) = b
 
-            CALL myCGSEM % MatrixAction( v, z )
-            a = num/myCGSEM % DotProduct( v, z )
-            u = u + a*v
-            r = r - a*z
-         
-            den = num
+         DO i = 1, m
+            l = l+1
+            nr = i
+            ! The first step in GMRES is to build the orthogonal basis up to order "i"
+            ! with the accompanying upper hessenburg matrix.
+            CALL myCGSEM % MatrixAction( v(:,:,:,i), w )
+            
+            ! The new basis vector is obtained by multiplying the previous basis vector by the matrix
+            ! and orthogonalizing wrt to all of the previous basis vectors using a Gram-Schmidt process.
+            DO k = 1, i
+               h(k,i) = myCGSEM % DotProduct( v(:,:,:,k), w )
+               w      = w - h(k,i)*v(:,:,:,k)
+            ENDDO
 
-            rNorm = sqrt( myCGSEM % DotProduct(r,r) )
-         
-            IF( rNorm/r0 < TOL ) then
+            h(i+1,i) = sqrt( myCGSEM % DotProduct(w,w) )
+
+            IF( AlmostEqual( h(i+1,i), ZERO )  )THEN
                EXIT
-               ioerr = 0
             ENDIF
 
-         ENDDO ! iter, loop over the CG iterates 
+            v(:,:,:,i+1) = w/h(i+1,i)
+            rho(1,i) = h(1,i)
 
-         IF( rNorm/r0 > TOL )THEN
-            PRINT*, 'MODULE IterativeSolvers : ConjugateGradient failed to converge '
-            PRINT*, 'Last L-2 residual : ', rNorm
-            ioerr=-1
-            RETURN
-         ENDIF   
+            ! Givens rotations are applied to the upper hessenburg matrix and to the residual vectors
+            ! that are formed from the orthogonalization process. Here, they are done "on-the-fly"
+            ! as opposed to building the entire upper hessenburg matrix and orthonormal basis
+            ! before performing the rotations. This way, we can also tell if we have found an exact
+            ! solution ( if h(i+1,i) = 0 ) with a smaller subspace than size m.
+            DO k = 2, i
 
-         CALL myCGSEM % UnMask( u )
-         myCGSEM % solution = u
-         CALL myCGSEM % SetDirichletBoundaryCondition( dirF )
+               g          = c(k-1)*rho(k-1,i) + s(k-1)*h(k,i)
+               rho(k,i)   = -s(k-1)*rho(k-1,i) + c(k-1)*h(k,i)
+               rho(k-1,i) = g 
 
-      ENDDO
+            ENDDO
 
- END SUBROUTINE Solve_PCConjugateGradient 
+            ! Here the coefficients of the Givens rotation matrix are computed
+            d = sqrt( rho(i,i)**2 + h(i+1,i)**2 )
+            c(i) = rho(i,i)/d
+            s(i) = h(i+1,i)/d
+
+            rho(i,i) = c(i)*rho(i,i) + s(i)*h(i+1,i)
+            ! And applied to the residual vector
+            bhat(i+1) = -s(i)*bhat(i)
+            bhat(i)   = c(i)*bhat(i)
+ 
+         
+            rc = abs( bhat(i+1) )
+
+            myCGSEM % resi(l) = rc
+            
+            IF( rc/r0 <= TOL )THEN
+               EXIT
+            ENDIF
+
+         ENDDO
+         
+         IF( rc/r0 > TOL )THEN
+            nr = m
+         ENDIF
+
+         ! Back-substitution of the tridiagonal matrix that resulted from the rotations
+         y(nr) = bhat(nr)/rho(nr,nr)
+         DO k = nr-1, 1, -1
+
+            y(k) = bhat(k)
+
+            DO i = k+1, nr
+               y(k) = y(k) - rho(k,i)*y(i)
+
+            ENDDO
+
+            y(k) = y(k)/rho(k,k)
+
+         ENDDO
+         
+ 
+         DO iEl = 1,myCGSEM % mesh % nElems
+            DO iP = 0, myCGSEM % nP
+               DO iS = 0, myCGSEM % nS
+                  myCGSEM % solution(iS,iP,iEl) = myCGSEM % solution(iS,iP,iEl) + &
+                                                 DOT_PRODUCT( v(iS,iP,iEl,1:nr), y(1:nr) )
+               ENDDO
+            ENDDO
+         ENDDO
+
+         IF( rc/r0 <= TOL )THEN
+            ioerr = 0
+            EXIT
+         ENDIF
+
+         CALL myCGSEM % Residual( dirF, r )
+
+      ENDDO 
+
+      IF( rc/r0 > TOL )THEN
+         PRINT*, 'MODULE IterativeSolvers : GMRES failed to converge '
+         PRINT*, 'Last L-2 residual : ', sqrt(myCGSEM % DotProduct(r,r))
+         ioerr=-1
+      ENDIF   
+
+ END SUBROUTINE Solve_GMRES
 !
 !
 !==================================================================================================!
@@ -1253,18 +1327,25 @@ CONTAINS
 !==================================================================================================!
 !
 !
-SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source )
+SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source, depth, coriolis, u, v, qX, qY )
  ! CoarseToFine
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS( Stommel ), INTENT(in) :: myCGSEM
-   INTEGER, INTENT(in)                :: iEl
-   REAL(prec), INTENT(out)            :: x(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
-   REAL(prec), INTENT(out)            :: y(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
-   REAL(prec), INTENT(out)            :: sol(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
-   REAL(prec), INTENT(out)            :: source(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   INTEGER, INTENT(in)          :: iEl
+   REAL(prec), INTENT(out)      :: x(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: y(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: sol(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: source(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: depth(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: coriolis(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: u(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: v(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: qX(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec), INTENT(out)      :: qY(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+
    ! Local
    REAL(prec) :: localX(0:myCGSEM % nS, 0:myCGSEM % nP)
    REAL(prec) :: localY(0:myCGSEM % nS, 0:myCGSEM % nP)
@@ -1299,6 +1380,51 @@ SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source )
                                                         myCGSEM % nPlot, &
                                                         myCGSEM % nPlot, &
                                                         source )
+
+      CALL myCGSEM % SpectralOps % interp % CoarseToFine( myCGSEM % h(:,:,iEl), &
+                                                        myCGSEM % plMatS, &
+                                                        myCGSEM % plMatP, &
+                                                        myCGSEM % nPlot, &
+                                                        myCGSEM % nPlot, &
+                                                        depth )
+
+      CALL myCGSEM % SpectralOps % interp % CoarseToFine( myCGSEM % fCori(:,:,iEl), &
+                                                        myCGSEM % plMatS, &
+                                                        myCGSEM % plMatP, &
+                                                        myCGSEM % nPlot, &
+                                                        myCGSEM % nPlot, &
+                                                        coriolis )
+
+      CALL myCGSEM % CalculateGradient( iEl, myCGSEM % solution , localX, localY )
+
+      CALL myCGSEM % SpectralOps % interp % CoarseToFine( -localY, &
+                                                          myCGSEM % plMatS, &
+                                                          myCGSEM % plMatP, &
+                                                          myCGSEM % nPlot, &
+                                                          myCGSEM % nPlot, &
+                                                          u )
+
+      CALL myCGSEM % SpectralOps % interp % CoarseToFine( localX, &
+                                                          myCGSEM % plMatS, &
+                                                          myCGSEM % plMatP, &
+                                                          myCGSEM % nPlot, &
+                                                          myCGSEM % nPlot, &
+                                                          v )
+
+      CALL myCGSEM % SpectralOps % interp % CoarseToFine( myCGSEM % qX(:,:,iEl), &
+                                                          myCGSEM % plMatS, &
+                                                          myCGSEM % plMatP, &
+                                                          myCGSEM % nPlot, &
+                                                          myCGSEM % nPlot, &
+                                                          qX )
+
+      CALL myCGSEM % SpectralOps % interp % CoarseToFine( myCGSEM % qY, &
+                                                          myCGSEM % plMatS, &
+                                                          myCGSEM % plMatP, &
+                                                          myCGSEM % nPlot, &
+                                                          myCGSEM % nPlot, &
+                                                          qY )
+
  END SUBROUTINE CoarseToFine_Stommel
 !
 !
@@ -1318,9 +1444,15 @@ SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source )
    REAL(prec)       :: y(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
    REAL(prec)       :: sol(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
    REAL(prec)       :: source(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
-  
+   REAL(prec)       :: depth(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec)       :: coriolis(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec)       :: u(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+   REAL(prec)       :: v(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
+
       nEl = myCGSEM % mesh % nElems
       nS  = myCGSEM % nPlot
+
+      CALL myCGSEM % UnMask( myCGSEM % solution )
 
       IF( PRESENT(filename) )THEN
          OPEN( UNIT=NewUnit(fUnit), &
@@ -1332,17 +1464,19 @@ SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source )
                FORM='FORMATTED')
       ENDIF
       
-      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "sol", "source"'
+      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "StreamFunction", "U", "V", "Depth", "Coriolis", "source"'
     
       DO iEl = 1, myCGSEM % mesh % nElems
 
          WRITE(zoneID,'(I5.5)') iEl
          WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nS+1,',F=POINT'
-         CALL myCGSEM % CoarseToFine( iEl, x, y, sol, source )
+         CALL myCGSEM % CoarseToFine( iEl, x, y, sol, source, depth, coriolis, u, v, qX, qY )
 
          DO iY = 0, nS
             DO iX = 0, nS
-               WRITE(fUnit,*)  x(iX, iY), y(iX, iY), sol(iX,iY), source(iX,iY) 
+               WRITE(fUnit,*)  x(iX, iY), y(iX, iY), sol(iX, iY), &
+                               u(iX, iY), v(iX, iY), depth(iX, iY), &
+                               coriolis(iX,iY), source(iX,iY)
             ENDDO
          ENDDO
 
@@ -1388,110 +1522,4 @@ SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source )
 !
 !
 !
- SUBROUTINE ConstructMatrix( myPC )
- !
- !
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( Stommel ), INTENT(inout) :: myPC
-   ! LOCAL
-   INTEGER                 :: iEl, iS, iP, jEl, jS, jP, nEl, nS, nP
-   INTEGER                 :: row, col, nfree, fUnit
-   REAL(prec)              :: ei(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
-   REAL(prec)              :: Aei(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
-   REAL(prec)              :: thismask(0:myPC % nS, 0:myPC % nP, 1:myPC % mesh % nElems)
-   REAL(prec)              :: s, p
-   REAL(prec), ALLOCATABLE :: A(:,:)
-   CHARACTER(5)            :: zoneID 
-
-      nS  = myPC % nS
-      nP  = myPC % nP
-      nEl = myPC % mesh % nElems
-
-      nfree = 0 
-      thismask = ONE
-      CALL myPC % Mask( thismask )
-      DO iEl = 1, nEl
-         DO iP = 0, nP
-            DO iS = 0, nS
-               nfree = nfree + thismask(iS,iP,iEl)
-            ENDDO
-         ENDDO
-      ENDDO
-
-      ALLOCATE(A(1:nfree,1:nfree))
-
-      row = 0
-      DO iEl = 1, nEl
-         DO iP = 0, nP
-            DO iS = 0, nS
-
-               IF( AlmostEqual(thismask(iS,iP,iEl),ONE) )THEN
-                  ei = ZERO
-                  ei(iS,iP,iEl) = ONE
-                  row = row + 1
-                  
-                  CALL myPC % MatrixAction( ei, Aei )
-
-                  col = 0
-                  DO jEl = 1, nEl
-                     DO jP = 0, nP
-                        DO jS = 0, nS
-                           
-                           IF( AlmostEqual( thisMask(jS,jP,jEl),ONE ) )THEN
-                              col = col + 1
-                              A(row,col) = Aei(jS,jP,jEl)
-                           ENDIF
-                   
-                        ENDDO
-                     ENDDO
-                  ENDDO
-  
-               ENDIF
-
-            ENDDO
-         ENDDO
-      ENDDO
-
-
-      OPEN( UNIT = NewUnit(fUnit), &
-            FILE = 'Omat.txt', &
-            FORM = 'FORMATTED' )
-
-      DO row = 1, nfree
-         WRITE(fUnit,*) A(row,:)
-      ENDDO
-
-      CLOSE(fUnit)
-
-
-           OPEN( UNIT=NewUnit(fUnit), &
-            FILE='omask.tec', &
-            FORM='FORMATTED')
-
-      
-      WRITE(fUnit,*) 'VARIABLES = "X", "Y", "mask"'
-    
-      DO iEl = 1, myPC % mesh % nElems
-
-         WRITE(zoneID,'(I5.5)') iEl
-         WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nP+1,',F=POINT'
-
-         DO iP = 0, nS
-            DO iS = 0, nS
-               CALL myPC % mesh % GetPositionAtNode( iEl, s, p, iS, iP )
-               WRITE(fUnit,*)  s, p, thismask(iS,iP,iEl)
-            ENDDO
-         ENDDO
-
-      ENDDO
-      
-      CLOSE( fUnit )
-
-               
-
- END SUBROUTINE ConstructMatrix
-
-
 END MODULE Stommel_Class

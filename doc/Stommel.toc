@@ -1,0 +1,7 @@
+\contentsline {chapter}{Contents}{i}{section*.1}
+\contentsline {chapter}{\chapternumberline {1}Equations and Discretization}{1}{chapter.1}
+\contentsline {section}{\numberline {1.1}Nodal Continuous Galerkin Discretization}{2}{section.1.1}
+\contentsline {appendix}{\chapternumberline {A}Spectral Element Primer}{3}{appendix.A}
+\contentsline {section}{\numberline {A.1}Vector Spaces}{3}{section.A.1}
+\contentsline {section}{\numberline {A.2}Spectral Approximations and Error Analysis}{3}{section.A.2}
+\contentsline {appendix}{\chapternumberline {B}Differential Geometry}{5}{appendix.B}
