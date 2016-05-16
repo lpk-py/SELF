@@ -1327,7 +1327,7 @@ CONTAINS
 !==================================================================================================!
 !
 !
-SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source, depth, coriolis, u, v, qX, qY )
+SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source, depth, coriolis, u, v )
  ! CoarseToFine
  !
  ! =============================================================================================== !
@@ -1343,8 +1343,6 @@ SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source, depth, corioli
    REAL(prec), INTENT(out)      :: coriolis(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
    REAL(prec), INTENT(out)      :: u(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
    REAL(prec), INTENT(out)      :: v(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
-   REAL(prec), INTENT(out)      :: qX(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
-   REAL(prec), INTENT(out)      :: qY(0:myCGSEM % nPlot, 0:myCGSEM % nPlot)
 
    ! Local
    REAL(prec) :: localX(0:myCGSEM % nS, 0:myCGSEM % nP)
@@ -1395,7 +1393,7 @@ SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source, depth, corioli
                                                         myCGSEM % nPlot, &
                                                         coriolis )
 
-      CALL myCGSEM % CalculateGradient( iEl, myCGSEM % solution , localX, localY )
+      CALL myCGSEM % CalculateGradient( iEl, myCGSEM % solution(:,:,iEl) , localX, localY )
 
       CALL myCGSEM % SpectralOps % interp % CoarseToFine( -localY, &
                                                           myCGSEM % plMatS, &
@@ -1411,19 +1409,6 @@ SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source, depth, corioli
                                                           myCGSEM % nPlot, &
                                                           v )
 
-      CALL myCGSEM % SpectralOps % interp % CoarseToFine( myCGSEM % qX(:,:,iEl), &
-                                                          myCGSEM % plMatS, &
-                                                          myCGSEM % plMatP, &
-                                                          myCGSEM % nPlot, &
-                                                          myCGSEM % nPlot, &
-                                                          qX )
-
-      CALL myCGSEM % SpectralOps % interp % CoarseToFine( myCGSEM % qY, &
-                                                          myCGSEM % plMatS, &
-                                                          myCGSEM % plMatP, &
-                                                          myCGSEM % nPlot, &
-                                                          myCGSEM % nPlot, &
-                                                          qY )
 
  END SUBROUTINE CoarseToFine_Stommel
 !
@@ -1470,7 +1455,7 @@ SUBROUTINE CoarseToFine_Stommel( myCGSEM, iEl, x, y, sol, source, depth, corioli
 
          WRITE(zoneID,'(I5.5)') iEl
          WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nS+1,', J=', nS+1,',F=POINT'
-         CALL myCGSEM % CoarseToFine( iEl, x, y, sol, source, depth, coriolis, u, v, qX, qY )
+         CALL myCGSEM % CoarseToFine( iEl, x, y, sol, source, depth, coriolis, u, v )
 
          DO iY = 0, nS
             DO iX = 0, nS

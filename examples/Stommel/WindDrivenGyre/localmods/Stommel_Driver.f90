@@ -124,7 +124,7 @@ CONTAINS
             DO i = 0, N
 
                CALL myCGSEM % mesh % GetPositionAtNode( k, x, y, i, j ) ! x and y are the physical locations in the mesh
-               myCGSEM % h(i,j,k) = ONE
+               myCGSEM % h(i,j,k) = ONE + 0.1_prec*exp( -( (x-5.0_prec)**2 + (y-5.0_prec)**2 ) )
 
             ENDDO
          ENDDO
@@ -187,20 +187,13 @@ CONTAINS
    TYPE( Stommel ), INTENT(inout)    :: myCGSEM
    ! LOCAL
    INTEGER    :: k, nEl
-   REAL(prec) :: q(0:myCGSEM % nS, 0:myCGSEM % nP)
-   REAL(prec) :: qx(0:myCGSEM % nS, 0:myCGSEM % nP)
-   REAL(prec) :: qy(0:myCGSEM % nS, 0:myCGSEM % nP)
 
       nEl = myCGSEM % mesh % nElems
 
       DO k = 1, nEl
 
-         q = myCGSEM % fCori(:,:,k)/myCGSEM % h(:,:,k)
-
-         !CALL myCGSEM % CalculateGradient( k, q, qx, qy )
-
-         myCGSEM % qX(:,:,k) = q
-        ! myCGSEM % qY(:,:,k) = qy
+         myCGSEM % Q(:,:,k) = myCGSEM % fCori(:,:,k)/myCGSEM % h(:,:,k)
+ 
 
       ENDDO
 

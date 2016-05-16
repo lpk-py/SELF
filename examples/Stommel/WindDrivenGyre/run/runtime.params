@@ -1,10 +1,19 @@
 &SolverCriteria
-MaximumIterates = 1000,
+MaximumIterates = 100,
+mInnerIters = 100,
 tolerance = 1.0E-8,
 /
 &SpaceManagement
-polyDeg = 5,
-nElems = 10,
+polyDeg = 10,
+nXElem = 10,
+nYElem = 10
 nPlot = 10,
-xScale = 1.0,
+xScale = 10.0,
+yScale = 10.0,
+/
+&StommelParameters
+cDrag = 1.0,
+f0 = 1.0,
+betaX = 0.0,
+betaY = 10.0,
 /

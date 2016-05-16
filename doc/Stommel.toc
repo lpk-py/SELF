@@ -1,7 +1,15 @@
 \contentsline {chapter}{Contents}{i}{section*.1}
 \contentsline {chapter}{\chapternumberline {1}Equations and Discretization}{1}{chapter.1}
 \contentsline {section}{\numberline {1.1}Nodal Continuous Galerkin Discretization}{2}{section.1.1}
-\contentsline {appendix}{\chapternumberline {A}Spectral Element Primer}{3}{appendix.A}
-\contentsline {section}{\numberline {A.1}Vector Spaces}{3}{section.A.1}
-\contentsline {section}{\numberline {A.2}Spectral Approximations and Error Analysis}{3}{section.A.2}
-\contentsline {appendix}{\chapternumberline {B}Differential Geometry}{5}{appendix.B}
+\contentsline {section}{\numberline {1.2}Iterative Solution Technique}{2}{section.1.2}
+\contentsline {chapter}{\chapternumberline {2}Learning to Walk}{3}{chapter.2}
+\contentsline {section}{\numberline {2.1}Downloading}{3}{section.2.1}
+\contentsline {section}{\numberline {2.2}Compile the example}{4}{section.2.2}
+\contentsline {section}{\numberline {2.3}Running the Code and Viewing the Output}{5}{section.2.3}
+\contentsline {subsection}{Running the Code}{5}{section.2.3}
+\contentsline {subsection}{Viewing the output in VisIt}{6}{Item.3}
+\contentsline {section}{\numberline {2.4}Configuration}{6}{section.2.4}
+\contentsline {appendix}{\chapternumberline {A}Spectral Element Primer}{7}{appendix.A}
+\contentsline {section}{\numberline {A.1}Vector Spaces}{7}{section.A.1}
+\contentsline {section}{\numberline {A.2}Spectral Approximations and Error Analysis}{7}{section.A.2}
+\contentsline {appendix}{\chapternumberline {B}Differential Geometry}{9}{appendix.B}
