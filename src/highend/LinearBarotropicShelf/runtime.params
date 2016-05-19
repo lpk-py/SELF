@@ -1,0 +1,10 @@
+&SolverCriteria
+MaximumIterates = 1000,
+tolerance = 1.0E-8,
+/
+&SpaceManagement
+polyDeg = 5,
+nElems = 10,
+nPlot = 10,
+xScale = 1.0,
+/
