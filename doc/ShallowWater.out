@@ -2,9 +2,10 @@
 \BOOKMARK [0][-]{chapter.1}{Equations and Discretization}{}
 \BOOKMARK [1][-]{section.1.1}{Flavors of the Shallow Water Equations}{chapter.1}
 \BOOKMARK [1][-]{section.1.2}{Nodal Discontinuous Galerkin Discretization}{chapter.1}
-\BOOKMARK [0][-]{chapter.2}{Testing the Nonlinear Conservative Form}{}
-\BOOKMARK [0][-]{appendix.A}{Spectral Element Primer}{}
-\BOOKMARK [1][-]{section.A.1}{Vector Spaces}{appendix.A}
-\BOOKMARK [1][-]{section.A.2}{Spectral Approximations and Error Analysis}{appendix.A}
-\BOOKMARK [0][-]{appendix.B}{Differential Geometry}{}
+\BOOKMARK [0][-]{chapter.2}{Getting Started With an Example}{}
+\BOOKMARK [1][-]{section.2.1}{Downloading}{chapter.2}
+\BOOKMARK [1][-]{section.2.2}{Compile the example}{chapter.2}
+\BOOKMARK [1][-]{section.2.3}{Running the Code and Viewing the Output}{chapter.2}
+\BOOKMARK [1][-]{section.2.4}{Configuration}{chapter.2}
+\BOOKMARK [0][-]{chapter.3}{Making modifications}{}
 \BOOKMARK [0][-]{section*.3}{Bibliography}{}

@@ -4,8 +4,8 @@ nCutoff = 8,
 /
 &TimeManagement
 dt = 0.1,
-iterInit = 500000,
-nTimeSteps = 500000,
+iterInit = 0,
+nTimeSteps = 5000,
 dumpFreq = 1000,
 /
 &SpaceManagement
