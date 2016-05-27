@@ -1,21 +1,26 @@
 &SolverCriteria
-MaximumIterates = 1000,
+MaximumIterates = 5000,
 nEPairs = 10,
-nMaxToSolve = 103,
+nMaxToSolve = 25,
 tolerance = 1.0E-8,
 /
 &SpaceManagement
-polyDeg = 10,
-nElems = 10,
+polyDeg = 12,
+nElems = 40,
 nPlot = 10,
-xScale = 1.0,
+xScale = 2.0D6,
 /
 &Physical
 f0 = 1.0D-4,
-innerSlopeLength = 1.0D5,
-outerSlopeLength = 1.0D5,
-shelfwidth       = 2.0D7,
-hmin             = 50.0,
-shelfDepth       = 2050.0,
-offshoreDepth    = 2050.0,
+Linner = 1.5D5,
+Lslope = 5.0D4,
+xSlope = 1.5D5,
+hcoast = 100.0,
+hShelf = 1000.0,
+hDeep = 4000.0,
+/
+&ShelfPerturbation
+vbar = 1.0,
+dLinner = 5.0D4,
+dXslope = 5.0D4,
 /

@@ -66,12 +66,14 @@ IMPLICIT NONE
       TYPE( NodalStorage_1D )  :: cgStorage
       TYPE( SegmentMesh )      :: mesh
       REAL(prec), ALLOCATABLE  :: eigenvalues(:)
+      REAL(prec), ALLOCATABLE  :: growthRates(:)
       REAL(prec), ALLOCATABLE  :: eigenfunctions(:,:,:)
       REAL(prec), ALLOCATABLE  :: cgSol(:,:)
       REAL(prec), ALLOCATABLE  :: rhsVar(:,:)
       REAL(prec), ALLOCATABLE  :: d2Mat(:,:,:) ! matrix for d/dx( k(x) d/dx ) operator within each element
       REAL(prec), ALLOCATABLE  :: wFunc(:,:)   ! Sturm-Liouville weight function
       REAL(prec), ALLOCATABLE  :: H(:,:)       ! The shelf profile
+      REAL(prec), ALLOCATABLE  :: G(:,:)       ! The forcing function due to steepening
       REAL(prec)               :: boundaryFlux(1:2)
       REAL(prec)               :: dirichletMask(1:2)
       TYPE( BarotropicShelfWavesParams ) :: params
@@ -91,13 +93,19 @@ IMPLICIT NONE
 
       PROCEDURE :: StiffnessWeight
       PROCEDURE :: ShelfProfile          => ShelfProfile_BarotropicShelfWaves
+      PROCEDURE :: ShelfMod              => ShelfMod_BarotropicShelfWaves
+      PROCEDURE :: FillForcingTerm       => FillForcingTerm_BarotropicShelfWaves
       PROCEDURE :: StiffnessMatrixAction => StiffnessMatrixAction_BarotropicShelfWaves 
       PROCEDURE :: Residual              => Residual_BarotropicShelfWaves
       PROCEDURE :: VectorProduct         => VectorProduct_BarotropicShelfWaves
+      PROCEDURE :: HBarInnerProduct      => HBarInnerProduct_BarotropicShelfWaves
+      PROCEDURE :: HBarNormalize         => HBarNormalize_BarotropicShelfWaves
+      PROCEDURE :: ComputeGrowthRates    => ComputeGrowthRates_BarotropicShelfWaves
       PROCEDURE :: CGInvert              => CGInvert_BarotropicShelfWaves
       PROCEDURE :: MatrixAction          => MatrixAction_BarotropicShelfWaves
       PROCEDURE :: ArnoldiProcess        => ArnoldiProcess_BarotropicShelfWaves
       PROCEDURE :: IRAM                  => IRAM_BarotropicShelfWaves
+      PROCEDURE :: RecomputeEigenValues  => RecomputeEigenValues_BarotropicShelfWaves
 
       PROCEDURE :: WriteTecplot => WriteTecplot_BarotropicShelfWaves
 
@@ -146,14 +154,16 @@ CONTAINS
       CALL this % mesh % ScaleTheMesh( this % params % xScale )
 
       ALLOCATE( this % eigenvalues(1:nEpairs), this % eigenFunctions(0:nS,1:nEl,1:nEpairs) )
+      ALLOCATE( this % growthRates(1:nEpairs) )
       ALLOCATE( this % cgsol(0:nS,1:nEl), this % rhsVar(0:nS,1:nEl) )
       this % eigenvalues      = ZERO
       this % eigenfunctions   = ZERO
+      this % growthRates      = ZERO
       this % cgsol            = ZERO
       this % rhsVar           = ZERO
       this % boundaryFlux     = ZERO
       this % dirichletMask    = ZERO
-      !this % dirichletMask(2) = ONE
+      this % dirichletMask(2) = ONE
 
       ! In 1-D, for a fixed mesh and stiffness coefficient, the second-derivative matrix
       ! for each element can be constructed and stored once. This way, to compute the elliptic
@@ -174,7 +184,7 @@ CONTAINS
                DO m = 0, nS 
 
                   x = this % mesh % GetPositionAtNode( iEl, m ) 
-                  sK = ONE !this % StiffnessWeight( x ) ! calculate the stiffness weight, "K" in d/dx( K(x) d/dx )
+                  sK = this % StiffnessWeight( x ) ! calculate the stiffness weight, "K" in d/dx( K(x) d/dx )
                   J = this % mesh % GetJacobianAtNode( iEl, m )
 
                   lmr = dMat(m,row) 
@@ -187,7 +197,7 @@ CONTAINS
          ENDDO 
       ENDDO 
 
-      ALLOCATE( this % wFunc(0:nS,1:nEl), this % H(0:nS,1:nEl) )
+      ALLOCATE( this % wFunc(0:nS,1:nEl), this % H(0:nS,1:nEl), this % G(0:nS,1:nEl) )
       ALLOCATE( Hinv(0:nS) )
 
       DO iEl = 1, nEl
@@ -199,18 +209,20 @@ CONTAINS
      
       DO iEl = 1, nEl
 
-        ! Hinv = ONE/this % H(0:nS,iEl)
-        ! this % wFunc(:,iEl) = MATMUL( dMat, Hinv )
+         Hinv = ONE/this % H(0:nS,iEl)
+         this % wFunc(:,iEl) = MATMUL( dMat, Hinv )
   
          DO m = 0, nS
             J = this % mesh % GetJacobianAtNode( iEl, m )
-           !this % wFunc(m,iEl) = this % wFunc(m,iEl)*w(m)*J
-            this % wFunc(m,iEl) = w(m)*J
+            this % wFunc(m,iEl) = f0*this % wFunc(m,iEl)*w(m)
+           ! this % wFunc(m,iEl) = w(m)*J
          ENDDO
 
       ENDDO
          
       DEALLOCATE( w, dMat, Hinv )
+
+      CALL this % FillForcingTerm( )
 
  END SUBROUTINE Build_BarotropicShelfWaves
 !
@@ -228,33 +240,9 @@ CONTAINS
       CALL this % mesh % Trash( )
       DEALLOCATE( this % cgsol, this % rhsVar, this % d2Mat )
       DEALLOCATE( this % eigenvalues, this % eigenfunctions )
+      DEALLOCATE( this % growthrates, this % G )
 
  END SUBROUTINE Trash_BarotropicShelfWaves
-!
-!
-!
- FUNCTION ShelfProfile_BarotropicShelfWaves( this, x ) RESULT( h )
- ! ShelfProfile
- !
- ! =============================================================================================== !
-   IMPLICIT NONE
-   CLASS( BarotropicShelfWaves ) :: this
-   REAL(prec)                    :: x
-   REAL(prec)                    :: h
-   ! Local
-   REAL(prec) :: L1, L2, h1, hshelf, hdeep, xSlope
-
-      L1     = this % params % innerslopelength
-      L2     = this % params % outerslopelength
-      xSlope = this % params % shelfWidth
-      h1     = this % params % hmin
-      hshelf = this % params % shelfDepth
-      hDeep  = this % params % offshoreDepth
-
-      h = ( h1*(ONE - tanh(x/L1)) + hshelf*tanh( x/L1 ) )*(ONE - tanh((x-xSlope)/L2) ) + &
-           hDeep*tanh( (x-xSlope)/L2 )
-
- END FUNCTION ShelfProfile_BarotropicShelfWaves
 !
 !
 !==================================================================================================!
@@ -268,6 +256,118 @@ CONTAINS
 !==================================================================================================!
 !--------------------------------- Type Specific Routines -----------------------------------------!
 !==================================================================================================!
+!
+!
+ FUNCTION ShelfProfile_BarotropicShelfWaves( this, x ) RESULT( h )
+ ! ShelfProfile
+ !
+ ! =============================================================================================== !
+   IMPLICIT NONE
+   CLASS( BarotropicShelfWaves ) :: this
+   REAL(prec)                    :: x
+   REAL(prec)                    :: h
+   ! Local
+   REAL(prec) :: L1, L2, hcoast, hshelf, hdeep, xSlope
+
+      L1     = this % params % Linner
+      L2     = this % params % Lslope
+      xSlope = this % params % xSlope
+      hcoast = this % params % hcoast
+      hshelf = this % params % hShelf
+      hDeep  = this % params % hDeep
+
+      h = hcoast + (hshelf - hcoast)*tanh( x/L1 ) + &
+          HALF*(hdeep - hshelf)*( tanh((x-xSlope)/L2) + ONE )
+
+
+ END FUNCTION ShelfProfile_BarotropicShelfWaves
+!
+!
+!
+ FUNCTION ShelfMod_BarotropicShelfWaves( this, x ) RESULT( h )
+ ! ShelfMod
+ !
+ ! =============================================================================================== !
+   IMPLICIT NONE
+   CLASS( BarotropicShelfWaves ) :: this
+   REAL(prec)                    :: x
+   REAL(prec)                    :: h
+   ! Local
+   REAL(prec) :: L1, L2, hcoast, hshelf, hdeep, xSlope
+   REAL(prec) :: dx, dL
+   REAL(prec) :: s, ds, sech2slope, sech2inner
+
+      L1     = this % params % Linner
+      L2     = this % params % Lslope
+      xSlope = this % params % xSlope
+      hcoast = this % params % hcoast
+      hshelf = this % params % hShelf
+      hDeep  = this % params % hDeep
+      dX     = this % params % dxSlope
+      dL     = this % params % dLinner
+
+      ! Note that hyperbolic secant is not an intrinsic function. We can, however, approximate
+      ! it using the definition of the derivative - introduces O( ds**2 )error
+      s  = ( x - xSlope )/L2
+      ds = (10.0_prec**(-7))!*s
+      sech2slope = HALF*(tanh(s+ds) - tanh(s-ds))/ds
+
+      s  = ( x )/L1
+      ds = (10.0_prec**(-7))!*s
+      sech2inner = HALF*(tanh(s+ds) - tanh(s-ds))/ds
+
+      h = HALF*(hDeep - hShelf)*dX/L2*sech2slope - &
+          (hShelf - hcoast)*dL*x/(L1*L1)*sech2inner
+
+
+ END FUNCTION ShelfMod_BarotropicShelfWaves
+!
+!
+!
+ SUBROUTINE FillForcingTerm_BarotropicShelfWaves( this )
+ ! S/R FillForcingTerm
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS 
+   IMPLICIT NONE
+   CLASS( BarotropicShelfWaves ), INTENT(inout) :: this
+   ! Local
+   REAL(prec) :: x, J, vbar, f0
+   REAL(prec) :: gOnH(0:this % nS, 1:this % nElems)
+   REAL(prec) :: DgOnHDx(0:this % nS, 1:this % nElems)
+   REAL(prec) :: dMat(0:this % nS,0:this % nS)
+   INTEGER    :: nS, nEl, iS, iEl
+
+
+      nEl  = this % nElems
+      nS   = this % nS
+      vbar = this % params % vbar
+      f0   = this % params % f0
+
+      CALL this % cgStorage % GetDerivativeMatrix( dMat )
+
+      DO iEl = 1, nEl
+         DO iS = 0, nS
+
+            x = this % mesh % GetPositionAtNode( iEl, iS )
+            gOnH(iS,iEl) = this % ShelfMod( x )/this % H(iS,iEl)
+
+         ENDDO
+        
+         DgOnHDx(0:nS, iEl) = MATMUL( dMat, gOnH(0:nS,iEl) )
+ 
+         DO iS = 0, nS
+            J = this % mesh % GetJacobianAtNode( iEl, iS )
+            DgOnHDx(iS,iEl) = DgOnHDx(iS,iEl)/J
+         ENDDO
+
+      ENDDO
+
+      this % G = vbar*( vbar*DgOnHDx + f0*gOnH )
+
+
+ END SUBROUTINE FillForcingTerm_BarotropicShelfWaves
+!
 !
 !
  FUNCTION StiffnessWeight( this, x ) RESULT( K )
@@ -495,9 +595,10 @@ CONTAINS
       nEl = this % nElems
       nS  = this % nS
 
+      ! This call calculates the 2nd Derivative Operator to s
       As = this % StiffnessMatrixAction( s )
 
-      r = this % wFunc*this % rhsVar
+      r = this % wFunc*this % rhsVar ! This is the inner-product weight applied to solution array
 
       CALL this % GlobalSum( r )
       CALL this % Mask( r )
@@ -508,8 +609,8 @@ CONTAINS
       ! flux should be added to the matrix action for the associated degree of freedom. To
       ! implement such a Neumann boundary condition, the boundary flux is added to the 
       ! rhsVar for the first and last nodes if the dirichletMask is set to one.
-      r(0,1)    = r(0,1) + this % boundaryFlux(1)*this % dirichletMask(1)
-      r(nS,nEl) = r(nS,nEl) - this % boundaryFlux(2)*this % dirichletMask(2)
+     ! r(0,1)    = r(0,1) + this % boundaryFlux(1)*this % dirichletMask(1)
+     ! r(nS,nEl) = r(nS,nEl) - this % boundaryFlux(2)*this % dirichletMask(2)
 
      ! CALL this % Mask( r )
 
@@ -518,7 +619,7 @@ CONTAINS
 !
 !
  FUNCTION VectorProduct_BarotropicShelfWaves( this, u, v ) RESULT( uDotV )
- ! Residual
+ ! VectorProduct
  ! 
  ! =============================================================================================== !
  ! DECLARATIONS
@@ -543,7 +644,97 @@ CONTAINS
 !
 !
 !
-  SUBROUTINE CGInvert_BarotropicShelfWaves( this, ioerr )
+ FUNCTION HBarInnerProduct_BarotropicShelfWaves( this, u, v ) RESULT( uDotV )
+ ! HBarInnerProduct
+ ! 
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( BarotropicShelfWaves ) :: this
+   REAL(prec)                    :: u(0:this % nS, 1:this % nElems)
+   REAL(prec)                    :: v(0:this % nS, 1:this % nElems)
+   REAL(prec)                    :: uDotV
+   ! Local
+   INTEGER    :: iEl
+   REAL(prec) :: uWeighted(0:this % nS, 1:this % nElems)
+
+      CALL this % Mask( u )
+      CALL this % Mask( v )
+      uDotV = ZERO
+      uWeighted = u*this % wFunc
+
+      DO iEl = 1, this % nElems
+         uDotV = uDotV + DOT_PRODUCT( uWeighted(:,iEl), v(:,iEl) )
+      ENDDO
+
+
+ END FUNCTION HBarInnerProduct_BarotropicShelfWaves
+!
+!
+!
+ SUBROUTINE HBarNormalize_BarotropicShelfWaves( this )
+ ! S/R HBarNormalize
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( BarotropicShelfWaves ), INTENT(inout) :: this
+   ! LOCAL
+   REAL(prec) :: s(0:this % nS, 1:this % nElems)
+   REAL(prec) :: Ws(0:this % nS, 1:this % nElems)
+   REAL(prec) :: sMag
+   INTEGER    :: i, m
+
+      m = this % nEigenPairs
+      DO i = 1, m
+
+         s    = this % eigenfunctions(:,:,i)
+         Ws   = s*this % wFunc
+  
+         sMag = SQRT( ABS(this % VectorProduct( s, Ws )) )
+         
+         this % eigenfunctions(:,:,i) = s/sMag
+
+         CALL this % UnMask( this % eigenfunctions(:,:,i) )
+
+      ENDDO 
+
+ END SUBROUTINE HBarNormalize_BarotropicShelfWaves
+!
+!
+!
+ SUBROUTINE ComputeGrowthRates_BarotropicShelfWaves( this )
+ ! S/R ComputeGrowthRates
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( BarotropicShelfWaves ), INTENT(inout) :: this
+   ! LOCAL
+   REAL(prec) :: s(0:this % nS, 1:this % nElems)
+   REAL(prec) :: G(0:this % nS, 1:this % nElems)
+   REAL(prec) :: c
+   INTEGER    :: i, m
+
+      m = this % nEigenPairs
+      G = this % G
+
+      DO i = 1, m
+
+         s = this % eigenfunctions(:,:,i)
+         c = this % eigenvalues(i)
+         
+         this % growthRates(i) = this % VectorProduct( s, G )*c
+
+         CALL this % UnMask( this % eigenfunctions(:,:,i) )
+
+      ENDDO 
+
+ END SUBROUTINE ComputeGrowthRates_BarotropicShelfWaves
+!
+!
+!
+ SUBROUTINE CGInvert_BarotropicShelfWaves( this, ioerr )
  !  S/R CGInvert
  !
  !  This subroutine solves the system Ax = b using the un-preconditioned conjugate gradient method.
@@ -636,21 +827,8 @@ CONTAINS
    INTEGER :: ioerr, iEl, iS
    REAL(prec) :: w(0:this % nS), J
                     
-      this % rhsVar = s
-      this % cgSol  = ZERO
-!      Ms = this % StiffnessMatrixAction( s )
-!      CALL this % UnMask( Ms ) 
-!      CALL this % cgStorage % GetQuadratureWeights( w )
-!      DO iEL = 1, this % nElems
-!         DO iS = 0, this % nS
-!            J = this % mesh % GetJacobianAtNode( iEl, iS )
-!            IF( iS == 0 .OR. iS == this % nS )THEN
-!            Ms(iS,iEl) = Ms(iS,iEl)/(2.0_prec*J*w(iS))
-!            ELSE
-!            Ms(iS,iEl) = Ms(iS,iEl)/(J*w(iS))
-!            ENDIF
-!         ENDDO
-!      ENDDO
+      this % rhsVar = s    ! Set the solution variable that the inner-product weight will be applied to
+      this % cgSol  = s ! Initial guess for the solution v = inverse(A)*W*s
 
       CALL this % CGInvert( ioerr )
 
@@ -691,7 +869,7 @@ CONTAINS
 
       earlyTermination = -1
 
-      DO j = mStart, this % nMaxToSolve-1
+      DO j = mStart, this % nMaxToSolve
          
          v = U(:,:,j)
          w = this % MatrixAction( v )
@@ -718,7 +896,7 @@ CONTAINS
          H(j+1,j) = sqrt( this % VectorProduct( w, w ) )
        
          IF( H(j+1,j) <= this % tolerance  )THEN
-            PRINT*,'HERE', j
+            PRINT*,'S/R ArnoldiProcess : Early Termination at iterate', j
             earlyTermination = j
             EXIT
          ENDIF
@@ -727,6 +905,10 @@ CONTAINS
 
       ENDDO
 
+!      DO j = 1, this % nMaxToSolve + 1
+!         PRINT*, H(j,:)
+!      ENDDO
+!      STOP
  END SUBROUTINE ArnoldiProcess_BarotropicShelfWaves
 !
 !
@@ -743,11 +925,12 @@ CONTAINS
    IMPLICIT NONE
    CLASS( BarotropicShelfWaves ), INTENT(inout) :: this
    ! Local
-   REAL(prec) :: U(0:this % nS, 1:this % nElems, 1:this % nMaxToSolve)
-   REAL(prec) :: w(0:this % nS), J
+   REAL(prec) :: U(0:this % nS, 1:this % nElems, 1:this % nMaxToSolve+1)
+   REAL(prec) :: w(0:this % nS)
    REAL(prec) :: Unew(0:this % nS, 1:this % nElems, 1:this % nMaxToSolve)
    REAL(prec) :: H(1:this % nMaxToSolve+1,1:this % nMaxToSolve)
    REAL(prec) :: Q(1:this % nMaxToSolve,1:this % nMaxToSolve)
+   REAL(prec) :: R(1:this % nMaxToSolve,1:this % nMaxToSolve)
    REAL(prec) :: Qt(1:this % nMaxToSolve,1:this % nMaxToSolve)
    REAL(prec) :: Hsquare(1:this % nMaxToSolve,1:this % nMaxToSolve)
    REAL(prec) :: hEvalsR(1:this % nMaxToSolve), hEvalsI(1:this % nMaxToSolve)
@@ -758,7 +941,7 @@ CONTAINS
    REAL(prec) :: lapackWork(1:this % nMaxToSolve*5)
    REAL(prec) :: r0, resi, tolerance, x, L
    INTEGER    :: terminationIndex, lwork, ioerr
-   INTEGER    :: m, k, i, iter, row, mstart, maxIters, iEl, iS, nEl, nS, col
+   INTEGER    :: m, k, j, i, iter, row, mstart, maxIters, iEl, iS, nEl, nS, col
 
       nEl       = this % nElems
       nS        = this % nS
@@ -771,15 +954,15 @@ CONTAINS
       CALL this % cgStorage % GetQuadratureWeights( w )
       mStart = 1
       H = ZERO
-     
+      U = ZERO
       DO iEl = 1, nEl
          DO iS = 0, nS
             x = this % mesh % GetPositionAtNode( iEl, iS )
             L = this % params % xScale
-            U(iS,iEl,1) = x*(x-ONE)
+            U(iS,iEl,1) = tanh( TWO*x/L )
          ENDDO
       ENDDO
-      Unew = U
+      Unew = U(:,:,1:k)
       U(:,:,1) = U(:,:,1)/SQRT( this % VectorProduct(Unew(:,:,1),Unew(:,:,1)) )
 
       DO iter = 1, maxIters
@@ -794,18 +977,8 @@ CONTAINS
          r0 = H(k+1,k)
          resi = H(m+1,m)
 
-!         DO iEl = 1, nEl
-!            DO iS = 0, nS
-!               DO col = 1, m
-!                  CALL this % UnMask( U(:,:,col) )
-!                  this % eigenfunctions(iS,iEl,col) = U(iS,iEl,col)
-!               ENDDO
-!            ENDDO
-!         ENDDO
-!         RETURN
-
-
          Hsquare = H(1:k,1:k)
+
          ! Calculate the eigenvalues and eigenvectors of "Hsquare"
          CALL DGEEV( 'N', 'V', k, Hsquare, k, &
                      hEvalsR, hEvalsI, &
@@ -815,7 +988,9 @@ CONTAINS
 
          CALL SortEigenPairs( hEvalsR, hEvalsI, hEvecs, k )
 
-        ! IF( r0 <= tolerance )THEN
+         ! If the residual is smaller than the specified tolerance, then we can compute the 
+         ! eigenfunctions, and exit the subroutine.
+         IF( resi <= tolerance )THEN
             DO iEl = 1, nEl
                DO iS = 0, nS
                   DO col = 1, m
@@ -830,62 +1005,140 @@ CONTAINS
                CALL this % UnMask( this % eigenfunctions(:,:,col) )
             ENDDO
             this % eigenValues = hEvalsR(1:m) 
+            CALL this % RecomputeEigenValues( )
             RETURN
-         !ENDIF
+         ENDIF
 
-         ! Calculate the implicitly shifted polynomial of H
-         Hshifted = ZERO
-         DO row = 1, k
-            Hshifted(row,row) = ONE
-         ENDDO
-      
-         DO i = m+1,k
-            work = Hsquare
+         ! Otherwise, we attempt to deflate the portion of the spectrum associated with the smaller
+         ! eigenvalues using a QR algorithm with shifts
+        
+         DO i = m+1, k
+            R = ZERO
+            Q = ZERO
+            Hshifted = H(1:k,1:k)
             DO row = 1, k
-               work(row,row) = work(row,row) - hEvalsR(i)
+               Hshifted(row,row) = Hshifted(row,row) - hEvalsR(i)
             ENDDO
-            Hshifted = MATMUL( Hshifted, work )
-         ENDDO
 
-         ! Orthonormalize the columns of Hshifted with a Gram-Schmidt process
-         ! This gives an orthonormal basis for the estimated dominant eigenvectors of H.
-         ! This subspace has effectively "deflated" the impact of the eigenvectors associated
-         ! with small eigenvalues.
-         Q(:,1) = Hshifted(:,1)
-         temp1 = Q(:,1)
-         Q(:,1) = Q(:,1)/SQRT( DOT_PRODUCT(temp1,temp1) )
-         DO col = 2, k
+            ! Now, an orthonormal basis for the shifted Hessenburg matrix is constructed using
+            ! a QR decomposition.
+            Q(:,1) = Hshifted(:,1)
+            temp1  = Q(:,1)
+            R(1,1) = SQRT( DOT_PRODUCT(temp1,temp1) )
+            Q(:,1) = Q(:,1)/R(1,1)
+!            print*, hEvalsR(i)
+!            STOP
+            DO col = 2, k
+            
+               temp1 = Hshifted(:,col)
+               Q(:,col) = temp1
+               DO j = 1, col-1
+            
+                  temp2    = Q(:,j)
+                  R(j,col) = DOT_PRODUCT(temp1,temp2)
+                  Q(:,col) = Q(:,col) - R(j,col)*temp2
+ 
+               ENDDO
 
-            temp1 = Hshifted(:,col)
-            temp2 = Q(:,col-1)
-            Q(:,col) = temp1 - DOT_PRODUCT(temp1,temp2)*temp2
+               temp1      = Q(:,col)
+               R(col,col) = SQRT( DOT_PRODUCT(temp1,temp1) )
+               Q(:,col)   = Q(:,col)/R(col,col)
 
-            temp1 = Q(:,col)
-            Q(:,col) = temp1/SQRT( DOT_PRODUCT(temp1,temp1) )
+            ENDDO
+            
+            ! And reassemble Hsquare with the deflated basis
+            Hsquare = MATMUL( R, Q )
+            DO row = 1, k
+               Hsquare(row,row) = Hsquare(row,row) + hEvalsR(i)
+            ENDDO
 
          ENDDO
 
          ! Project the subspace onto the "small-eigenvalue-deflated" basis
+         Unew = ZERO
          DO iEl = 1, nEl
             DO iS = 0, nS
-               DO col = 1, k
+               DO col = 1, m
                   Unew(iS,iEl,col) = DOT_PRODUCT( U(iS,iEl,1:k), Q(:,col) )
                ENDDO
             ENDDO
          ENDDO
    
-         U = Unew
+         U(:,:,1:m) = Unew(:,:,1:m)
+         H = ZERO
+         H(1:m,1:m) = Hsquare(1:m,1:m)
+!         DO i = 1,m
+!             PRINT*, H(i,1:m)
+!         ENDDO
 
-         ! Calculate the new Hessenburg matrix
-         Qt = TRANSPOSE( Q )
-         Hsquare = MATMUL( Hsquare, Q )
-         Hsquare = MATMUL( Qt, Hsquare )
-         
-         H(1:k,1:k) = Hsquare
-         PRINT*, iter
+!         PRINT*, iter
       ENDDO
 
  END SUBROUTINE IRAM_BarotropicShelfWaves
+!
+!
+!
+ SUBROUTINE RecomputeEigenValues_BarotropicShelfWaves( this )
+ ! S/R RecomputeEigenValues
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( BarotropicShelfWaves ), INTENT(inout) :: this
+   ! Local
+   REAL(prec) :: lambda, l
+   REAL(prec) :: s(0:this % nS, 1:this % nElems)
+   REAL(prec) :: As(0:this % nS, 1:this % nElems)
+   REAL(prec) :: Ws(0:this % nS, 1:this % nElems)
+   REAL(prec) :: sMag
+   INTEGER    :: i, m
+
+!      PRINT*, '============================================'
+!      PRINT*, '========== RecomputeEigenValues ============'
+!      PRINT*, '============================================'
+
+!      m = this % nEigenPairs
+!      DO i = 1, m
+
+!         s    = this % eigenfunctions(:,:,i)
+!         sMag = this % VectorProduct( s, s )
+!         Ms   = this % MatrixAction( s )
+  
+!         lambda = this % VectorProduct( s, Ms )/sMag
+!         l      = this % eigenvalues(i)
+!         PRINT*, ' eigenvalue relative change = ', abs( lambda - l )/abs( l )
+
+!         this % eigenvalues(i) = l
+
+!      ENDDO 
+
+!      PRINT*, '============================================'
+
+      PRINT*, '============================================'
+      PRINT*, '========== RecomputeEigenValues ============'
+      PRINT*, '============================================'
+
+      CALL this % HBarNormalize( )
+
+      m = this % nEigenPairs
+      DO i = 1, m
+
+         s    = this % eigenfunctions(:,:,i)
+         As   = this % StiffnessMatrixAction( s )
+         Ws   = s*this % wFunc
+  
+         lambda = this % VectorProduct( s, Ws )/this % VectorProduct( s, As )
+         l      = this % eigenvalues(i)
+         PRINT*, ' eigenvalue relative change = ', abs( lambda - l )/abs( l )
+
+         this % eigenvalues(i) = l
+
+      ENDDO 
+
+      PRINT*, '============================================'
+
+
+ END SUBROUTINE RecomputeEigenValues_BarotropicShelfWaves
 !
 !
 !
@@ -976,6 +1229,36 @@ CONTAINS
       CLOSE(fUnit)
 
       OPEN( UNIT = NewUnit(fUnit), &
+            FILE = 'shelf.curve', &
+            FORM = 'FORMATTED' )
+
+         WRITE(fUnit,*)'#bathymetry'
+         DO iEl = 1, nEl
+            DO iS = 0, nS
+              x = thisElliptic % mesh % GetPositionAtNode(iEl,iS)
+              WRITE(fUnit,*) x, thisElliptic % ShelfProfile(x)
+            ENDDO
+         ENDDO
+
+
+      CLOSE(fUnit)
+
+      OPEN( UNIT = NewUnit(fUnit), &
+            FILE = 'forcing.curve', &
+            FORM = 'FORMATTED' )
+
+         WRITE(fUnit,*)'#vts'
+         DO iEl = 1, nEl
+            DO iS = 0, nS
+              x = thisElliptic % mesh % GetPositionAtNode(iEl,iS)
+              WRITE(fUnit,*) x, thisElliptic % G(iS,iEl)
+            ENDDO
+         ENDDO
+
+
+      CLOSE(fUnit)
+
+      OPEN( UNIT = NewUnit(fUnit), &
             FILE = 'eigenvalues.curve', &
             FORM = 'FORMATTED' )
 
@@ -983,6 +1266,18 @@ CONTAINS
 
       DO i = 1, thisElliptic % nEigenPairs
          WRITE(fUnit,*) i, thisElliptic % eigenvalues(i)
+      ENDDO
+
+      CLOSE(fUnit)
+
+            OPEN( UNIT = NewUnit(fUnit), &
+            FILE = 'growthrates.curve', &
+            FORM = 'FORMATTED' )
+
+      WRITE(fUnit,*)'#eigenvalues'
+
+      DO i = 1, thisElliptic % nEigenPairs
+         WRITE(fUnit,*) i, thisElliptic % growthrates(i)
       ENDDO
 
       CLOSE(fUnit)

@@ -11,14 +11,14 @@ FCUNI=gfortran
 LAPACKLIB=-L/nh/nest/u/jschoonover/Software/lapack-3.6.0/ -llapack -lrefblas
 LIB=
 INC=
-#OPT=-O3
-OPT=-O0 -fcheck=all -Wall
+OPT=-O3 -funroll-loops
+#OPT=-O0 -g -fcheck=all -Wall
 WFLAGS= 
 SRCDIR=../../../../src/
 
 # specify the directory main directory for this experiment
 DIR=$(shell pwd | rev | cut -d "/" -f2- | rev )
-INIDIR=${DIR}/init/
+INIDIR=${DIR}/
 
 
 
@@ -445,7 +445,7 @@ BarotropicShelfWavesParams_Class.o : ModelPrecision.o ModelFlags.o ConstantsDict
 BarotropicShelfWaves_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o Lagrange_1D_Class.o \
                                NodalStorage_1D_Class.o MappedGeometryClass_1D.o SegmentMeshClass.o \
                                BarotropicShelfWavesParams_Class.o 
-	${FC} ${OPT} -c ${INIDIR}localmods/BarotropicShelfWaves/BarotropicShelfWaves_Class.f90 ${LAPACKLIB} -o $@
+	${FC} ${OPT} -c ${INIDIR}localmods/BarotropicShelfWaves_Class.f90 ${LAPACKLIB} -o $@
 
 BSW_Driver.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o BarotropicShelfWaves_Class.o
 	${FC} ${OPT} -c ${SRCDIR}highend/BarotropicShelfWaves/BSW_Driver.f90 -o $@

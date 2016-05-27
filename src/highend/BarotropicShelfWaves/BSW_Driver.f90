@@ -15,6 +15,8 @@ PROGRAM BSW_Driver
 
     CALL mybsw % IRAM( )
 
+    CALL mybsw % ComputeGrowthRates( )
+
     CALL mybsw % WriteTecplot( )
 
     CALL mybsw % Trash( )

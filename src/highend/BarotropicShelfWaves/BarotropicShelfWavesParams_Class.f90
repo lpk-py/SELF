@@ -38,13 +38,16 @@ MODULE BarotropicShelfWavesParams_Class
        REAL(prec)    :: xScale
        ! Physical
        REAL(prec)    :: f0
-       REAL(prec)    :: innerSlopeLength
-       REAL(prec)    :: outerSlopeLength
-       REAL(prec)    :: shelfwidth
-       REAL(prec)    :: hmin
-       REAL(prec)    :: shelfDepth
-       REAL(prec)    :: offshoreDepth
-
+       REAL(prec)    :: Linner
+       REAL(prec)    :: Lslope
+       REAL(prec)    :: xSlope
+       REAL(prec)    :: hcoast
+       REAL(prec)    :: hShelf
+       REAL(prec)    :: hDeep
+       ! ShelfPerturbation
+       REAL(prec)    :: vbar
+       REAL(prec)    :: dLinner
+       REAL(prec)    :: dXslope
 
        CONTAINS
 
@@ -79,19 +82,24 @@ MODULE BarotropicShelfWavesParams_Class
        REAL(prec)    :: xScale
        ! Physical
        REAL(prec)    :: f0
-       REAL(prec)    :: innerSlopeLength
-       REAL(prec)    :: outerSlopeLength
-       REAL(prec)    :: shelfwidth
-       REAL(prec)    :: hmin
-       REAL(prec)    :: shelfDepth
-       REAL(prec)    :: offshoreDepth
+       REAL(prec)    :: Linner
+       REAL(prec)    :: Lslope
+       REAL(prec)    :: xSlope
+       REAL(prec)    :: hcoast
+       REAL(prec)    :: hShelf
+       REAL(prec)    :: hDeep
+       ! ShelfPerturbation
+       REAL(prec)    :: vbar
+       REAL(prec)    :: dLinner
+       REAL(prec)    :: dXslope
 
 
       ! Set the namelists
       NAMELIST / SolverCriteria / MaximumIterates, nEpairs, nMaxToSolve, tolerance
       NAMELIST / SpaceManagement / polyDeg, nElems, nPlot, xScale
-      NAMELIST / Physical / f0, innerSlopeLength, outerSlopeLength, shelfWidth, hmin, &
-                            shelfDepth, offshoreDepth
+      NAMELIST / Physical / f0, Linner, Lslope, xSlope, hcoast, &
+                            hShelf, hDeep
+      NAMELIST / ShelfPerturbation / vbar, dLinner, dXslope
  
       ! Set the default parameters
       ! SolverCriteria
@@ -107,25 +115,33 @@ MODULE BarotropicShelfWavesParams_Class
       xScale  = 2.0E6
 
       ! Physical
-      f0 = 1.0E-4
-      innerSlopeLength = 1.0E5
-      outerSlopeLength = 1.0E5
-      shelfwidth       = 10.0_prec*xScale
-      hmin             = 50.0_prec
-      shelfDepth       = 2050.0_prec
-      offshoreDepth    = shelfDepth
+      f0     = 1.0E-4
+      Linner = 1.0E5
+      Lslope = 5.0E4
+      xSlope = Linner
+      hcoast = 50.0_prec
+      hShelf = 2000.0_prec
+      hDeep  = 4000.0_prec
+
+      ! ShelfPerturbation
+      vbar    = ONE
+      dLinner = 5.0E4
+      dXslope = 5.0E4
+
       ! Reading in the namelist FILE
 
       OPEN( UNIT = NEWUNIT(nUnit), FILE = 'runtime.params')
          READ( UNIT = nUnit, NML = SolverCriteria )
          READ( UNIT = nUnit, NML = SpaceManagement )
          READ( UNIT = nUnit, NML = Physical )
+         READ( UNIT = nUnit, NML = ShelfPerturbation )
       CLOSE( UNIT = nUnit ) 
 
       ! Sanity check - PRINT the results of the namelist READ to screen
       WRITE( UNIT = *, NML = SolverCriteria )
       WRITE( UNIT = *, NML = SpaceManagement )
       WRITE( UNIT = *, NML = Physical )
+      WRITE( UNIT = *, NML = ShelfPerturbation )
 
       ! Fill in the data structure
       ! SolverCriteria
@@ -143,12 +159,17 @@ MODULE BarotropicShelfWavesParams_Class
 
       ! Physical
       thisParam % f0 = f0
-      thisParam % innerSlopeLength = innerSlopeLength
-      thisParam % outerSlopeLength = outerSlopeLength
-      thisParam % shelfwidth       = shelfwidth
-      thisParam % hmin             = hmin
-      thisParam % shelfDepth       = shelfDepth
-      thisParam % offshoreDepth    = offshoreDepth
+      thisParam % Linner = Linner
+      thisParam % Lslope = Lslope
+      thisParam % xSlope = xSlope
+      thisParam % hcoast = hcoast
+      thisParam % hShelf = hShelf
+      thisParam % hDeep  = hDeep
+
+      ! ShelfPerturbation
+      thisParam % vbar    = vbar
+      thisParam % dLinner = dLinner
+      thisParam % dXSlope = dXSlope
 
  END SUBROUTINE BuildParams_BarotropicShelfWaves
 
