@@ -23,6 +23,7 @@ MODULE BarotropicShelfWavesParams_Class
 
  IMPLICIT NONE
 
+   INTEGER, PARAMETER :: nMaxModes = 5
 
     TYPE BarotropicShelfWavesParams
        ! SolverCriteria
@@ -30,12 +31,19 @@ MODULE BarotropicShelfWavesParams_Class
        INTEGER       :: nEpairs
        INTEGER       :: nMaxToSolve
        REAL(prec)    :: tolerance
+       ! TimeManagement
+       REAL(prec)    :: dt
+       INTEGER       :: iterInit
+       INTEGER       :: nTimeSteps
+       INTEGER       :: dumpFreq
        ! SpaceManagement
        INTEGER       :: polyDeg
        INTEGER       :: nElems
        INTEGER       :: nPlot
        REAL(prec)    :: dxPlot
        REAL(prec)    :: xScale
+       REAL(prec)    :: dy
+       INTEGER       :: nYElems
        ! Physical
        REAL(prec)    :: f0
        REAL(prec)    :: Linner
@@ -48,6 +56,11 @@ MODULE BarotropicShelfWavesParams_Class
        REAL(prec)    :: vbar
        REAL(prec)    :: dLinner
        REAL(prec)    :: dXslope
+       REAL(prec)    :: steepeningZoneLength
+       REAL(prec)    :: steepeningCenter
+       ! FileIO
+       INTEGER :: nModes2Write
+       INTEGER :: modes2Write(1:nMaxModes)
 
        CONTAINS
 
@@ -74,12 +87,19 @@ MODULE BarotropicShelfWavesParams_Class
        INTEGER       :: nEpairs
        INTEGER       :: nMaxToSolve
        REAL(prec)    :: tolerance
+       ! TimeManagement
+       REAL(prec)    :: dt
+       INTEGER       :: iterInit
+       INTEGER       :: nTimeSteps
+       INTEGER       :: dumpFreq
        ! SpaceManagement
        INTEGER       :: polyDeg
        INTEGER       :: nElems
        INTEGER       :: nPlot
        REAL(prec)    :: dxPlot
        REAL(prec)    :: xScale
+       REAL(prec)    :: dy
+       INTEGER       :: nYElems
        ! Physical
        REAL(prec)    :: f0
        REAL(prec)    :: Linner
@@ -92,14 +112,23 @@ MODULE BarotropicShelfWavesParams_Class
        REAL(prec)    :: vbar
        REAL(prec)    :: dLinner
        REAL(prec)    :: dXslope
-
+       REAL(prec)    :: steepeningZoneLength
+       REAL(prec)    :: steepeningCenter
+       ! FileIO
+       INTEGER :: nModes2Write
+       INTEGER :: modes2Write(1:nMaxModes)
+       
+       !LOCAL
+      INTEGER :: i
 
       ! Set the namelists
       NAMELIST / SolverCriteria / MaximumIterates, nEpairs, nMaxToSolve, tolerance
-      NAMELIST / SpaceManagement / polyDeg, nElems, nPlot, xScale
+      NAMELIST / TimeManagement / dt, iterInit, nTimeSteps, dumpFreq
+      NAMELIST / SpaceManagement / polyDeg, nElems, nPlot, xScale, dy, nYElems
       NAMELIST / Physical / f0, Linner, Lslope, xSlope, hcoast, &
                             hShelf, hDeep
-      NAMELIST / ShelfPerturbation / vbar, dLinner, dXslope
+      NAMELIST / ShelfPerturbation / vbar, dLinner, dXslope, steepeningZoneLength, steepeningCenter
+      NAMELIST / FileIO / nModes2Write, modes2Write
  
       ! Set the default parameters
       ! SolverCriteria
@@ -108,16 +137,23 @@ MODULE BarotropicShelfWavesParams_Class
       nMaxToSolve     = 15
       tolerance       = 10.0_prec**(-8) ! conjugate gradient residual tolerance
 
+      ! TimeManagement
+      dt = ZERO
+      iterInit = 0
+      nTimeSteps = 0
+      dumpFreq = 1
       ! SpaceManagement 
       polyDeg = 10
       nElems  = 10
       nPlot   = 10
-      xScale  = 2.0E6
+      xScale  = 2.0D6
+      dy      = 5.0_prec*10.0_prec**(3)
+      nYElems = 200
 
       ! Physical
-      f0     = 1.0E-4
-      Linner = 1.0E5
-      Lslope = 5.0E4
+      f0     = 1.0D-4
+      Linner = 1.0D5
+      Lslope = 5.0D4
       xSlope = Linner
       hcoast = 50.0_prec
       hShelf = 2000.0_prec
@@ -125,23 +161,35 @@ MODULE BarotropicShelfWavesParams_Class
 
       ! ShelfPerturbation
       vbar    = ONE
-      dLinner = 5.0E4
-      dXslope = 5.0E4
+      dLinner = 5.0D4
+      dXslope = 5.0D4
+      steepeningZoneLength = 200.0D3
+      steepeningCenter     = 500.0D3
+
+      ! FileIO
+      nModes2Write   = nMaxModes
+      DO i = 1, nMaxModes 
+         modes2Write(i) = i
+      ENDDO
 
       ! Reading in the namelist FILE
 
       OPEN( UNIT = NEWUNIT(nUnit), FILE = 'runtime.params')
          READ( UNIT = nUnit, NML = SolverCriteria )
+         READ( UNIT = nUnit, NML = TimeManagement )
          READ( UNIT = nUnit, NML = SpaceManagement )
          READ( UNIT = nUnit, NML = Physical )
          READ( UNIT = nUnit, NML = ShelfPerturbation )
+         READ( UNIT = nUnit, NML = FileIO )
       CLOSE( UNIT = nUnit ) 
 
       ! Sanity check - PRINT the results of the namelist READ to screen
       WRITE( UNIT = *, NML = SolverCriteria )
+      WRITE( UNIT = *, NML = TimeManagement )
       WRITE( UNIT = *, NML = SpaceManagement )
       WRITE( UNIT = *, NML = Physical )
       WRITE( UNIT = *, NML = ShelfPerturbation )
+      WRITE( UNIT = *, NML = FileIO )
 
       ! Fill in the data structure
       ! SolverCriteria
@@ -150,12 +198,20 @@ MODULE BarotropicShelfWavesParams_Class
       thisParam % nMaxToSolve     = nMaxToSolve
       thisParam % tolerance       = tolerance
       
+      ! TimeManagement
+      thisParam % dt = dt
+      thisParam % iterInit = iterInit
+      thisParam % nTimeSteps = nTimeSteps
+      thisParam % dumpFreq = dumpFreq
+
       ! SpaceManagement
       thisParam % polyDeg = polyDeg
       thisParam % nElems  = nElems
       thisParam % nPlot   = nPlot
       thisParam % dxPlot  = 2.0_prec/REAL(nPlot,prec)
       thisParam % xScale  = xScale
+      thisParam % dy      = dy
+      thisParam % nYElems = nYElems
 
       ! Physical
       thisParam % f0 = f0
@@ -170,6 +226,12 @@ MODULE BarotropicShelfWavesParams_Class
       thisParam % vbar    = vbar
       thisParam % dLinner = dLinner
       thisParam % dXSlope = dXSlope
+      thisParam % steepeningZoneLength = steepeningZoneLength
+      thisParam % steepeningCenter = steepeningCenter
+
+      ! FileIO
+      thisParam % nModes2Write = nModes2Write
+      thisParam % modes2Write  = modes2Write
 
  END SUBROUTINE BuildParams_BarotropicShelfWaves
 

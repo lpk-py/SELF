@@ -68,6 +68,7 @@ IMPLICIT NONE
       REAL(prec), ALLOCATABLE  :: eigenvalues(:)
       REAL(prec), ALLOCATABLE  :: growthRates(:)
       REAL(prec), ALLOCATABLE  :: eigenfunctions(:,:,:)
+      REAL(prec), ALLOCATABLE  :: backgroundStreamF(:,:)
       REAL(prec), ALLOCATABLE  :: cgSol(:,:)
       REAL(prec), ALLOCATABLE  :: rhsVar(:,:)
       REAL(prec), ALLOCATABLE  :: d2Mat(:,:,:) ! matrix for d/dx( k(x) d/dx ) operator within each element
@@ -76,6 +77,7 @@ IMPLICIT NONE
       REAL(prec), ALLOCATABLE  :: G(:,:)       ! The forcing function due to steepening
       REAL(prec)               :: boundaryFlux(1:2)
       REAL(prec)               :: dirichletMask(1:2)
+      REAL(prec), ALLOCATABLE  :: plMatS(:,:)
       TYPE( BarotropicShelfWavesParams ) :: params
       
       CONTAINS
@@ -92,6 +94,7 @@ IMPLICIT NONE
       PROCEDURE :: ApplyOperator  => ApplyOperator_BarotropicShelfWaves
 
       PROCEDURE :: StiffnessWeight
+      PROCEDURE :: CalculateBackgroundStreamFunction => CalculateBackgroundStreamFunction_BarotropicShelfWaves
       PROCEDURE :: ShelfProfile          => ShelfProfile_BarotropicShelfWaves
       PROCEDURE :: ShelfMod              => ShelfMod_BarotropicShelfWaves
       PROCEDURE :: FillForcingTerm       => FillForcingTerm_BarotropicShelfWaves
@@ -128,9 +131,10 @@ CONTAINS
    IMPLICIT NONE
    CLASS( BarotropicShelfWaves ), INTENT(inout) :: this
    ! Local
-   INTEGER :: row, col, m, iEl, nS, nEl, maxIter, nDOF, nEpairs
+   INTEGER :: row, col, m, iEl, nS, nEl, maxIter, nDOF, nEpairs, nPlot
    REAL(prec) :: x, sK, J, lmc, lmr, f0
    REAL(prec), ALLOCATABLE :: w(:), dMat(:,:), Hinv(:)
+   REAL(prec), ALLOCATABLE :: sNew(:)
    
       CALL this % params % Build( )
 
@@ -139,6 +143,7 @@ CONTAINS
       nEl     = this % params % nElems
       nEpairs = this % params % nEpairs
       maxIter = this % params % maximumIterates
+      nPlot   = this % params % nPlot
       nDOF    = (nS+1)*nEl      
 
       this % nEigenpairs = nEpairs
@@ -154,16 +159,18 @@ CONTAINS
       CALL this % mesh % ScaleTheMesh( this % params % xScale )
 
       ALLOCATE( this % eigenvalues(1:nEpairs), this % eigenFunctions(0:nS,1:nEl,1:nEpairs) )
+      ALLOCATE( this % backgroundStreamF(0:nS,1:nEl) )
       ALLOCATE( this % growthRates(1:nEpairs) )
       ALLOCATE( this % cgsol(0:nS,1:nEl), this % rhsVar(0:nS,1:nEl) )
-      this % eigenvalues      = ZERO
-      this % eigenfunctions   = ZERO
-      this % growthRates      = ZERO
-      this % cgsol            = ZERO
-      this % rhsVar           = ZERO
-      this % boundaryFlux     = ZERO
-      this % dirichletMask    = ZERO
-      this % dirichletMask(2) = ONE
+      this % eigenvalues       = ZERO
+      this % eigenfunctions    = ZERO
+      this % backgroundStreamF = ZERO
+      this % growthRates       = ZERO
+      this % cgsol             = ZERO
+      this % rhsVar            = ZERO
+      this % boundaryFlux      = ZERO
+      this % dirichletMask     = ZERO
+      this % dirichletMask(2)  = ONE
 
       ! In 1-D, for a fixed mesh and stiffness coefficient, the second-derivative matrix
       ! for each element can be constructed and stored once. This way, to compute the elliptic
@@ -224,6 +231,16 @@ CONTAINS
 
       CALL this % FillForcingTerm( )
 
+      ALLOCATE( sNew(0:nPlot) )
+      sNew = UniformPoints( -ONE, ONE, nPlot )
+      ALLOCATE( this % plMatS(0:nPlot,0:nS) )
+      ! Build the plotting matrix
+      CALL this % cgStorage % interp % CalculateInterpolationMatrix( nPlot, sNew, this % plMatS )
+                                                                        
+      DEALLOCATE(sNew)
+
+      CALL this % CalculateBackgroundStreamFunction( )
+
  END SUBROUTINE Build_BarotropicShelfWaves
 !
 !
@@ -240,7 +257,8 @@ CONTAINS
       CALL this % mesh % Trash( )
       DEALLOCATE( this % cgsol, this % rhsVar, this % d2Mat )
       DEALLOCATE( this % eigenvalues, this % eigenfunctions )
-      DEALLOCATE( this % growthrates, this % G )
+      DEALLOCATE( this % growthrates, this % G, this % plMatS )
+      DEALLOCATE( this % backgroundStreamF )
 
  END SUBROUTINE Trash_BarotropicShelfWaves
 !
@@ -256,6 +274,41 @@ CONTAINS
 !==================================================================================================!
 !--------------------------------- Type Specific Routines -----------------------------------------!
 !==================================================================================================!
+!
+!
+ SUBROUTINE CalculateBackgroundStreamFunction_BarotropicShelfWaves( this )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS( BarotropicShelfWaves ), INTENT(inout) :: this
+   ! LOCAL 
+   INTEGER :: iEl, iS, nEl, nS
+   REAL(prec) :: dx, x1, x2
+ 
+      nEl = this % nElems
+      nS  = this % nS
+
+      this % backgroundStreamF = ZERO
+      DO iEl = 1, nEl
+         DO iS = 1, nS
+
+            x1 = this % mesh % GetPositionAtNode( iEl, iS-1 )
+            x2 = this % mesh % GetPositionAtNode( iEl, iS )
+            dx = x2-x1
+            this % backgroundStreamF(iS,iEl) = this % backgroundStreamF(iS-1,iEl) + &
+                                                ( this % H(iS-1,iEl) + this % H(iS,iEl) )*HALF*dx
+
+         ENDDO
+         IF( iEl < nEl )THEN
+            this % backgroundStreamF(0,iEl+1) = this % backgroundStreamF(nS,iEl)
+         ENDIF
+      ENDDO
+      this % backgroundStreamF = this % backgroundStreamF*this % params % vbar
+
+ END SUBROUTINE CalculateBackgroundStreamFunction_BarotropicShelfWaves
+!
 !
 !
  FUNCTION ShelfProfile_BarotropicShelfWaves( this, x ) RESULT( h )
@@ -724,7 +777,7 @@ CONTAINS
          s = this % eigenfunctions(:,:,i)
          c = this % eigenvalues(i)
          
-         this % growthRates(i) = this % VectorProduct( s, G )*c
+         this % growthRates(i) = -this % VectorProduct( s, G )*c
 
          CALL this % UnMask( this % eigenfunctions(:,:,i) )
 
@@ -951,6 +1004,8 @@ CONTAINS
       tolerance = this % tolerance
       lwork     = 5*k
 
+      PRINT*,'Module BarotropicShelfWaves_Class.f90 : S/R IRAM :'
+      PRINT*,'  Estimating N eigenpairs, N =', m
       CALL this % cgStorage % GetQuadratureWeights( w )
       mStart = 1
       H = ZERO
@@ -1073,6 +1128,7 @@ CONTAINS
 
 !         PRINT*, iter
       ENDDO
+      PRINT*,'  Done in ', iter,' iterates.' 
 
  END SUBROUTINE IRAM_BarotropicShelfWaves
 !

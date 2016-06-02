@@ -352,72 +352,6 @@ Burgers_InitialConditions.o : ModelPrecision.o BurgersParamsClass.o BurgersClass
 Burgers_Driver.o : ModelPrecision.o BurgersParamsClass.o BurgersClass.o
 	${FC} ${OPT} -c ${SRCDIR}highend/burgers1D/Burgers_Driver.f90 -o $@
 
-# ---------------------------------------------------------------------- #
-#                     ~/src/highend/advection2d /                        #
-# ---------------------------------------------------------------------- #
-
-# Modules
-AdvectionParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
-	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/AdvectionParamsClass.f90 -o $@
-
-AdvectionClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
-                   Lagrange_2D_Class.o NodalStorage_2D_Class.o DGSEMSolutionStorageClass_2D.o \
-                   EdgeClass.o QuadElementClass.o QuadMeshClass.o AdvectionParamsClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/AdvectionClass.f90 -o $@
-
-# Test Programs
-Advection_InitialConditions.o : ModelPrecision.o QuadMeshClass.o AdvectionParamsClass.o AdvectionClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/Advection_InitialConditions.f90 -o $@
-
-Advection_Driver.o : ModelPrecision.o QuadMeshClass.o AdvectionParamsClass.o AdvectionClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/advection2d/Advection_Driver.f90 -o $@
-
-# ---------------------------------------------------------------------- #
-#                     ~/src/highend/advection3d /                        #
-# ---------------------------------------------------------------------- #
-
-# Modules
-Advection3DParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
-	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3DParamsClass.f90 -o $@
-
-Advection3DClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Timing.o \
-                   Lagrange_3D_Class.o NodalStorage_3D_Class.o DGSEMSolutionStorageClass_3D.o \
-                   FaceClass.o HexElementClass.o HexMeshClass.o Advection3DParamsClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3DClass.f90 -o $@
-
-# Test Programs
-Advection3D_InitialConditions.o : ModelPrecision.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_InitialConditions.f90 -o $@
-
-Advection3D_Driver.o : ModelPrecision.o Timing.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_Driver.f90 -o $@
-
-# ---------------------------------------------------------------------- #
-#                 ~/src/highend/hydrostaticprimitives/                   #
-# ---------------------------------------------------------------------- #
-
-# Modules
-StackedHexMeshClass.o: ModelPrecision.o ConstantsDictionary.o ModelFlags.o Lagrange_2D_Class.o \
-                       Lagrange_3D_Class.o QuadMeshClass.o MappedGeometryClass_3D.o \
-                       SurfaceClass_3D.o HexElementClass.o FaceClass.o NodeClass_3D.o HexMeshClass.o
-	${FC} ${OPT} -c ${SRCDIR}highend/hydrostaticprimitives/StackedHexMeshClass.f90 -o $@
-
-
-#Advection3DParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
-#	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3DParamsClass.f90 -o $@
-
-#Advection3DClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Timing.o \
-#                   Lagrange_3D_Class.o NodalStorage_3D_Class.o DGSEMSolutionStorageClass_3D.o \
-#                   FaceClass.o HexElementClass.o HexMeshClass.o Advection3DParamsClass.o
-#	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3DClass.f90 -o $@
-
-# Test Programs
-#Advection3D_InitialConditions.o : ModelPrecision.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
-#	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_InitialConditions.f90 -o $@
-
-#Advection3D_Driver.o : ModelPrecision.o Timing.o HexMeshClass.o Advection3DParamsClass.o Advection3DClass.o
-#	${FC} ${OPT} -c ${SRCDIR}highend/advection3d/Advection3D_Driver.f90 -o $@
-
 
 # ---------------------------------------------------------------------- #
 #                 ~/src/highend/BarotropicShelfWaves/                    #
@@ -430,11 +364,13 @@ BSWOBJ = ModelPrecision.o \
          Legendre.o \
          Lagrange_1D_Class.o \
          NodalStorage_1D_Class.o \
+         DGSEMSolutionStorageClass_1D.o \
          MappedGeometryClass_1D.o \
          SegmentMeshClass.o \
          BarotropicShelfWavesParams_Class.o \
          BarotropicShelfWaves_Class.o \
-         BSW_Driver.o
+         AlongShelf_Class.o \
+         BSW_Integrator.o
 
 bsw : ${BSWOBJ}
 	${FC} ${OPT} ${BSWOBJ} ${LAPACKLIB} -o $@
@@ -447,9 +383,19 @@ BarotropicShelfWaves_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary
                                BarotropicShelfWavesParams_Class.o 
 	${FC} ${OPT} -c ${INIDIR}localmods/BarotropicShelfWaves_Class.f90 ${LAPACKLIB} -o $@
 
+AlongShelf_Class.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+                     Lagrange_1D_Class.o NodalStorage_1D_Class.o DGSEMSolutionStorageClass_1D.o \
+                     BarotropicShelfWaves_Class.o BarotropicShelfWavesParams_Class.o 
+	${FC} ${OPT} -c ${INIDIR}localmods/AlongShelf_Class.f90 -o $@
+
+
 BSW_Driver.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o BarotropicShelfWaves_Class.o
 	${FC} ${OPT} -c ${SRCDIR}highend/BarotropicShelfWaves/BSW_Driver.f90 -o $@
 
+
+BSW_Integrator.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o BarotropicShelfWaves_Class.o \
+                   AlongShelf_Class.o
+	${FC} ${OPT} -c ${SRCDIR}highend/BarotropicShelfWaves/BSW_Integrator.f90 -o $@
 # ---------------------------------------------------------------------- #
 #                          Other directives                              #
 # ---------------------------------------------------------------------- #
