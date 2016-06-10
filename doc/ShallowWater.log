@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  19 MAY 2016 16:32
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  8 JUN 2016 13:05
 entering extended mode
  %&-line parsing enabled.
 **ShallowWater.tex
@@ -1112,62 +1112,58 @@ File: ot1phv.fd 2001/06/04 scalable font definitions for OT1/phv.
 )
 LaTeX Font Info:    Font shape `OT1/phv/bx/n' in size <24.88> not available
 (Font)              Font shape `OT1/phv/b/n' tried instead on input line 74.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
+(hyperref)                removing `\\' on input line 74.
+
 LaTeX Font Info:    Font shape `OT1/phv/bx/n' in size <17.28> not available
 (Font)              Font shape `OT1/phv/b/n' tried instead on input line 77.
- [1
+[1
 
-] [2]
-[3] [4]
-
-LaTeX Warning: Reference `eq:approx_mappedWeakForm' on page 5 undefined on inpu
-t line 179.
-
-
-LaTeX Warning: Reference `eq:approx_mappedWeakForm' on page 5 undefined on inpu
-t line 179.
-
+] [2] [3] [4]
 
 LaTeX Warning: Reference `chap:GeometryTheory' on page 5 undefined on input lin
-e 194.
+e 192.
 
-<figures/normalflux.png, id=164, 468.59868pt x 440.847pt>
+[5] <figures/normalflux.png, id=174, 468.59868pt x 440.847pt>
 File: figures/normalflux.png Graphic file (type png)
 
-<use figures/normalflux.png> [5] [6 <./figures/normalflux.png>] [7]
+<use figures/normalflux.png> [6 <./figures/normalflux.png>] [7]
 
 Package natbib Warning: Citation `Flad2016' on page 8 undefined on input line 2
-62.
+60.
 
-[8] [9
+[8] [9] [10
 
-]
-Overfull \hbox (1.95499pt too wide) in paragraph at lines 303--304
+] [11]
+Overfull \hbox (1.95499pt too wide) in paragraph at lines 301--302
 \OT1/cmr/m/n/12 de-pen-den-cies are ex-pressed in the make-file) and will gen-e
 r-ate two ex-e-cuta-bles, \OT1/cmtt/m/n/12 initialize[]sw
  []
 
-[10]
-Overfull \hbox (37.23961pt too wide) in paragraph at lines 319--320
+[12]
+Overfull \hbox (37.23961pt too wide) in paragraph at lines 317--318
 \OT1/cmr/m/n/12 Both ex-e-cuta-bles re-quire that you have a namelist file in t
 he di-rec-tory named \OT1/cmtt/m/n/12 shallowwater.params\OT1/cmr/m/n/12 .
  []
 
-[11]
-Overfull \hbox (1.04137pt too wide) in paragraph at lines 336--338
+[13]
+Overfull \hbox (1.04137pt too wide) in paragraph at lines 334--336
 []\OT1/cmr/m/n/12 At this point, it is rel-e-vant to dis-cuss three of the pa-r
 am-e-ters in the \OT1/cmtt/m/n/12 shallowwater.params
  []
 
-[12] [13] [14
+[14] [15] [16
 
-] [15] (./ShallowWater.bbl [16
+] [17] (./ShallowWater.bbl [18
 
 
 ])
 
 Package natbib Warning: There were undefined citations.
 
-[17]
+[19]
 \tf@toc=\write7
 \openout7 = `ShallowWater.toc'.
 
@@ -1175,11 +1171,14 @@ Package natbib Warning: There were undefined citations.
 
 LaTeX Warning: There were undefined references.
 
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
  ) 
 Here is how much of TeX's memory you used:
- 22836 strings out of 493848
- 424029 string characters out of 1152823
- 539068 words of memory out of 3000000
+ 22838 strings out of 493848
+ 424022 string characters out of 1152823
+ 542068 words of memory out of 3000000
  25588 multiletter control sequences out of 15000+50000
  19904 words of font info for 61 fonts, out of 3000000 for 9000
  714 hyphenation exceptions out of 8191
@@ -1201,9 +1200,9 @@ e/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texmf-texlive/fonts/typ
 e1/public/amsfonts/cm/cmtt12.pfb></usr/share/texmf-texlive/fonts/type1/public/a
 msfonts/symbols/msbm10.pfb></usr/share/texmf-texlive/fonts/type1/urw/helvetic/u
 hvb8a.pfb>
-Output written on ShallowWater.pdf (21 pages, 391457 bytes).
+Output written on ShallowWater.pdf (23 pages, 393668 bytes).
 PDF statistics:
- 361 PDF objects out of 1000 (max. 8388607)
- 84 named destinations out of 1000 (max. 500000)
+ 373 PDF objects out of 1000 (max. 8388607)
+ 86 named destinations out of 1000 (max. 500000)
  111 words of extra memory for PDF output out of 10000 (max. 10000000)
 

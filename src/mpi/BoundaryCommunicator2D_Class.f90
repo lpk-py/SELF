@@ -51,6 +51,8 @@ IMPLICIT NONE
       PROCEDURE :: Trash => Trash_BoundaryCommunicator2D
       
        ! Type Specific Routines
+      PROCEDURE :: ReadConnectivity => ReadConnectivity_BoundaryCommunicator2D
+      PROCEDURE :: WriteConnectivity => WriteConnectivity_BoundaryCommunicator2D
       PROCEDURE :: ReadPickup  => ReadPickup_BoundaryCommunicator2D
       PROCEDURE :: WritePickup => WritePickup_BoundaryCommunicator2D
 
@@ -69,12 +71,13 @@ IMPLICIT NONE
  SUBROUTINE Build_BoundaryCommunicator2D( myBC, nS, nP, nEq, nBe )
  ! S/R Build
  ! 
- !
+ !  Takes as input the polynomial degrees (nS,nP), the number of equations (nEq), and the number
+ !  of boundary edges (nBe).
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(BoundaryCommunicator2D), INTENT(inout) :: myBC
-   INTEGER, INTENT(in)                        :: nS, nP, nEq, nBe
+   INTEGER, INTENT(in)                          :: nS, nP, nEq, nBe
 
       myBC % nS             = nS
       myBC % nP             = nP
@@ -142,7 +145,7 @@ IMPLICIT NONE
    INTEGER, INTENT(in)                         :: rank
   ! LOCAL
    CHARACTER(4)  :: rankChar
-   INTEGER       :: iEdgefUnit
+   INTEGER       :: iEdge, fUnit
    INTEGER       :: nS, nP
 
       nS = myBC % nS
@@ -187,7 +190,7 @@ IMPLICIT NONE
    INTEGER       :: fUnit
    INTEGER       :: nS, nP, nEq, nBe
 
-      READ(rankChar,'(I4.4)') rank
+      WRITE(rankChar,'(I4.4)') rank
 
       OPEN( UNIT=NEWUNIT(fUnit), &
             FILE= 'connectivity.'//rankChar//'.bcom2d', &
@@ -228,10 +231,9 @@ IMPLICIT NONE
    CHARACTER(4)  :: rankChar
    INTEGER       :: iEdge
    INTEGER       :: thisRec, fUnit
-   INTEGER       :: iS, iP, iEq, nS, nP
+   INTEGER       :: nS
 
       nS = myBC % nS
-      nP = myBC % nP
      
       WRITE(rankChar,'(I4.4)') rank
 
@@ -242,11 +244,11 @@ IMPLICIT NONE
             STATUS='replace',&
             ACTION='WRITE',&
             CONVERT='big_endian',&
-            RECL=prec*(nS+1)*nSWeq )
+            RECL=prec*(nS+1)*myBC % nEq )
 
       thisRec = 1 
       DO iEdge = 1, myBC % nBoundaryEdges
-         WRITE( fUnit, REC=thisRec ) myBC % prescribedState(:,:,iEl)
+         WRITE( fUnit, REC=thisRec ) myBC % prescribedState(:,:,iEdge)
          thisRec = thisRec+1
       ENDDO
       CLOSE(UNIT=fUnit)
@@ -270,9 +272,11 @@ IMPLICIT NONE
    CHARACTER(4)  :: rankChar
    INTEGER       :: iEdge
    INTEGER       :: thisRec, fUnit
-   INTEGER       :: iS, iP, iEq, nS, nP, nEq, nBe
+   INTEGER       :: nS
 
-      READ(rankChar,'(I4.4)') rank
+      nS = myBC % nS
+
+      WRITE(rankChar,'(I4.4)') rank
 
       OPEN( UNIT=NEWUNIT(fUnit), &
             FILE=TRIM(filename)//'.'//rankChar//'.pickup', &
@@ -281,11 +285,11 @@ IMPLICIT NONE
             STATUS='OLD',&
             ACTION='READ',&
             CONVERT='big_endian',&
-            RECL=prec*(nS+1)*nSWeq )
+            RECL=prec*(nS+1)*myBC % nEq )
 
       thisRec = 1 
       DO iEdge = 1, myBC % nBoundaryEdges
-         READ( fUnit, REC=thisRec ) myBC % prescribedState(:,:,iEl)
+         READ( fUnit, REC=thisRec ) myBC % prescribedState(:,:,iEdge)
          thisRec = thisRec+1
       ENDDO
       CLOSE(UNIT=fUnit)

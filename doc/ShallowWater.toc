@@ -1,15 +1,15 @@
 \contentsline {chapter}{Contents}{i}{section*.1}
-\contentsline {chapter}{\chapternumberline {1}Equations and Discretization}{1}{chapter.1}
-\contentsline {section}{\numberline {1.1}Flavors of the Shallow Water Equations}{1}{section.1.1}
+\contentsline {chapter}{\chapternumberline {1}Equations, Discretization, \\ and the Serial Algorithm}{1}{chapter.1}
+\contentsline {section}{\numberline {1.1}Flavors of the Shallow Water Equations}{2}{section.1.1}
 \contentsline {section}{\numberline {1.2}Nodal Discontinuous Galerkin Discretization}{3}{section.1.2}
-\contentsline {subsection}{Riemann Flux}{5}{equation.1.2.16}
+\contentsline {subsection}{Riemann Flux}{6}{equation.1.2.16}
 \contentsline {subsection}{Comparison with other SEM-Shallow Water Models}{8}{equation.1.2.28}
-\contentsline {chapter}{\chapternumberline {2}Getting Started With an Example}{9}{chapter.2}
-\contentsline {section}{\numberline {2.1}Downloading}{9}{section.2.1}
-\contentsline {section}{\numberline {2.2}Compile the example}{10}{section.2.2}
-\contentsline {section}{\numberline {2.3}Running the Code and Viewing the Output}{11}{section.2.3}
-\contentsline {subsection}{Running the Code}{11}{section.2.3}
-\contentsline {subsection}{Viewing the output in VisIt}{13}{Item.6}
-\contentsline {section}{\numberline {2.4}Configuration}{13}{section.2.4}
-\contentsline {chapter}{\chapternumberline {3}Making modifications}{15}{chapter.3}
-\contentsline {chapter}{Bibliography}{17}{section*.3}
+\contentsline {chapter}{\chapternumberline {2}Getting Started With an Example}{11}{chapter.2}
+\contentsline {section}{\numberline {2.1}Downloading}{11}{section.2.1}
+\contentsline {section}{\numberline {2.2}Compile the example}{12}{section.2.2}
+\contentsline {section}{\numberline {2.3}Running the Code and Viewing the Output}{13}{section.2.3}
+\contentsline {subsection}{Running the Code}{13}{section.2.3}
+\contentsline {subsection}{Viewing the output in VisIt}{15}{Item.6}
+\contentsline {section}{\numberline {2.4}Configuration}{15}{section.2.4}
+\contentsline {chapter}{\chapternumberline {3}Making modifications}{17}{chapter.3}
+\contentsline {chapter}{Bibliography}{19}{section*.3}

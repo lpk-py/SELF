@@ -42,8 +42,8 @@ USE DGSEMSolutionStorageClass_2D
 USE EdgeClass
 USE QuadElementClass  
 USE QuadMeshClass 
-! src/filters/
-USE RollOffFilter2D_Class
+! src/mpi/
+USE BoundaryCommunicator2D_Class
 ! src/highend/shallowwater/
 USE SWParamsClass
 ! Nocturnal Aviation classes and extensions
@@ -81,13 +81,10 @@ IMPLICIT NONE
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: relax(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: bathymetry(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: vorticity(:)
-      TYPE( BoundaryCommunicator )          :: extComm
+      TYPE( BoundaryCommunicator2D )        :: extComm
       TYPE( SWParams )                      :: params
       REAL(prec), ALLOCATABLE               :: plMatS(:,:), plMatP(:,:)
       
-      TYPE(RollOffFilter2D)                 :: filter
-      REAL(prec), ALLOCATABLE               :: E1(:), E2(:), lim(:,:)
-      REAL(prec), ALLOCATABLE               :: dE1(:), dE2(:)
 
       CONTAINS
 
@@ -143,9 +140,9 @@ IMPLICIT NONE
       PROCEDURE :: SetPlanetaryVorticityAtBoundary => SetPlanetaryVorticityAtBoundary_ShallowWater
       
        ! Type Specific Routines
-      PROCEDURE :: DoTheAdaptiveFiltering          => DoTheAdaptiveFiltering_ShallowWater
       PROCEDURE :: GlobalTimeDerivative            => GlobalTimeDerivative_ShallowWater
       PROCEDURE :: ForwardStepRK3                  => ForwardStepRK3_ShallowWater
+      PROCEDURE :: UpdateSharedEdges               => UpdateSharedEdges_ShallowWater
       PROCEDURE :: UpdateExternalState             => UpdateExternalState_ShallowWater
       PROCEDURE :: EdgeFlux                        => EdgeFlux_ShallowWater
       PROCEDURE :: MappedTimeDerivative            => MappedTimeDerivative_ShallowWater
@@ -208,9 +205,6 @@ IMPLICIT NONE
       h(:,:,2) = ZERO ! dhdx
       h(:,:,3) = ZERO ! dhdy
       CALL myDGSEM % dGStorage % Build( nS, nP, GAUSS, DG )
-      CALL myDGSEM % filter % Build( myDGSEM % dgStorage, &
-                                          myDGSEM % params % nCutoff, &
-                                          myDGSEM % params % nCutoff ) 
 
       CALL myDGSEM % BuildQuadMesh( )
 
@@ -260,16 +254,6 @@ IMPLICIT NONE
                                                                         
       DEALLOCATE(sNew)
       
-      ALLOCATE( myDGSEM % E1(1:myDGSEM % mesh % nElems) )
-      ALLOCATE( myDGSEM % E2(1:myDGSEM % mesh % nElems) )
-      ALLOCATE( myDGSEM % dE1(1:myDGSEM % mesh % nElems) )
-      ALLOCATE( myDGSEM % dE2(1:myDGSEM % mesh % nElems) )
-      ALLOCATE( myDGSEM % lim(1:myDGSEM % mesh % nElems,1:3) )
-      myDGSEM % E1  = ZERO
-      myDGSEM % E2  = ZERO
-      myDGSEM % dE1 = ZERO
-      myDGSEM % dE2 = ZERO 
-      myDGSEM % lim = ZERO
       
       
  END SUBROUTINE Build_ShallowWater
@@ -296,21 +280,16 @@ IMPLICIT NONE
 
      CALL myDGSEM % dGStorage % Trash( )
      CALL myDGSEM % mesh % Trash( )
-     CALL myDGSEM % filter % Trash( )
+
+     CALL myDGSEM % extComm % Trash( )
 
      DEALLOCATE( myDGSEM % sol ) 
      DEALLOCATE( myDGSEM % relax )
      DEALLOCATE( myDGSEM % bathymetry )
      DEALLOCATE( myDGSEM % vorticity )
      DEALLOCATE( myDGSEM % plMatS, myDGSEM % plMatP )
-     DEALLOCATE( myDGSEM % boundaryEdgeIDs, myDGSEM % externalState )
-     DEALLOCATE( myDGSEM % prescribedState )
-     
-     DEALLOCATE( myDGSEM % E1 )
-     DEALLOCATE( myDGSEM % E2 )
-     DEALLOCATE( myDGSEM % dE1 )
-     DEALLOCATE( myDGSEM % dE2 )
-     DEALLOCATE( myDGSEM % lim )
+     DEALLOCATE( myDGSEM % externalState )
+
 
  END SUBROUTINE Trash_ShallowWater
 !
@@ -336,6 +315,7 @@ IMPLICIT NONE
                                               myDGSEM % params % SpecMeshFile )
    
 
+      ! Note that the call to "ReadConnectivity" also builds the "extComm" attribute
       CALL myDGSEM % extComm % ReadConnectivity( myDGSEM % rank )
 
 
@@ -467,12 +447,6 @@ IMPLICIT NONE
 
 !$OMP PARALLEL
 
-!!OMP DO
-!      DO iEl = 1, myDGSEM % mesh % nElems
-!         CALL myDGSEM % DoTheAdaptiveFiltering( iEl, m ) 
-!      ENDDO 
-!!OMP END DO 
-!!OMP FLUSH( myDGSEM )
 
       ! Calculate the solution at the boundaries
 !$OMP DO
@@ -513,100 +487,6 @@ IMPLICIT NONE
 !
 !
 ! 
- SUBROUTINE DoTheAdaptiveFiltering_ShallowWater( myDGSEM, iEl, m )
- !
- !
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
-   INTEGER, INTENT(in)                :: iEl, m
-   ! Local
-   REAL(prec) :: sol(0:myDGSEM % nS, &
-                     0:myDGSEM % nP, &
-                     1:myDGSEM % nEq)
-   REAL(prec) :: solf(0:myDGSEM % nS, &
-                      0:myDGSEM % nP, &
-                      1:myDGSEM % nEq)
-   REAL(prec) :: c1(0:myDGSEM % nS, &
-                    0:myDGSEM % nP, &
-                    1:myDGSEM % nEq)
-   REAL(prec) :: c2(0:myDGSEM % nS, &
-                    0:myDGSEM % nP, &
-                    1:myDGSEM % nEq)
-   REAL(prec) :: temp(0:myDGSEM % nS), ke, pe
-   REAL(prec) :: E1prior, E2prior, E1, E2, dE2, dE1, xi
-   INTEGER    :: iS, iP, iQ, iEq
-
-
-      CALL myDGSEM % GetSolution( iEl, sol )
-
-      ! The first step in the process is to apply the filter to obtain the well resolved solution
-      DO iEq = 1, myDGSEM % nEq
-         solf(:,:,iEq) = myDGSEM % filter % ApplyFilter( sol(:,:,iEq) )
-      ENDDO
-      
-      ! This filtered solution is subtracted from the full solution to obtain the marginally-resolved
-      ! portion of the solution
-      c2 = (sol - solf) ! c2 is the marginally resolved modes
-      c1 = solf                    ! c1 is the  well resolved modes
-
-      ! Now that we have the two distinct components of the Legendre spectra, we want to calculate
-      ! the energy in each component, and the change in the energy of each component from the 
-      ! previous model state. 
-      ! If the small scale (marginally resolved) exhibits a growth in energy, this should be balanced
-      ! by a decay in the small scale energy. Aliasing errors may cause unphysical growth in the 
-      ! energy associated with the marginally resolved. In this case, the solution is assigned to the
-      ! filtered solution, effectively implying dissipation.
-     
-      E1prior = myDGSEM % E1(iEl)
-      E2prior = myDGSEM % E2(iEl)
-
-
-      ! Volume integration of the energy of the resolved and marginally resolved fields is done here
-      
-      CALL myDGSEM % CalculateEnergies( iEl, c1, ke, pe )
-      E1 = ke + pe
-      myDGSEM % E1(iEl) = E1
-      CALL myDGSEM % CalculateEnergies( iEl, c2, ke, pe ) 
-      E2 = ke + pe
-      myDGSEM % E2(iEl) = E2
-      
-      dE1 = E1-E1prior
-      dE2 = E2-E2prior
-
-      myDGSEM % dE1(iEl) = dE1
-      myDGSEM % dE2(iEl) = dE2
-
-      xi = (E2/E1)
-  
-      IF( dE2 > ZERO .AND. abs(dE1)/dE2 > ONE )THEN ! The energy in the small scales is growing faster than the large scale is giving it up
-                           
-         myDGSEM % lim(iEl,m) = xi
-   
-      ELSEIF( dE2 < ZERO )THEN
-  
-         myDGSEM % lim(iEl,m) = xi
-
-      ELSE
-         
-         IF( m > 1)THEN
-            myDGSEM % lim(iEl,m) = myDGSEM % lim(iEl,m-1)
-         ENDIF
-
-      ENDIF
-
-
-      IF( xi > 1.05_prec*myDGSEM % lim(iEl,m) )THEN
-         CALL myDGSEM % SetSolution( iEl, solf )
-      !   PRINT*, 'Filtered!'
-      ENDIF
-
-
- END SUBROUTINE DoTheAdaptiveFiltering_ShallowWater
-!
-!
-!
  SUBROUTINE UpdateExternalState_ShallowWater( myDGSEM, bID, tn )
  ! S/R UpdateExternalState
  ! 

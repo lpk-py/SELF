@@ -1,5 +1,5 @@
 \BOOKMARK [0][-]{section*.1}{Contents}{}
-\BOOKMARK [0][-]{chapter.1}{Equations and Discretization}{}
+\BOOKMARK [0][-]{chapter.1}{Equations, Discretization, \040and the Serial Algorithm}{}
 \BOOKMARK [1][-]{section.1.1}{Flavors of the Shallow Water Equations}{chapter.1}
 \BOOKMARK [1][-]{section.1.2}{Nodal Discontinuous Galerkin Discretization}{chapter.1}
 \BOOKMARK [0][-]{chapter.2}{Getting Started With an Example}{}

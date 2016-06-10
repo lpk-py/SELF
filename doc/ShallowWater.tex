@@ -71,11 +71,11 @@
 % Special Style
 \pagestyle{myheadings}
 
-\chapter{Equations and Discretization}
-The inviscid shallow water equations are a system of coupled partial differential equations that is hyperbolic. The Nodal Discontinuous Galerkin Spectral Element Method (NDGSEM) is well suited for hyperbolic systems. It is highly accurate through its use of arbitrarily high order piecewise polynomial representation of the approximated solution and geometry. It is well known for exhibiting minimal numerical dispersion and dissipation errors. It additionally allows for a flexible treatment of the geometry through the use of a structured or unstructured arrangement of \textit{spectral elements} that can represent boundaries through high order polynomial interpolants. The discretization yields dense and local matrix-vector multiplies for computing derivatives and only requires nearest neighbor communication to calculate exchanges between elements. This last property makes the NDGSEM trivial to parallelize. For these reasons, the NDGSEM is applied to the shallow water equation systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear} to demonstrate its accuracy and scalability for a system of equations that hold many of the important dynamics in geophysics. 
+\chapter{Equations, Discretization, \\ and the Serial Algorithm}
+The inviscid shallow water equations are a system of coupled partial differential equations that is hyperbolic. The Nodal Discontinuous Galerkin Spectral Element Method (NDGSEM) is well suited for hyperbolic systems. It is highly accurate through its use of arbitrarily high order piecewise polynomial representation of the approximated solution and geometry. It is well known for exhibiting minimal numerical dispersion and dissipation errors for linear problems. It additionally allows for a flexible treatment of the geometry through the use of a structured or unstructured arrangement of \textit{spectral elements} that can represent boundaries through high order polynomial interpolants. The discretization yields dense and local matrix-vector multiplies for computing derivatives and only requires nearest neighbor communication to calculate exchanges between elements. This last property makes the NDGSEM trivial to parallelize. For these reasons, the NDGSEM is applied to the shallow water equation systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear} to demonstrate its accuracy and scalability for a system of equations that hold many of the important dynamics in geophysics. 
 
 \section{Flavors of the Shallow Water Equations}
-The shallow water equations can be written in either ``conservative'' (Eqs. \ref{eq:conservative}) or ``skew-symmetric'' (Eqs. \ref{eq:skewsymmetric}) form :
+The nonlinear shallow water equations can be written in either ``conservative'' (Eqs. \ref{eq:conservative}) or ``skew-symmetric'' (Eqs. \ref{eq:skewsymmetric}) form :
 \begin{subequations}
 \begin{align}
 U_t  + \nabla \cdot \left( \frac{\vec{U}U}{h + \eta} + g \left(h + \frac{\eta}{2} \right)\eta\hat{x} \right) - fV &= g\eta h_x  + q_U\\
@@ -88,7 +88,7 @@ V_t  + \nabla \cdot \left( \frac{\vec{U}V}{h + \eta} + g \left(h + \frac{\eta}{2
 \begin{align}
 u_t  + \nabla \cdot \left( (e + p)\hat{x} \right) - (f+\zeta)v &=  q_u\\
 v_t  + \nabla \cdot \left( (e + p)\hat{y} \right) + (f+\zeta)u &=  q_v\\
-p_t + \nabla \cdot ( (gh+p)\vec{u} ) &= q_p
+p_t + \nabla \cdot ( (gh+p)\vec{u} ) &= q_p 
 \end{align}\label{eq:skewsymmetric}
 \end{subequations}
 For either system, and throughout the rest of this documentation the symbols have the following meaning :
@@ -176,9 +176,7 @@ The basis functions for $\mathbb{P}^N$ are chosen as each of the Lagrange interp
   \int_{\Omega^\xi} (\vec{S}^\kappa_t + \vec{Q}^\kappa) \phi_{m,n}  \hspace{1mm} d\Omega^\xi  - \int_{\Omega^\xi} \vec{F}^\kappa \cdot \nabla_{\vec{\xi}} \phi_{m,n}   \hspace{1mm} d\Omega^\xi + \oint_{\partial \Omega^\xi} \phi_{m,n}  \vec{F}^{\kappa,*}  \cdot \hat{n} \hspace{1mm} d A^\xi = 0, \hspace{2mm} m,n=0,1,...,N  \label{eq:weak-decomp-basis}
   \end{equation}
   
-The final step is to replace the integrals in \eqref{eq:approx_mappedWeakForm} with discrete quadrature. For this we use the Legendre-Gauss quadrature, which yields exact integration for each term in \eqref{eq:approx_mappedWeakForm}. Additionally, the interpolation nodes are specified as the Legendre-Gauss nodes, which simplifies the integration.
-
-
+The final step is to replace the integrals in \eqref{eq:weak-decomp-basis} with discrete quadrature. For this we use the Legendre-Gauss quadrature, which yields exact integration for each term in \eqref{eq:weak-decomp-basis}. Additionally, the interpolation nodes are specified as the Legendre-Gauss nodes, which simplifies the integration.
  \begin{equation}
  \begin{split}
  \left( J_{m,n} \vec{S}_{m,n} \right)_t =  &-\left[\sum_{i=0}^{N}\hat{D}^{(\xi^1)}_{m,i} \tilde{F}^{(\xi^1)}_{i,n}   + \left( \frac{ l_m(1)}{w^{(\xi^1)}_m} \tilde{F}^{*}(1,\xi^2_n) - \frac{ l_m(-1)}{w^{(\xi^1)}_m} \tilde{F}^{*}(-1,\xi^2_n) \right) \cdot \hat{\xi^1} \right] \\
@@ -191,19 +189,19 @@ Each element can support curvilinear geometry. Define the mapping from physical 
   \begin{equation}
   \vec{x} = \vec{x}(\vec{\xi}).\label{eq:mapping}
   \end{equation}
-In this case, the solution and the source term are weighted by the Jacobian of the mapping and the flux is rotated to the \textit{contravariant} flux. Appendix \ref{chap:GeometryTheory} provides the details on the metric terms that are introduced along with the form of the divergence, gradient, and curl under such a mapping.
+In this case, the solution and the source term are weighted by the Jacobian of the mapping and the flux is rotated to the \textit{contravariant} flux. Introducing mappings that are also approximated by polynomial interpolants introduces additional (spectrally accurate) \textit{aliasing} errors. Appendix \ref{chap:GeometryTheory} provides the details on the metric terms that are introduced along with the form of the divergence, gradient, and curl under such a mapping.
 
  Computing the divergence of the conservative flux in this framework can be viewed as calculating a sequence of derivatives in each computational direction. Two steps are required to compute the derivative in each direction. The first is an internal matrix-vector multiply, and the second is computing the weighted Riemann fluxes at the element boundaries. The latter is the only step which requires element-to-element communication. The approximate fluxes are now presented for the systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}.
 
 \subsection{Riemann Flux}
-\textit{This section needs some attention!}
+\textit{This section needs some attention!}\\
 \begin{figure}
 \begin{center}
 \includegraphics[width=0.4\textwidth]{figures/normalflux.png}
 \caption{ A depiction of the setup for computing the flux across an edge. The flux is split by upwinding the characteristic variables of the Jacobian matrix. }\label{fig:normalflux}
 \end{center}
 \end{figure}
-Regardless of which system we are solving, the DG approximation requires that we compute an estimate of the flux across an element's edge given the solution on either side of the edge. In general, the solution is discontinuous across the edges. Let $\vec{s}_L$ and $\vec{s}_R$ denote the solution to the ``left'' and to the ``right'' of the edge as depicted in Fig. \ref{fig:normalflux}. The goal is to compute the flux across an edge given the left and right states. The conservation law, \eqref{eq:conservationlaw}can be written
+Regardless of which system we are solving, the DG approximation requires that we compute an estimate of the flux across an element's edge given the solution on either side of the edge. In general, the solution is discontinuous across the edges. Let $\vec{s}_L$ and $\vec{s}_R$ denote the solution to the ``left'' and to the ``right'' of the edge as depicted in Fig. \ref{fig:normalflux}. The goal is to compute the flux across an edge given the left and right states. The conservation law, \eqref{eq:conservationlaw}, can be written
 \begin{equation}
 \vec{s}_t + \frac{\partial f^n}{\partial \vec{s}}\frac{\partial \vec{s}}{\partial n} = 0,
 \end{equation}
@@ -261,6 +259,20 @@ Equation \eqref{eq:RiemannFlux} is the approximate Riemann flux. The choice of a
 \subsection{Comparison with other SEM-Shallow Water Models}
 The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with isoparametric elements. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost. Since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
 
+
+\section{Algorithm}
+
+The solution algorithm consists of three main steps
+\begin{verbatim}
+  Loop over elements
+       Interpolate solution to element boundaries (InterpToBoundaries)
+       
+  Loop over edges
+       Calculate Riemann Fluxes
+       
+  Loop over elements
+       Calculate internal derivative and source operations to compute tendency
+\end{verbatim}
 \chapter{Getting Started With an Example}
 The easiest way to get started with the SELF Shallow Water software is run a pre-configured example. Doing so will introduce you to compiling, running, run-time configuring, and viewing the output. Once you are comfortable with a workflow for the example and you are ready to set up the software for your particular experiment, it may be beneficial to browse through other pre-configured examples to find one that is closest to the setup you have in mind. From there, modifications to the code can be made. Details on some of the more important routines and those you are likely to modify are provided in Chapter \ref{chap:Mods}.
 
