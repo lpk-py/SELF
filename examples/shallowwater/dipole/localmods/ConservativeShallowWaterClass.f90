@@ -1,32 +1,15 @@
-! ConservativeShallowWaterClass_MPI.f90
-! 
-! Copyright 2015 Joseph Schoonover <schoonover.numerics@gmail.com>
-! 
-! ConservativeShallowWaterClass_MPI.f90 is part of the Spectral Element Libraries in Fortran (SELF).
-! 
-! Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
-! and associated documentation files (the "Software"), to deal in the Software without restriction, 
-! including without limitation the rights to use, copy, modify, merge, publish, distribute, 
-! sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is 
-! furnished to do so, subject to the following conditions: 
-! 
-! The above copyright notice and this permission notice shall be included in all copies or  
-! substantial portions of the Software. 
-! 
-! THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
-! BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
-! NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
-! DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-!
-! //////////////////////////////////////////////////////////////////////////////////////////////// !
- 
- 
 MODULE ConservativeShallowWaterClass
-! ========================================= Logs ================================================= !
-!2016-05-11  Joseph Schoonover  schoonover.numerics@gmail.com 
+! ShallowWaterClass.f90
 !
-! //////////////////////////////////////////////////////////////////////////////////////////////// ! 
+! schoonover.numerics@gmail.com
+! 
+! o (ver 1.0) March 2014
+! o (ver 2.1) Dec 2015
+!
+!
+! 
+!  
+! ================================================================================================ !
 
 ! src/common/
 USE ModelPrecision
@@ -42,8 +25,8 @@ USE DGSEMSolutionStorageClass_2D
 USE EdgeClass
 USE QuadElementClass  
 USE QuadMeshClass 
-! src/mpi/
-USE BoundaryCommunicator2D_Class
+! src/filters/
+USE RollOffFilter2D_Class
 ! src/highend/shallowwater/
 USE SWParamsClass
 ! Nocturnal Aviation classes and extensions
@@ -56,8 +39,6 @@ USE OMP_LIB
 
 
 IMPLICIT NONE
-INCLUDE 'mpif.h'
-
 !
 ! Some parameters that are specific to this module
 
@@ -75,7 +56,6 @@ INCLUDE 'mpif.h'
      
     TYPE ShallowWater
       INTEGER                               :: nEq, nPlot, nS, nP, nBoundaryEdges
-      INTEGER                               :: rank
       TYPE( QuadMesh )                      :: mesh
       TYPE( NodalStorage_2D )               :: dGStorage
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: sol(:)
@@ -83,11 +63,17 @@ INCLUDE 'mpif.h'
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: relax(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: bathymetry(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: vorticity(:)
-      TYPE( BoundaryCommunicator2D )        :: extComm
+
+      INTEGER, ALLOCATABLE                  :: boundaryEdgeIDs(:)
+      REAL(prec), ALLOCATABLE               :: externalState(:,:,:) ! (0:nS,1:nEq,1:boundaryEdges)
       REAL(prec), ALLOCATABLE               :: prescribedState(:,:,:)
+
       TYPE( SWParams )                      :: params
       REAL(prec), ALLOCATABLE               :: plMatS(:,:), plMatP(:,:)
       
+      TYPE(RollOffFilter2D)                 :: filter
+      REAL(prec), ALLOCATABLE               :: E1(:), E2(:), lim(:,:)
+      REAL(prec), ALLOCATABLE               :: dE1(:), dE2(:)
 
       CONTAINS
 
@@ -143,9 +129,9 @@ INCLUDE 'mpif.h'
       PROCEDURE :: SetPlanetaryVorticityAtBoundary => SetPlanetaryVorticityAtBoundary_ShallowWater
       
        ! Type Specific Routines
+      PROCEDURE :: DoTheAdaptiveFiltering          => DoTheAdaptiveFiltering_ShallowWater
       PROCEDURE :: GlobalTimeDerivative            => GlobalTimeDerivative_ShallowWater
       PROCEDURE :: ForwardStepRK3                  => ForwardStepRK3_ShallowWater
-      PROCEDURE :: UpdateSharedEdges               => UpdateSharedEdges_ShallowWater
       PROCEDURE :: UpdateExternalState             => UpdateExternalState_ShallowWater
       PROCEDURE :: EdgeFlux                        => EdgeFlux_ShallowWater
       PROCEDURE :: MappedTimeDerivative            => MappedTimeDerivative_ShallowWater
@@ -172,7 +158,7 @@ INCLUDE 'mpif.h'
 !==================================================================================================!
 !
 !
- SUBROUTINE Build_ShallowWater( myDGSEM, forceNoPickup, myRank )
+ SUBROUTINE Build_ShallowWater( myDGSEM, forceNoPickup )
  ! S/R Build
  ! 
  !
@@ -181,7 +167,6 @@ INCLUDE 'mpif.h'
    IMPLICIT NONE
    CLASS(ShallowWater), INTENT(inout) :: myDGSEM
    INTEGER, INTENT(in), OPTIONAL      :: forceNoPickup
-   INTEGER, INTENT(in)                :: myRank
    !LOCAL
    INTEGER :: iEl, globElID, pID2, nS, nP, nPlot
    INTEGER :: rStartRel, rEndRel
@@ -191,8 +176,6 @@ INCLUDE 'mpif.h'
 
       CALL myDGSEM % params % Build( )
      
-      myDGSEM % rank = myRank
-
       nS = myDGSEM % params % polyDeg
       nP = nS
       myDGSEM % nS      = nS
@@ -208,6 +191,9 @@ INCLUDE 'mpif.h'
       h(:,:,2) = ZERO ! dhdx
       h(:,:,3) = ZERO ! dhdy
       CALL myDGSEM % dGStorage % Build( nS, nP, GAUSS, DG )
+      CALL myDGSEM % filter % Build( myDGSEM % dgStorage, &
+                                          myDGSEM % params % nCutoff, &
+                                          myDGSEM % params % nCutoff ) 
 
       CALL myDGSEM % BuildQuadMesh( )
 
@@ -257,6 +243,16 @@ INCLUDE 'mpif.h'
                                                                         
       DEALLOCATE(sNew)
       
+      ALLOCATE( myDGSEM % E1(1:myDGSEM % mesh % nElems) )
+      ALLOCATE( myDGSEM % E2(1:myDGSEM % mesh % nElems) )
+      ALLOCATE( myDGSEM % dE1(1:myDGSEM % mesh % nElems) )
+      ALLOCATE( myDGSEM % dE2(1:myDGSEM % mesh % nElems) )
+      ALLOCATE( myDGSEM % lim(1:myDGSEM % mesh % nElems,1:3) )
+      myDGSEM % E1  = ZERO
+      myDGSEM % E2  = ZERO
+      myDGSEM % dE1 = ZERO
+      myDGSEM % dE2 = ZERO 
+      myDGSEM % lim = ZERO
       
       
  END SUBROUTINE Build_ShallowWater
@@ -283,16 +279,21 @@ INCLUDE 'mpif.h'
 
      CALL myDGSEM % dGStorage % Trash( )
      CALL myDGSEM % mesh % Trash( )
-
-     CALL myDGSEM % extComm % Trash( )
+     CALL myDGSEM % filter % Trash( )
 
      DEALLOCATE( myDGSEM % sol ) 
      DEALLOCATE( myDGSEM % relax )
      DEALLOCATE( myDGSEM % bathymetry )
      DEALLOCATE( myDGSEM % vorticity )
      DEALLOCATE( myDGSEM % plMatS, myDGSEM % plMatP )
+     DEALLOCATE( myDGSEM % boundaryEdgeIDs, myDGSEM % externalState )
      DEALLOCATE( myDGSEM % prescribedState )
-
+     
+     DEALLOCATE( myDGSEM % E1 )
+     DEALLOCATE( myDGSEM % E2 )
+     DEALLOCATE( myDGSEM % dE1 )
+     DEALLOCATE( myDGSEM % dE2 )
+     DEALLOCATE( myDGSEM % lim )
 
  END SUBROUTINE Trash_ShallowWater
 !
@@ -306,26 +307,78 @@ INCLUDE 'mpif.h'
    IMPLICIT NONE
    CLASS( ShallowWater ), INTENT(inout) :: myDGSEM
    ! LOCAL
-   INTEGER   :: iEdge, e1, e2, s1, nBe
-   CHARACTER(4) :: rankChar 
+   INTEGER :: iEdge, e1, e2, s1, nBe
+   REAL(prec) :: nHat(1:2), nHatLength
 
-      WRITE( rankChar, '(I4.4)') myDGSEM % rank
 
       PRINT*,'Module ShallowWaterClass.f90 : S/R BuildQuadMesh :'
+      IF( TRIM( myDGSEM % params % SpecMeshFile ) == nada )THEN
+         PRINT*,' Loading default mesh.'
+         CALL myDGSEM % mesh % LoadDefaultMesh( myDGSEM % dgStorage % interp, &
+                                                myDGSEM % params % nXelem, &
+                                                myDGSEM % params % nYelem )
+      ELSE
+      ! Builds the lateral mesh
+         PRINT*, 'Reading mesh from '//trim(myDGSEM % params % SpecMeshFile)//'.'
+         CALL myDGSEM % mesh % ReadSpecMeshFile( myDGSEM % dgStorage % interp, &
+                                                 myDGSEM % params % SpecMeshFile )
+      ENDIF
+      
+      CALL myDGSEM % mesh % ScaleTheMesh( myDGSEM % dgStorage % interp, &
+                                          myDGSEM % params % xScale, &
+                                          myDGSEM % params % yScale )
+      nBe = 0
+      ! Set the boundary conditions for this problem
+      DO iEdge = 1, myDGSEM % mesh % nEdges
 
-      PRINT*, 'Reading mesh from '//trim(myDGSEM % params % SpecMeshFile)//'.'
-      CALL myDGSEM % mesh % ReadSpecMeshFile( myDGSEM % dgStorage % interp, &
-                                              myDGSEM % params % SpecMeshFile )
-   
+         CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+         IF( e2 <= 0 )THEN
 
-      ! Note that the call to "ReadConnectivity" also builds the "extComm" attribute
-      CALL myDGSEM % extComm % ReadConnectivity( myDGSEM % rank )
+            nBe = nBe + 1
 
-      nBe = myDGSEM % extComm % nBoundaryEdges
+            CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
+            CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
+            CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, 0, s1 ) ! Get nHat
+
+            IF( abs(nHat(1)) > abs(nHat(2)) )THEN ! This is an 'east-west' boundary
+               CALL myDGSEM % mesh % SetEdgeSecondaryElementID( iEdge, NO_NORMAL_FLOW )
+            ELSE
+           
+               IF( nHat(2) > ZERO )THEN ! This is our outflow boundary
+                  CALL myDGSEM % mesh % SetEdgeSecondaryElementID( iEdge, RADIATION )
+               ELSE ! This is our inflow
+                  CALL myDGSEM % mesh % SetEdgeSecondaryElementID( iEdge, PRESCRIBED )
+               ENDIF
+
+            ENDIF
+
+         ENDIF
+
+      ENDDO
+ 
       myDGSEM % nBoundaryEdges = nBe
-      ALLOCATE( myDGSEM % prescribedState(0:myDGSEM % nS, 1:nSWeq, 1:nBe) )
+      ALLOCATE( myDGSEM % boundaryEdgeIDs(1:nBe), &
+                myDGSEM % ExternalState(0:myDGSEM % nS, 1:nSWeq,1:nBe), &
+                myDGSEM % prescribedState(0:myDGSEM % nS, 1:nSWeq, 1:nBe) )
 
+      myDGSEM % ExternalState = ZERO
       myDGSEM % prescribedState = ZERO
+
+      nBe = 0
+      ! Set the boundary conditions for this problem
+      DO iEdge = 1, myDGSEM % mesh % nEdges
+
+         CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+         IF( e2 <= 0 )THEN
+
+            nBe = nBe + 1
+            myDGSEM % boundaryEdgeIDs(nBe) = iEdge
+            CALL myDGSEM % mesh % SetEdgeBoundaryID( iEdge, nBe )
+
+         ENDIF
+
+      ENDDO
+
 
  END SUBROUTINE BuildQuadMesh_ShallowWater
 !
@@ -335,7 +388,809 @@ INCLUDE 'mpif.h'
 !==================================================================================================!
 !
 !
- INCLUDE 'ShallowWaterAccessors.f90'
+!
+! ---------------------------------------- Solution ---------------------------------------------- !
+! 
+ SUBROUTINE GetSolution_ShallowWater( myDGSEM, iEl, theSolution  )
+ ! S/R GetSolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   REAL(prec), INTENT(out)         :: theSolution(0:myDGSEM % nS, 0:myDGSEM % nP, 1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % GetSolution( theSolution )
+
+ END SUBROUTINE GetSolution_ShallowWater
+!
+!
+!
+ SUBROUTINE SetSolution_ShallowWater( myDGSEM, iEl, theSolution  )
+ ! S/R SetSolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   REAL(prec), INTENT(in)             :: theSolution(0:myDGSEM % nS, 0:myDGSEM % nP, 1:nSWeq)
+
+      CALL myDGSEM % sol(iEl) % SetSolution( theSolution )
+
+ END SUBROUTINE SetSolution_ShallowWater
+!
+!
+!
+ SUBROUTINE GetSolutionAtNode_ShallowWater( myDGSEM, iEl, i, j, theSolution  )
+ ! S/R GetSolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: i, j
+   REAL(prec), INTENT(out)         :: theSolution(1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % GetSolutionAtNode( i, j, theSolution )
+
+ END SUBROUTINE GetSolutionAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE SetSolutionAtNode_ShallowWater( myDGSEM, iEl, i, j, theSolution  )
+ ! S/R SetSolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: i, j
+   REAL(prec), INTENT(in)             :: theSolution(1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % SetSolutionAtNode( i, j, theSolution )
+
+ END SUBROUTINE SetSolutionAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE GetVelocity_ShallowWater( myDGSEM, iEl, u, v  )
+ ! S/R GetVelocity
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   REAL(prec), INTENT(out)         :: u(0:myDGSEM % nS,0:myDGSEM % nP)
+   REAL(prec), INTENT(out)         :: v(0:myDGSEM % nS,0:myDGSEM % nP)
+   ! Local
+   REAL(prec) :: h(0:myDGSEM % nS, 0:myDGSEM % nP)
+   
+      CALL myDGSEM % sol(iEl) % GetSolutionWithVarID( 1, u )
+      CALL myDGSEM % sol(iEl) % GetSolutionWithVarID( 2, v )
+!      CALL myDGSEM % sol(iEl) % GetSolutionWithVarID( 3, h )
+!      u = u/h
+!      v = v/h
+      
+ END SUBROUTINE GetVelocity_ShallowWater
+!
+!
+!
+ SUBROUTINE SetVelocity_ShallowWater( myDGSEM, iEl, u, v  )
+ ! S/R SetVelocity
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   REAL(prec), INTENT(in)             :: u(0:myDGSEM % nS,0:myDGSEM % nP)
+   REAL(prec), INTENT(in)             :: v(0:myDGSEM % nS,0:myDGSEM % nP)
+
+      CALL myDGSEM % sol(iEl) % SetSolutionWithVarID( 1, u )
+      CALL myDGSEM % sol(iEl) % SetSolutionWithVarID( 2, v )
+
+ END SUBROUTINE SetVelocity_ShallowWater
+!
+!
+!
+ SUBROUTINE GetVelocityAtBoundary_ShallowWater( myDGSEM, iEl, boundary, u, v  )
+ ! S/R GetBoundarySolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: boundary
+   REAL(prec), INTENT(out)         :: u(0:myDGSEM % nS)
+   REAL(prec), INTENT(out)         :: v(0:myDGSEM % nS)
+   ! Local
+   REAL(prec) :: h(0:myDGSEM % nS)
+   
+      CALL myDGSEM % sol(iEl) % GetBoundarySolutionAtBoundaryWithVarID( boundary, 1, u )
+      CALL myDGSEM % sol(iEl) % GetBoundarySolutionAtBoundaryWithVarID( boundary, 2, v )
+
+      CALL myDGSEM % sol(iEl) % GetBoundarySolutionAtBoundaryWithVarID( boundary, 3, h )
+      u = u/h
+      v = v/h
+      
+ END SUBROUTINE GetVelocityAtBoundary_ShallowWater
+!
+!
+!
+ SUBROUTINE SetVelocityAtBoundary_ShallowWater( myDGSEM, iEl, boundary, u, v  )
+ ! S/R SetVelocityAtBoundary
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: boundary
+   REAL(prec), INTENT(in)             :: u(0:myDGSEM % nS)
+   REAL(prec), INTENT(in)             :: v(0:myDGSEM % nS)
+   
+      CALL myDGSEM % sol(iEl) % SetBoundarySolutionAtBoundaryWithVarID( boundary, 1, u )
+      CALL myDGSEM % sol(iEl) % SetBoundarySolutionAtBoundaryWithVarID( boundary, 2, v )
+     
+ END SUBROUTINE SetVelocityAtBoundary_ShallowWater
+!
+!
+!
+ SUBROUTINE GetSolutionAtNodeWithVarID_ShallowWater( myDGSEM, iEl, i, j, varID, theSolution  )
+ ! S/R GetSolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: i, j, varID 
+   REAL(prec), INTENT(out)         :: theSolution
+
+      CALL myDGSEM % sol(iEl) % GetSolutionAtNodeWithVarID( i, j, varID, theSolution )
+
+ END SUBROUTINE GetSolutionAtNodeWithVarID_ShallowWater
+!
+!
+!
+ SUBROUTINE SetSolutionAtNodeWithVarID_ShallowWater( myDGSEM, iEl, i, j, varID, theSolution  )
+ ! S/R SetSolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: i, j, varID 
+   REAL(prec), INTENT(in)             :: theSolution
+
+      CALL myDGSEM % sol(iEl) % SetSolutionAtNodeWithVarID( i, j, varID, theSolution )
+
+ END SUBROUTINE SetSolutionAtNodeWithVarID_ShallowWater
+!
+! ----------------------------------------- Tendency --------------------------------------------- !
+!
+ SUBROUTINE GetTendency_ShallowWater( myDGSEM, iEl, theTend  )
+ ! S/R GetTendency
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   REAL(prec), INTENT(out)         :: theTend(0:myDGSEM % nS,0:myDGSEM % nP, 1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % GetTendency( theTend )
+
+ END SUBROUTINE GetTendency_ShallowWater
+!
+!
+!
+ SUBROUTINE SetTendency_ShallowWater( myDGSEM, iEl, theTend  )
+ ! S/R SetTendency
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   REAL(prec), INTENT(in)             :: theTend(0:myDGSEM % nS,0:myDGSEM % nP, 1:nSWeq)
+
+      CALL myDGSEM % sol(iEl) % SetTendency( theTend )   
+
+ END SUBROUTINE SetTendency_ShallowWater
+!
+!
+!
+ SUBROUTINE GetTendencyAtNode_ShallowWater( myDGSEM, iEl, i, j, theTend  )
+ ! S/R GetTendencyAtNode
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: i, j 
+   REAL(prec), INTENT(out)         :: theTend(1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % GetTendencyAtNode( i, j, theTend )
+
+ END SUBROUTINE GetTendencyAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE SetTendencyAtNode_ShallowWater( myDGSEM, iEl, i, j, theTend  )
+ ! S/R SetTendencyAtNode
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: i, j 
+   REAL(prec), INTENT(in)             :: theTend(1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % SetTendencyAtNode( i, j, theTend )
+
+ END SUBROUTINE SetTendencyAtNode_ShallowWater
+!
+!
+!
+SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
+ ! S/R GetTendency
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: varID 
+   REAL(prec), INTENT(out)         :: theTend(0:myDGSEM % nS,0:myDGSEM % nP)
+
+      CALL myDGSEM % sol(iEl) % GetTendencyWithVarID( varID, theTend )
+
+ END SUBROUTINE GetTendencyWithVarID_ShallowWater
+!
+!
+!
+ SUBROUTINE SetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
+ ! S/R SetTendency
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: varID 
+   REAL(prec), INTENT(in)             :: theTend(0:myDGSEM % nS,0:myDGSEM % nP)
+
+      CALL myDGSEM % sol(iEl) % SetTendencyWithVarID( varID, theTend )
+
+ END SUBROUTINE SetTendencyWithVarID_ShallowWater
+!
+!
+!
+ SUBROUTINE GetTendencyAtNodeWithVarID_ShallowWater( myDGSEM, iEl, i, j, varID, theTend  )
+ ! S/R GetTendency
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: i, j, varID 
+   REAL(prec), INTENT(out)         :: theTend
+
+      CALL myDGSEM % sol(iEl) % GetTendencyAtNodeWithVarID( i, j, varID, theTend )
+
+ END SUBROUTINE GetTendencyAtNodeWithVarID_ShallowWater
+!
+!
+!
+ SUBROUTINE SetTendencyAtNodeWithVarID_ShallowWater( myDGSEM, iEl, i, j, varID, theTend  )
+ ! S/R SetTendency
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: i, j, varID 
+   REAL(prec), INTENT(in)             :: theTend
+
+      CALL myDGSEM % sol(iEl) % SetTendencyAtNodeWithVarID( i, j, varID, theTend )
+
+ END SUBROUTINE SetTendencyAtNodeWithVarID_ShallowWater
+!
+! ------------------------------- Boundary Solution ---------------------------------------------- !
+!
+ SUBROUTINE GetBoundarySolutionAtBoundary_ShallowWater( myDGSEM, iEl, boundary, theSolution  )
+ ! S/R GetBoundarySolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: boundary
+   REAL(prec), INTENT(out)         :: theSolution(0:myDGSEM % nS,1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % GetBoundarySolutionAtBoundary( boundary, theSolution )
+
+ END SUBROUTINE GetBoundarySolutionAtBoundary_ShallowWater
+!
+!
+!
+ SUBROUTINE SetBoundarySolutionAtBoundary_ShallowWater( myDGSEM, iEl, boundary, theSolution  )
+ ! S/R SetBoundarySolution
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: boundary
+   REAL(prec), INTENT(in)             :: theSolution(0:myDGSEM % nS,1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % SetBoundarySolutionAtBoundary( boundary, theSolution )
+
+ END SUBROUTINE SetBoundarySolutionAtBoundary_ShallowWater
+!
+! --------------------------------- Boundary Flux ------------------------------------------------ !
+!
+ SUBROUTINE GetBoundaryFluxAtBoundary_ShallowWater( myDGSEM, iEl, boundary, theFlux  )
+ ! S/R GetBoundaryFlux
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: boundary
+   REAL(prec), INTENT(out)         :: theFlux(0:myDGSEM % nS,1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % GetBoundaryFluxAtBoundary( boundary, theFlux )
+
+ END SUBROUTINE GetBoundaryFluxAtBoundary_ShallowWater
+!
+!
+!
+ SUBROUTINE SetBoundaryFluxAtBoundary_ShallowWater( myDGSEM, iEl, boundary, theFlux  )
+ ! S/R SetBoundaryFlux
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: boundary
+   REAL(prec), INTENT(in)             :: theFlux(0:myDGSEM % nS,1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % SetBoundaryFluxAtBoundary( boundary, theFlux )
+
+ END SUBROUTINE SetBoundaryFluxAtBoundary_ShallowWater
+!
+!
+!
+ SUBROUTINE GetBoundaryFluxAtBoundaryNode_ShallowWater( myDGSEM, iEl, boundary, i, theFlux  )
+ ! S/R GetBoundaryFlux
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: boundary, i
+   REAL(prec), INTENT(out)         :: theFlux(1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % GetBoundaryFluxAtBoundaryNode( boundary, i, theFlux )
+
+ END SUBROUTINE GetBoundaryFluxAtBoundaryNode_ShallowWater
+!
+!
+!
+ SUBROUTINE SetBoundaryFluxAtBoundaryNode_ShallowWater( myDGSEM, iEl, boundary, i, theFlux  )
+ ! S/R SetBoundaryFlux
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: boundary, i
+   REAL(prec), INTENT(in)             :: theFlux(1:myDGSEM % nEq)
+
+      CALL myDGSEM % sol(iEl) % SetBoundaryFluxAtBoundaryNode( boundary, i, theFlux )
+
+ END SUBROUTINE SetBoundaryFluxAtBoundaryNode_ShallowWater
+!
+! --------------------------------- Relaxation Field --------------------------------------------- !
+!
+ SUBROUTINE GetRelaxationField_ShallowWater( myDGSEM, iEl, relaxField  )
+ ! S/R GetRelaxationField
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   REAL(prec), INTENT(out)         :: relaxField(0:myDGSEM % nS, 0:myDGSEM % nP, 1:myDGSEM % nEq)
+ 
+      CALL myDGSEM % relax(iEl) % GetSolutionWithVarID( 1, relaxField(:,:,1) )
+      CALL myDGSEM % relax(iEl) % GetSolutionWithVarID( 2, relaxField(:,:,2) )
+      CALL myDGSEM % relax(iEl) % GetSolutionWithVarID( 3, relaxField(:,:,3) )
+      
+ END SUBROUTINE GetRelaxationField_ShallowWater
+!
+!
+!
+ SUBROUTINE SetRelaxationField_ShallowWater( myDGSEM, iEl, relaxField  )
+ ! S/R SetRelaxationField
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   REAL(prec), INTENT(in)             :: relaxField(0:myDGSEM % nS, 0:myDGSEM % nP, 1:myDGSEM % nEq)
+
+   
+      CALL myDGSEM % relax(iEl) % SetSolutionWithVarID( 1, relaxField(:,:,1) )
+      CALL myDGSEM % relax(iEl) % SetSolutionWithVarID( 2, relaxField(:,:,2) )
+      CALL myDGSEM % relax(iEl) % SetSolutionWithVarID( 3, relaxField(:,:,3) )
+
+ END SUBROUTINE SetRelaxationField_ShallowWater
+!
+!
+!
+ SUBROUTINE GetRelaxationFieldAtNode_ShallowWater( myDGSEM, iEl, i, j, relaxField  )
+ ! S/R GetRelaxationField
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl, i, j
+   REAL(prec), INTENT(out)         :: relaxField(1:myDGSEM % nEq)
+ 
+      CALL myDGSEM % relax(iEl) % GetSolutionAtNodeWithVarID( i, j, 1, relaxField(1) )
+      CALL myDGSEM % relax(iEl) % GetSolutionAtNodeWithVarID( i, j, 2, relaxField(2) )
+      CALL myDGSEM % relax(iEl) % GetSolutionAtNodeWithVarID( i, j, 3, relaxField(3) )
+      
+ END SUBROUTINE GetRelaxationFieldAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE SetRelaxationFieldAtNode_ShallowWater( myDGSEM, iEl, i, j, relaxField  )
+ ! S/R SetRelaxationFieldAtNode
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl, i, j
+   REAL(prec), INTENT(in)             :: relaxField(1:myDGSEM % nEq)
+
+   
+      CALL myDGSEM % relax(iEl) % SetSolutionAtNodeWithVarID( i, j, 1, relaxField(1) )
+      CALL myDGSEM % relax(iEl) % SetSolutionAtNodeWithVarID( i, j, 2, relaxField(2) )
+      CALL myDGSEM % relax(iEl) % SetSolutionAtNodeWithVarID( i, j, 3, relaxField(3) )
+
+ END SUBROUTINE SetRelaxationFieldAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE GetRelaxationTimeScale_ShallowWater( myDGSEM, iEl, timeScale  )
+ ! S/R GetRelaxationTimeScale
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   REAL(prec), INTENT(out)         :: timeScale(0:myDGSEM % nS, 0:myDGSEM % nP)
+
+      CALL myDGSEM % relax(iEl) % GetSolutionWithVarID( 4, timeScale )
+          
+ END SUBROUTINE GetRelaxationTimeScale_ShallowWater
+!
+!
+!
+ SUBROUTINE SetRelaxationTimeScale_ShallowWater( myDGSEM, iEl, timeScale  )
+ ! S/R SetRelaxationTimeScale
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   REAL(prec), INTENT(in)             :: timeScale(0:myDGSEM % nS, 0:myDGSEM % nP)
+   
+      CALL myDGSEM % relax(iEl) % SetSolutionWithVarID( 4, timeScale )
+
+ END SUBROUTINE SetRelaxationTimeScale_ShallowWater
+!
+!
+!
+ SUBROUTINE GetRelaxationTimeScaleAtNode_ShallowWater( myDGSEM, iEl, i, j, timescale  )
+ ! S/R GetRelaxationTimeScale
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl, i, j
+   REAL(prec), INTENT(out)         :: timescale
+ 
+      CALL myDGSEM % relax(iEl) % GetSolutionAtNodeWithVarID( i, j, 4, timescale )
+      
+ END SUBROUTINE GetRelaxationTimeScaleAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE SetRelaxationTimeScaleAtNode_ShallowWater( myDGSEM, iEl, i, j, timescale  )
+ ! S/R SetRelaxationTimeScaleAtNode
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl, i, j
+   REAL(prec), INTENT(in)             :: timescale
+
+      CALL myDGSEM % relax(iEl) % SetSolutionAtNodeWithVarID( i, j, 4, timescale )
+
+ END SUBROUTINE SetRelaxationTimeScaleAtNode_ShallowWater
+!
+! -------------------------------------- Bathymetry ---------------------------------------------- !
+!
+ SUBROUTINE GetBathymetry_ShallowWater( myDGSEM, iEl, theBathymetry  )
+ ! S/R GetBathymetry
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   REAL(prec), INTENT(out)         :: theBathymetry(0:myDGSEM % nS, 0:myDGSEM % nP, 1:3)
+
+      CALL myDGSEM % bathymetry(iEl) % GetSolution( theBathymetry )
+
+ END SUBROUTINE GetBathymetry_ShallowWater
+!
+!
+!
+ SUBROUTINE SetBathymetry_ShallowWater( myDGSEM, iEl, theBathymetry  )
+ ! S/R SetBathymetry
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   REAL(prec), INTENT(in)             :: theBathymetry(0:myDGSEM % nS, 0:myDGSEM % nP, 1:3)
+
+      CALL myDGSEM % bathymetry(iEl) % SetSolution( theBathymetry )
+
+ END SUBROUTINE SetBathymetry_ShallowWater
+!
+!
+!
+ SUBROUTINE GetBathymetryAtNode_ShallowWater( myDGSEM, iEl, i, j, theBathymetry  )
+ ! S/R GetBathymetry
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: i, j
+   REAL(prec), INTENT(out)         :: theBathymetry(1:3)
+
+      CALL myDGSEM % bathymetry(iEl) % GetSolutionAtNode( i, j, theBathymetry )
+
+ END SUBROUTINE GetBathymetryAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE SetBathymetryAtNode_ShallowWater( myDGSEM, iEl, i, j, theBathymetry  )
+ ! S/R SetBathymetry
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: i, j
+   REAL(prec), INTENT(in)             :: theBathymetry(1:3)
+
+      CALL myDGSEM % bathymetry(iEl) % SetSolutionAtNode( i, j, theBathymetry )
+
+ END SUBROUTINE SetBathymetryAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE GetBathymetryAtBoundary_ShallowWater( myDGSEM, iEl, boundary, theBathymetry  )
+ ! S/R GetBathymetryAtBoundary
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: boundary
+   REAL(prec), INTENT(out)         :: theBathymetry(0:myDGSEM % nS,1:3)
+
+      CALL myDGSEM % bathymetry(iEl) % GetBoundarySolutionAtBoundary( boundary, theBathymetry )
+
+ END SUBROUTINE GetBathymetryAtBoundary_ShallowWater
+!
+!
+!
+ SUBROUTINE SetBathymetryAtBoundary_ShallowWater( myDGSEM, iEl, boundary, theBathymetry  )
+ ! S/R SetBathymetryAtBoundary
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: boundary
+   REAL(prec), INTENT(in)             :: theBathymetry(0:myDGSEM % nS,1:3)
+
+      CALL myDGSEM % bathymetry(iEl) % SetBoundarySolutionAtBoundary( boundary, theBathymetry )
+
+ END SUBROUTINE SetBathymetryAtBoundary_ShallowWater
+!
+! -------------------------------------- Vorticity ---------------------------------------------- !
+!
+ SUBROUTINE GetPlanetaryVorticity_ShallowWater( myDGSEM, iEl, theVorticity  )
+ ! S/R GetVorticity
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   REAL(prec), INTENT(out)         :: theVorticity(0:myDGSEM % nS, 0:myDGSEM % nP)
+
+      CALL myDGSEM % vorticity(iEl) % GetSolutionWithVarID( 1, theVorticity )
+
+ END SUBROUTINE GetPlanetaryVorticity_ShallowWater
+!
+!
+!
+ SUBROUTINE SetPlanetaryVorticity_ShallowWater( myDGSEM, iEl, theVorticity  )
+ ! S/R SetVorticity
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   REAL(prec), INTENT(in)             :: theVorticity(0:myDGSEM % nS, 0:myDGSEM % nP)
+
+      CALL myDGSEM % vorticity(iEl) % SetSolutionWithVarID( 1, theVorticity )
+
+ END SUBROUTINE SetPlanetaryVorticity_ShallowWater
+!
+!
+!
+ SUBROUTINE GetPlanetaryVorticityAtNode_ShallowWater( myDGSEM, iEl, i, j, theVorticity  )
+ ! S/R GetVorticity
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: i, j
+   REAL(prec), INTENT(out)         :: theVorticity
+
+      CALL myDGSEM % vorticity(iEl) % GetSolutionAtNodeWithVarID( i, j, 1, theVorticity )
+
+ END SUBROUTINE GetPlanetaryVorticityAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE SetPlanetaryVorticityAtNode_ShallowWater( myDGSEM, iEl, i, j, theVorticity  )
+ ! S/R SetVorticity
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: i, j
+   REAL(prec), INTENT(in)             :: theVorticity
+
+      CALL myDGSEM % vorticity(iEl) % SetSolutionAtNodeWithVarID( i, j, 1, theVorticity )
+
+ END SUBROUTINE SetPlanetaryVorticityAtNode_ShallowWater
+!
+!
+!
+ SUBROUTINE GetPlanetaryVorticityAtBoundary_ShallowWater( myDGSEM, iEl, boundary, theVorticity  )
+ ! S/R GetVorticityAtBoundary
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(in) :: myDGSEM
+   INTEGER, INTENT(in)             :: iEl
+   INTEGER, INTENT(in)             :: boundary
+   REAL(prec), INTENT(out)         :: theVorticity(0:myDGSEM % nS)
+
+      CALL myDGSEM % vorticity(iEl) % GetBoundarySolutionAtBoundaryWithVarID( boundary, 1, theVorticity )
+
+ END SUBROUTINE GetPlanetaryVorticityAtBoundary_ShallowWater
+!
+!
+!
+ SUBROUTINE SetPlanetaryVorticityAtBoundary_ShallowWater( myDGSEM, iEl, boundary, theVorticity  )
+ ! S/R SetVorticityAtBoundary
+ !  
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl
+   INTEGER, INTENT(in)                :: boundary
+   REAL(prec), INTENT(in)             :: theVorticity(0:myDGSEM % nS)
+
+      CALL myDGSEM % vorticity(iEl) % SetBoundarySolutionAtBoundaryWithVarID( boundary, 1, theVorticity )
+
+ END SUBROUTINE SetPlanetaryVorticityAtBoundary_ShallowWater
 !
 !
 !==================================================================================================!
@@ -388,7 +1243,7 @@ INCLUDE 'mpif.h'
 !
 !
 !
- SUBROUTINE ForwardStepRK3_ShallowWater( myDGSEM, tn, theMPICOMM )
+ SUBROUTINE ForwardStepRK3_ShallowWater( myDGSEM, tn )
  ! S/R ForwardStepRK3( 3rd order Runge-Kutta)
  ! 
  !
@@ -396,8 +1251,7 @@ INCLUDE 'mpif.h'
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(ShallowWater), INTENT(inout) :: myDGSEM
-   REAL(prec), INTENT(in)             :: tn
-   INTEGER, INTENT(in)                :: theMPICOMM
+   REAL(prec), INTENT(in)                   :: tn
    ! LOCAL
    REAL(prec) :: t, dt
    REAL(prec) :: G2D(0:myDGSEM % nS,&
@@ -417,7 +1271,7 @@ INCLUDE 'mpif.h'
 
          t = tn + rk3_b(m)*dt
          ! Calculate the tendency
-         CALL myDGSEM % GlobalTimeDerivative( t, m, theMPICOMM )
+         CALL myDGSEM % GlobalTimeDerivative( t, m )
         
          DO iEl = 1, myDGSEM % mesh % nElems ! Loop over all of the elements
 
@@ -437,7 +1291,7 @@ INCLUDE 'mpif.h'
 !
 !
 !
- SUBROUTINE GlobalTimeDerivative_ShallowWater( myDGSEM, tn, m, theMPICOMM ) 
+ SUBROUTINE GlobalTimeDerivative_ShallowWater( myDGSEM, tn, m ) 
  ! S/R GlobalTimeDerivative_ShallowWater
  ! 
  !
@@ -446,7 +1300,7 @@ INCLUDE 'mpif.h'
    IMPLICIT NONE
    CLASS(ShallowWater), INTENT(inout) :: myDGSEM
    REAL(prec), INTENT(in)             :: tn
-   INTEGER, INTENT(in)                :: m, theMPICOMM
+   INTEGER, INTENT(in)                :: m
    ! Local
    INTEGER :: iEl, iEdge
    REAL(prec) :: cpuStart, cpuEnd
@@ -455,6 +1309,12 @@ INCLUDE 'mpif.h'
 
 !$OMP PARALLEL
 
+!!OMP DO
+!      DO iEl = 1, myDGSEM % mesh % nElems
+!         CALL myDGSEM % DoTheAdaptiveFiltering( iEl, m ) 
+!      ENDDO 
+!!OMP END DO 
+!!OMP FLUSH( myDGSEM )
 
       ! Calculate the solution at the boundaries
 !$OMP DO
@@ -470,8 +1330,6 @@ INCLUDE 'mpif.h'
       ENDDO 
 !$OMP END DO 
 !$OMP FLUSH( myDGSEM )
-
-      CALL myDGSEM % UpdateSharedEdges( theMPICOMM )
 
       ! Calculate the flux along the element edges
 !$OMP DO
@@ -495,8 +1353,102 @@ INCLUDE 'mpif.h'
 !
 !
 ! 
+ SUBROUTINE DoTheAdaptiveFiltering_ShallowWater( myDGSEM, iEl, m )
+ !
+ !
+ ! =============================================================================================== !
+ ! DECLARATIONS
+   IMPLICIT NONE
+   CLASS(ShallowWater), INTENT(inout) :: myDGSEM
+   INTEGER, INTENT(in)                :: iEl, m
+   ! Local
+   REAL(prec) :: sol(0:myDGSEM % nS, &
+                     0:myDGSEM % nP, &
+                     1:myDGSEM % nEq)
+   REAL(prec) :: solf(0:myDGSEM % nS, &
+                      0:myDGSEM % nP, &
+                      1:myDGSEM % nEq)
+   REAL(prec) :: c1(0:myDGSEM % nS, &
+                    0:myDGSEM % nP, &
+                    1:myDGSEM % nEq)
+   REAL(prec) :: c2(0:myDGSEM % nS, &
+                    0:myDGSEM % nP, &
+                    1:myDGSEM % nEq)
+   REAL(prec) :: temp(0:myDGSEM % nS), ke, pe
+   REAL(prec) :: E1prior, E2prior, E1, E2, dE2, dE1, xi
+   INTEGER    :: iS, iP, iQ, iEq
+
+
+      CALL myDGSEM % GetSolution( iEl, sol )
+
+      ! The first step in the process is to apply the filter to obtain the well resolved solution
+      DO iEq = 1, myDGSEM % nEq
+         solf(:,:,iEq) = myDGSEM % filter % ApplyFilter( sol(:,:,iEq) )
+      ENDDO
+      
+      ! This filtered solution is subtracted from the full solution to obtain the marginally-resolved
+      ! portion of the solution
+      c2 = (sol - solf) ! c2 is the marginally resolved modes
+      c1 = solf                    ! c1 is the  well resolved modes
+
+      ! Now that we have the two distinct components of the Legendre spectra, we want to calculate
+      ! the energy in each component, and the change in the energy of each component from the 
+      ! previous model state. 
+      ! If the small scale (marginally resolved) exhibits a growth in energy, this should be balanced
+      ! by a decay in the small scale energy. Aliasing errors may cause unphysical growth in the 
+      ! energy associated with the marginally resolved. In this case, the solution is assigned to the
+      ! filtered solution, effectively implying dissipation.
+     
+      E1prior = myDGSEM % E1(iEl)
+      E2prior = myDGSEM % E2(iEl)
+
+
+      ! Volume integration of the energy of the resolved and marginally resolved fields is done here
+      
+      CALL myDGSEM % CalculateEnergies( iEl, c1, ke, pe )
+      E1 = ke + pe
+      myDGSEM % E1(iEl) = E1
+      CALL myDGSEM % CalculateEnergies( iEl, c2, ke, pe ) 
+      E2 = ke + pe
+      myDGSEM % E2(iEl) = E2
+      
+      dE1 = E1-E1prior
+      dE2 = E2-E2prior
+
+      myDGSEM % dE1(iEl) = dE1
+      myDGSEM % dE2(iEl) = dE2
+
+      xi = (E2/E1)
+  
+      IF( dE2 > ZERO .AND. abs(dE1)/dE2 > ONE )THEN ! The energy in the small scales is growing faster than the large scale is giving it up
+                           
+         myDGSEM % lim(iEl,m) = xi
+   
+      ELSEIF( dE2 < ZERO )THEN
+  
+         myDGSEM % lim(iEl,m) = xi
+
+      ELSE
+         
+         IF( m > 1)THEN
+            myDGSEM % lim(iEl,m) = myDGSEM % lim(iEl,m-1)
+         ENDIF
+
+      ENDIF
+
+
+      IF( xi > 1.05_prec*myDGSEM % lim(iEl,m) )THEN
+         CALL myDGSEM % SetSolution( iEl, solf )
+      !   PRINT*, 'Filtered!'
+      ENDIF
+
+
+ END SUBROUTINE DoTheAdaptiveFiltering_ShallowWater
+!
+!
+!
  SUBROUTINE UpdateExternalState_ShallowWater( myDGSEM, bID, tn )
- ! S/R UpdateExternalState
+ ! S/R EdgeFlux
  ! 
  !
  ! =============================================================================================== !
@@ -507,18 +1459,17 @@ INCLUDE 'mpif.h'
    REAL(prec), INTENT(in)               :: tn
    ! Local
    INTEGER :: iNode, iEdge
-   INTEGER :: e1, s1, e2, nS, nP, procID, extElID
+   INTEGER :: e1, s1, e2, nS, nP
    REAL(prec) :: inState(0:myDGSEM % nS,1:nSWeq)
    REAL(prec) :: exState(0:myDGSEM % nS,1:nSWeq)
    REAL(prec) :: pState(1:nSWeq)
-   !REAL(prec) :: pState(1:nSWeq)
    REAL(prec) :: x, y, g, h(0:myDGSEM % nS,1:3) 
    REAL(preC) :: nHat(1:2), nHatLength 
     
       g = myDGSEM % params % g
       CALL myDGSEM % dgStorage % GetNumberOfNodes( nS, nP )
 
-      iEdge = myDGSEM % extComm % boundaryEdgeIDs( bID )
+      iEdge = myDGSEM % boundaryEdgeIDs( bID )
 
       CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
       CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
@@ -526,144 +1477,30 @@ INCLUDE 'mpif.h'
       CALL myDGSEM % GetBoundarySolutionAtBoundary( e1, s1, inState )
       CALL myDGSEM % GetBathymetryAtBoundary( e1, s1, h )
       
-      IF( e2 /= SHARED )THEN ! This edge is shared between two processes.
+      DO iNode = 0, nS ! loop over the nodes on this edge
+       
+         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, iNode, s1 ) ! Get nHat
 
-         DO iNode = 0, nS ! loop over the nodes on this edge
-         
-            CALL myDGSEM % mesh % GetBoundaryNormalAtNode( e1, nHat, nHatLength, iNode, s1 ) ! Get nHat
-
-            ! Get the boundary point locations
-            CALL myDGSEM % mesh % GetBoundaryLocationAtNode( e1, x, y, iNode, s1 )
+         ! Get the boundary point locations
+         CALL myDGSEM % mesh % GetBoundaryLocationAtNode( e1, x, y, iNode, s1 )
  
+         pState = myDGSEM % prescribedState(iNode,1:nSWeq,bID)
             ! Calculate the external state
-            pState = myDGSEM % prescribedState(iNode,1:nSWeq,bID)
-            myDGSEM % extComm % externalState(iNode,1:nSWEq,bID) = GetExternalState( nHat, h(iNode,1), x, y, &
-                                                                           tn, e2, inState(iNode,1:nSWeq), &
-                                                                           pState, &
-                                                                           myDGSEM % params )
+         myDGSEM % externalState(iNode,1:nSWEq,bID) = GetExternalState( nHat, h(iNode,1), x, y, &
+                                                                        tn, e2, inState(iNode,1:nSWeq), &
+                                                                        pState, &
+                                                                        myDGSEM % params )
          
-         ENDDO ! iNode, loop over the nodes on this edge
+      ENDDO ! iNode, loop over the nodes on this edge
 
-      ENDIF
 
  END SUBROUTINE UpdateExternalState_ShallowWater
-!
-!
-!
- SUBROUTINE UpdateSharedEdges_ShallowWater( myDGSEM, theMPICOMM )
- ! S/R UpdateSharedEdges
- ! 
- !
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( ShallowWater ), INTENT(inout) :: myDGSEM
-   INTEGER, INTENT(in)                  :: theMPICOMM
-   ! Local
-   INTEGER :: iNode, iEdge, bID
-   INTEGER :: e1, s1, e2, nS, nP, procID, extElID
-   INTEGER :: thestat(MPI_STATUS_SIZE), iError, tag
-   REAL(prec) :: inState(0:myDGSEM % nS,1:nSWeq)
-   REAL(prec) :: exState(0:myDGSEM % nS,1:nSWeq) 
-
-      CALL myDGSEM % dgStorage % GetNumberOfNodes( nS, nP )
-
-      DO bID = 1, myDGSEM % nBoundaryEdges
-
-         iEdge = myDGSEM % extComm % boundaryEdgeIDs( bID )
-
-         CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
-         CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
-         CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
-         CALL myDGSEM % GetBoundarySolutionAtBoundary( e1, s1, inState )
-      
-         IF( e2 == SHARED )THEN ! This edge is shared between two processes.
-
-            procID = myDGSEM % extComm % extProcIDs( bID )  ! This is the "destination process" where our boundary data is sent
-                                                            ! It is also a "source process" where we expect data to be received from
-            extElID = myDGSEM % extComm % extElemIDs( bID ) ! The external element ID is the local element ID for 
-                                                            ! the process "procID" 
-            ! the tag for the message will be the global edge ID for the shared edge
-            CALL myDGSEM % mesh % GetEdgeKey( iEdge, tag )
-
-            ! MPI_ISEND ???? ( MPI 3 putting/getting ????)
-            CALL MPI_SEND( inState, &          ! Where the data is stored
-                           (nS+1)*nSWEq, &     ! How much data there is
-                           MPI_DOUBLE, &       ! type of data
-                           procID, tag, &      ! target process, message tag
-                           theMPICOMM, &       ! the MPI communicator
-                           iError) ! 
-
-            IF( iError /= MPI_SUCCESS )THEN
-               PRINT*, 'Module ConservativeShallowWaterClass_MPI.f90 : S/R UpdateSharedEdges :'
-               PRINT*, 'MPI_SEND is unsuccessful. Aborting'
-               CALL myDGSEM % Trash( )
-               STOP
-            ENDIF
-            ! MPI_IRECV ???? (MPI 3 putting/getting ????)
-            CALL MPI_RECV( exState,      & ! where to store data
-                           (nS+1)*nSWEq, & ! how much data
-                           MPI_DOUBLE,   & ! type of data
-                           procID, tag,  & ! source Process, message tag
-                           theMPICOMM,   & !  communicator
-                           thestat, iError ) ! status and error 
-
-            IF( iError /= MPI_SUCCESS )THEN
-               PRINT*, 'Module ConservativeShallowWaterClass_MPI.f90 : S/R UpdateSharedEdges :'
-               PRINT*, 'MPI_RECV is unsuccessful. Aborting'
-               CALL myDGSEM % Trash( )
-               STOP
-            ENDIF
-         ENDIF
-
-      ENDDO 
-
-      myDGSEM % extComm % externalState(:,:,bID) = exState
-      ! MPI_WAIT ????
-
-!      DO bID = 1, myDGSEM % nBoundaryEdges
-
-!         iEdge = myDGSEM % extComm % boundaryEdgeIDs( bID )
-
-!         CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
-!         CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
-!         CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
-      
-!         IF( e2 == SHARED )THEN ! This edge is shared between two processes.
-
-!            procID = myDGSEM % extComm % extProcIDs( bID )  ! This is the "destination process" where our boundary data is sent
-!                                                            ! It is also a "source process" where we expect data to be received from
-!            extElID = myDGSEM % extComm % extElemIDs( bID ) ! The external element ID is the local element ID for 
-!                                                            ! the process "procID" 
-!            ! the tag for the message will be the global edge ID for the shared edge
-!            CALL myDGSEM % mesh % GetEdgeKey( iEdge, tag )
-
-!            ! MPI_
-!            CALL MPI_RECV( exState,      & ! where to store data
-!                           (nS+1)*nSWEq, & ! how much data
-!                           MPI_DOUBLE,   & ! type of data
-!                           procID, tag,  & ! source Process, message tag
-!                           theMPICOMM,   &
-!                           thestat, iError )  !  communicator
-
-!            myDGSEM % extComm % externalState(:,:,bID) = exState
-
-!         ENDIF
-
-!      ENDDO
-
- END SUBROUTINE UpdateSharedEdges_ShallowWater
 !
 !
 !
  SUBROUTINE EdgeFlux_ShallowWater( myDGSEM, iEdge, tn )
  ! S/R EdgeFlux
  ! 
- !  * In the MPI version of EdgeFlux, the neighboring edge orientation needs to be accounted for
- !    for boundary edges; it is possible that the external state information is supplied via 
- !    a neighboring process whose internal element geometry might yield an oppositely oriented 
- !    edge. To account for this here, the external state is incremented from "edge % start" using
- !    the "edge % inc " attribute.
  !
  ! =============================================================================================== !
  ! DECLARATIONS
@@ -696,11 +1533,9 @@ INCLUDE 'mpif.h'
       
       CALL myDGSEM % GetBoundarySolutionAtBoundary( e1, s1, inState )
       CALL myDGSEM % GetBathymetryAtBoundary( e1, s1, h )
-      k = start-inc
-
       IF( e2 > 0 )then ! this is an interior edge
          
-         
+         k = start-inc
          CALL myDGSEM % GetBoundarySolutionAtBoundary( e2, s2, exState )
          
          DO iNode = 0, nS ! Loop over the nodes
@@ -729,14 +1564,12 @@ INCLUDE 'mpif.h'
             ! Get the boundary point locations
             CALL myDGSEM % mesh % GetBoundaryLocationAtNode( e1, x, y, iNode, s1 )
 
-            exS = myDGSEM % extComm % externalState(k,1:nSWEq,bID)
+            exS = myDGSEM % externalState(iNode,1:nSWEq,bID)
 
             ! Calculate the RIEMANN flux
             flux = RiemannSolver( inState(iNode,:), exS, nHat, g, h(iNode,1) )*nHatLength
 
             CALL myDGSEM % SetBoundaryFluxAtBoundaryNode( e1, s1, iNode, flux )
-
-            k = k + inc
 
          ENDDO ! iNode, loop over the nodes on this edge
 
@@ -1536,7 +2369,21 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
 
      CLOSE(UNIT=fUnit)
 
-     CALL myDGSEM % extComm % WritePickup( 'extComm.'//iterChar, myDGSEM % rank )
+     OPEN( UNIT=NEWUNIT(fUnit), &
+           FILE='ShallowWater-ExtState.'//iterChar//'.pickup', &
+           FORM='unformatted',&
+           ACCESS='direct',&
+           STATUS='replace',&
+           ACTION='WRITE',&
+           CONVERT='big_endian',&
+           RECL=prec*(nS+1)*nSWeq )
+
+     thisRec = 1 
+     DO iEl= 1, myDGSEM % nBoundaryEdges
+        WRITE( fUnit, REC=thisRec ) myDGSEM % prescribedState(:,:,iEl)
+        thisRec = thisRec+1
+     ENDDO
+     CLOSE(UNIT=fUnit)
 
  END SUBROUTINE WritePickup_ShallowWater
 !
@@ -1607,7 +2454,22 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
 
      CLOSE(UNIT=fUnit)
 
-     CALL myDGSEM % extComm % WritePickup( 'extComm.'//iterChar, myDGSEM % rank )
+     OPEN( UNIT=NEWUNIT(fUnit), &
+           FILE='ShallowWater-ExtState.'//iterChar//'.pickup', &
+           FORM='unformatted',&
+           ACCESS='direct',&
+           STATUS='old',&
+           ACTION='READ',&
+           CONVERT='big_endian',&
+           RECL=prec*(nS+1)*nSWeq )
+
+     thisRec = 1 
+     DO iEl= 1, myDGSEM % nBoundaryEdges
+        READ( fUnit, REC=thisRec ) myDGSEM % prescribedState(:,:,iEl)
+        thisRec = thisRec+1
+     ENDDO
+     CLOSE(UNIT=fUnit)
+
      
  END SUBROUTINE ReadPickup_ShallowWater
 !
