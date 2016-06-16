@@ -91,7 +91,11 @@ USE ConservativeShallowWaterClass
    TYPE( ShallowWater ), INTENT(inout) :: myDGSEM
    ! Local
    INTEGER    :: iS, iP, iEl, nS, nP, nEl, bID, iEdge, e1, e2, s1
+<<<<<<< HEAD
    REAL(prec) :: x, y, x0, y0, x1, y1, dn, L, Ls, ys, c0, c1
+=======
+   REAL(prec) :: x, y, x0, x1, y0, y1, dn, L, Ls, ys, c0, c1
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
    REAL(prec) :: dpdx, dpdy, vmax, g
    REAL(prec) :: f(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: sol(0:myDGSEM % nS,0:myDGSEM % nP,1:3)
@@ -102,8 +106,13 @@ USE ConservativeShallowWaterClass
    
       vmax = myDGSEM % params % vMax
       x0   = myDGSEM % params % x0
+<<<<<<< HEAD
       y0   = myDGSEM % params % y0
       x1   = myDGSEM % params % x1
+=======
+      x1   = myDGSEM % params % x1
+      y0   = myDGSEM % params % y0
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
       y1   = myDGSEM % params % y1
       L    = myDGSEM % params % L
       f0   = myDGSEM % params % f0
@@ -126,13 +135,23 @@ USE ConservativeShallowWaterClass
                CALL myDGSEM % mesh % GetPositionAtNode( iEl, x, y, iS, iP )
                CALL myDGSEM % GetBathymetryAtNode( iEl, iS, iP, h )
                f(iS,iP) = f0   
+<<<<<<< HEAD
                c0 = (x-x0)**2 + (y-y0)**2    
                c1 = (x-x1)**2 + (y-y1)**2   
+=======
+
+               c0 = (x-x0)**2 + (y-y0)**2
+               c1 = (x-x1)**2 + (y-y1)**2      
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
                ! Setting the dipole free surface height
                sol(iS,iP,3) = dn*( exp( -HALF*c0/(L*L) ) - &
                                    exp( -HALF*c1/(L*L) ) )
 
+<<<<<<< HEAD
                tScale(iS,iP) = ZERO!tScale(iS,iP)*( tanh( (y - ys)/Ls ) + ONE )
+=======
+               tScale(iS,iP) = tScale(iS,iP)*( tanh( (y - ys)/Ls ) + ONE )
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
 
             ENDDO
          ENDDO
@@ -168,6 +187,7 @@ USE ConservativeShallowWaterClass
       ! for the edges with the INFLOW boundary flag in the secondary element ID,'
       ! For these edges, we copy the boundary solution into the "externalState" attribute
                
+<<<<<<< HEAD
 !      DO bID = 1, myDGSEM % nBoundaryEdges
 
 !         iEdge = myDGSEM % boundaryEdgeIDs(bID)
@@ -182,6 +202,22 @@ USE ConservativeShallowWaterClass
 !         ENDIF
 
 !      ENDDO
+=======
+      DO bID = 1, myDGSEM % nBoundaryEdges
+
+         iEdge = myDGSEM % boundaryEdgeIDs(bID)
+         CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+
+         IF( e2 == PRESCRIBED )THEN
+            CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
+            CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
+            CALL myDGSEM % GetBoundarySolutionAtBoundary( e1, s1, state )
+
+            myDGSEM % prescribedState(:,:,bID) = ZERO! state
+         ENDIF
+
+      ENDDO
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
 
  END SUBROUTINE InitialCondition
 !

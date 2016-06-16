@@ -109,7 +109,11 @@ MODULE SWParamsClass
        REAL(prec)    :: betaX 
        REAL(prec)    :: betaY
        REAL(prec)    :: linearDrag
+<<<<<<< HEAD
        ! JetParameters
+=======
+       ! DipoleParameters
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
        REAL(prec)    :: vMax
        REAL(prec)    :: x0
        REAL(prec)    :: x1
@@ -149,8 +153,13 @@ MODULE SWParamsClass
       nXElem = 5
       nYElem = 5
       nPlot = 10
+<<<<<<< HEAD
       xScale = 10.0_prec**(6)
       yScale = 10.0_prec**(6) 
+=======
+      xScale = 10.0_prec**(5)
+      yScale = 10.0_prec**(5) 
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
       ! PHYSICAL_PARAMETERS
       g = 9.81        ! m/sec^2
       f0 = 10.0_prec**(-4) ! 1/sec
@@ -160,10 +169,17 @@ MODULE SWParamsClass
       ! DipoleParameters
       vMax = 1.0_prec
       x0   = HALF*xScale
+<<<<<<< HEAD
       y0   = (HALF+0.05_prec)*yScale
       x1   = HALF*xScale
       y1   = (HALF-0.05_prec)*yScale
       L    = 0.05_prec*xScale
+=======
+      y0   = (HALF + 0.1)*yScale
+      x1   = HALF*xScale
+      y1   = (HALF - 0.1)*yScale
+      L    = 0.1*yScale
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
       ! SpongeParameter
       Lsponge = L
       rFacMax = f0

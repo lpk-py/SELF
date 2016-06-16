@@ -66,7 +66,11 @@
       \begin{ParametricEquationCurve}
 	 name = "NO_NORMAL_FLOW"
 	 xEqn = "f(t) =  0.0"
+<<<<<<< HEAD
 	 yEqn = "f(t) =  1.0-t"
+=======
+	 yEqn = "f(t) =  (1.0-t)"
+>>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
 	 zEqn = "f(t) =  0.0"
       \end{ParametricEquationCurve}
 
