@@ -1,0 +1,47 @@
+&ModelForm
+ModelFormulation = 'Conservative',
+nCutoff = 8,
+/
+&TimeManagement
+dt = 0.1,
+iterInit = 0,
+nTimeSteps = 5000,
+dumpFreq = 1000,
+/
+&SpaceManagement
+SpecMeshFile = 'box.mesh',
+polyDeg = 10,
+nXElem = 20,
+nYElem = 20,
+nPlot = 20,
+xScale = 4.0D5,
+yScale = 4.0D5,
+/
+&PhysicalParameters
+g = 9.81,
+f0 = 1.0D-4,
+betaX = 0.0,
+betaY = 0.0,
+linearDrag = 0.0,
+/
+&DipoleParameters
+vMax = 1.75,
+x0 = 2.0D5,
+y0 = 205000.0,
+x1 = 2.0D5,
+y1 = 195000.0,
+L  = 1.0D4,
+/
+&SpongeParameters
+Lsponge = 5.0D4,
+rFacMax = 5.0D-2,
+/
+&ShelfParameters
+hMin = 200.0,
+hMax = 3000.0,
+Lshelf = 2.5D5,
+dL = 5.0D4,
+steepeningCenter = 1.0D6,
+steepeningZoneLength = 5.0D4,
+/
+
