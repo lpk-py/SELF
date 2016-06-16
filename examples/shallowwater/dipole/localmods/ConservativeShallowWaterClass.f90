@@ -1307,17 +1307,9 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
 
 
 
-!$OMP PARALLEL
 
-<<<<<<< HEAD
-!!OMP DO
-!      DO iEl = 1, myDGSEM % mesh % nElems
-!         CALL myDGSEM % DoTheAdaptiveFiltering( iEl, m ) 
-!      ENDDO 
-!!OMP END DO 
-!!OMP FLUSH( myDGSEM )
-=======
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
+!$OMP PARALLEL
+   
 
       ! Calculate the solution at the boundaries
 !$OMP DO
@@ -1349,6 +1341,7 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
       ENDDO
 !$OMP END DO
 !$OMP FLUSH( myDGSEM )
+
 !$OMP END PARALLEL
 
  
@@ -1451,11 +1444,7 @@ SUBROUTINE GetTendencyWithVarID_ShallowWater( myDGSEM, iEl, varID, theTend  )
 !
 !
  SUBROUTINE UpdateExternalState_ShallowWater( myDGSEM, bID, tn )
-<<<<<<< HEAD
- ! S/R EdgeFlux
-=======
  ! S/R UpdateExternalState
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
  ! 
  !
  ! =============================================================================================== !
@@ -2093,11 +2082,7 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
      CALL myDGSEM % bathymetry(iEl) % SetSolutionWithVarID( 2, tend(:,:,1) ) ! set dhdx
      CALL myDGSEM % bathymetry(iEl) % SetSolutionWithVarID( 3, tend(:,:,2) ) ! set dhdy
 
-<<<<<<< HEAD
- END SUBROUTINE CalculateBathymetryGradient_ShallowWater    
-=======
- END SUBROUTINE CalculateBathymetryGradient_ShallowWater   
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
+ END SUBROUTINE CalculateBathymetryGradient_ShallowWater
 !
 !
 !

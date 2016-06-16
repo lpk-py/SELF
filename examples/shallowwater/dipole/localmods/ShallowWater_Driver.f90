@@ -50,44 +50,15 @@ USE ConservativeShallowWaterClass
              k = k+1
              WRITE(iterChar,'(I10.10)') iT+1
              CALL mysw % WriteTecplot( 'ShallowWater.'//iterChar )
-<<<<<<< HEAD
-             CALL mysw % IntegrateEnergies( KE(k), PE(k) )
-=======
+
  !            CALL mysw % IntegrateEnergies( KE(k), PE(k) )
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
+
           ENDIF
 
        ENDDO
        
        ! ///////////// Energy File I/O ////////////// !
-<<<<<<< HEAD
-       WRITE( iterChar, '(I10.10)') iter0 
-       OPEN( UNIT = NewUnit(fUnit), &
-            FILE = 'Energies.'//iterChar//'.curve', &
-            FORM = 'FORMATTED' )
-            
-       WRITE( fUnit, * )'#KE'
-       k = 0
-       WRITE( fUnit, * ) real( iter0, prec )*deltaT, KE(0)
-       DO iT = iter0, iter0+nT-1 ! Loop over time-steps
-          IF( mod( iT+1, dFreq) == 0 )THEN
-             k = k+1
-             tn = real( iT+1, prec )*deltaT
-             WRITE( fUnit, * ) tn, KE(k)
-          ENDIF
-       ENDDO
-       WRITE( fUnit, * )'#PE'
-       k = 0
-       WRITE( fUnit, * ) real( iter0, prec )*deltaT, PE(0)
-       DO iT = iter0, iter0+nT-1 ! Loop over time-steps
-          IF( mod( iT+1, dFreq) == 0 )THEN
-             k = k+1
-             tn = real( iT+1, prec )*deltaT
-             WRITE( fUnit, * ) tn, PE(k)
-          ENDIF
-       ENDDO
-       CLOSE( fUnit )
-=======
+
 !       WRITE( iterChar, '(I10.10)') iter0 
 !       OPEN( UNIT = NewUnit(fUnit), &
 !            FILE = 'Energies.'//iterChar//'.curve', &
@@ -114,7 +85,6 @@ USE ConservativeShallowWaterClass
 !          ENDIF
 !       ENDDO
 !       CLOSE( fUnit )
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
        
     CALL mysw % WritePickup(iter0+nT) 
     CALL mysw % mesh % WriteTecplot( )
