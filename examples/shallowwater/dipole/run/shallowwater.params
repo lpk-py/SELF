@@ -4,30 +4,18 @@ nCutoff = 8,
 /
 &TimeManagement
 dt = 0.1,
-<<<<<<< HEAD
-iterInit = 10000,
-nTimeSteps = 140000,
-dumpFreq = 5000,
-=======
 iterInit = 0,
-nTimeSteps = 5000,
+nTimeSteps = 1000,
 dumpFreq = 1000,
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
 /
 &SpaceManagement
 SpecMeshFile = 'box.mesh',
 polyDeg = 10,
-<<<<<<< HEAD
-nPlot = 15,
-xScale = 1.0D6,
-yScale = 1.0D6,
-=======
 nXElem = 20,
 nYElem = 20,
 nPlot = 20,
 xScale = 4.0D5,
 yScale = 4.0D5,
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
 /
 &PhysicalParameters
 g = 9.81,
@@ -37,19 +25,12 @@ betaY = 0.0,
 linearDrag = 0.0,
 /
 &DipoleParameters
-<<<<<<< HEAD
-vMax = 1.5,
-y0 = 501000.0,
-y1 = 491000.0,
-L = 25000.0,
-=======
 vMax = 1.75,
 x0 = 2.0D5,
 y0 = 205000.0,
 x1 = 2.0D5,
 y1 = 195000.0,
 L  = 1.0D4,
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
 /
 &SpongeParameters
 Lsponge = 5.0D4,
@@ -59,11 +40,7 @@ rFacMax = 5.0D-2,
 hMin = 200.0,
 hMax = 3000.0,
 Lshelf = 2.5D5,
-<<<<<<< HEAD
 dL = 0.0,
-=======
-dL = 5.0D4,
->>>>>>> 9b15c6106c9858819a706454954c4e4b13726ca5
 steepeningCenter = 1.0D6,
 steepeningZoneLength = 5.0D4,
 /

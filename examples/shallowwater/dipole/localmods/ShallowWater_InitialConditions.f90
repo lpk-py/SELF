@@ -184,7 +184,7 @@ USE ConservativeShallowWaterClass
 !         ENDIF
 
 !      ENDDO
-=
+
 
  END SUBROUTINE InitialCondition
 !
