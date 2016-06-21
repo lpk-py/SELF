@@ -56,6 +56,8 @@ USE OMP_LIB
 
 
 IMPLICIT NONE
+INCLUDE 'mpif.h'
+
 !
 ! Some parameters that are specific to this module
 
@@ -82,6 +84,7 @@ IMPLICIT NONE
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: bathymetry(:)
       TYPE( DGSEMSolution_2D ), ALLOCATABLE :: vorticity(:)
       TYPE( BoundaryCommunicator2D )        :: extComm
+      REAL(prec), ALLOCATABLE               :: prescribedState(:,:,:)
       TYPE( SWParams )                      :: params
       REAL(prec), ALLOCATABLE               :: plMatS(:,:), plMatP(:,:)
       
@@ -288,7 +291,7 @@ IMPLICIT NONE
      DEALLOCATE( myDGSEM % bathymetry )
      DEALLOCATE( myDGSEM % vorticity )
      DEALLOCATE( myDGSEM % plMatS, myDGSEM % plMatP )
-     DEALLOCATE( myDGSEM % externalState )
+     DEALLOCATE( myDGSEM % prescribedState )
 
 
  END SUBROUTINE Trash_ShallowWater
@@ -318,7 +321,11 @@ IMPLICIT NONE
       ! Note that the call to "ReadConnectivity" also builds the "extComm" attribute
       CALL myDGSEM % extComm % ReadConnectivity( myDGSEM % rank )
 
+      nBe = myDGSEM % extComm % nBoundaryEdges
+      myDGSEM % nBoundaryEdges = nBe
+      ALLOCATE( myDGSEM % prescribedState(0:myDGSEM % nS, 1:nSWeq, 1:nBe) )
 
+      myDGSEM % prescribedState = ZERO
 
  END SUBROUTINE BuildQuadMesh_ShallowWater
 !
@@ -381,7 +388,7 @@ IMPLICIT NONE
 !
 !
 !
- SUBROUTINE ForwardStepRK3_ShallowWater( myDGSEM, tn )
+ SUBROUTINE ForwardStepRK3_ShallowWater( myDGSEM, tn, theMPICOMM )
  ! S/R ForwardStepRK3( 3rd order Runge-Kutta)
  ! 
  !
@@ -389,7 +396,8 @@ IMPLICIT NONE
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(ShallowWater), INTENT(inout) :: myDGSEM
-   REAL(prec), INTENT(in)                   :: tn
+   REAL(prec), INTENT(in)             :: tn
+   INTEGER, INTENT(in)                :: theMPICOMM
    ! LOCAL
    REAL(prec) :: t, dt
    REAL(prec) :: G2D(0:myDGSEM % nS,&
@@ -409,7 +417,7 @@ IMPLICIT NONE
 
          t = tn + rk3_b(m)*dt
          ! Calculate the tendency
-         CALL myDGSEM % GlobalTimeDerivative( t, m )
+         CALL myDGSEM % GlobalTimeDerivative( t, m, theMPICOMM )
         
          DO iEl = 1, myDGSEM % mesh % nElems ! Loop over all of the elements
 
@@ -503,6 +511,7 @@ IMPLICIT NONE
    REAL(prec) :: inState(0:myDGSEM % nS,1:nSWeq)
    REAL(prec) :: exState(0:myDGSEM % nS,1:nSWeq)
    REAL(prec) :: pState(1:nSWeq)
+   !REAL(prec) :: pState(1:nSWeq)
    REAL(prec) :: x, y, g, h(0:myDGSEM % nS,1:3) 
    REAL(preC) :: nHat(1:2), nHatLength 
     
@@ -526,9 +535,9 @@ IMPLICIT NONE
             ! Get the boundary point locations
             CALL myDGSEM % mesh % GetBoundaryLocationAtNode( e1, x, y, iNode, s1 )
  
-            pState = myDGSEM % prescribedState(iNode,1:nSWeq,bID)
             ! Calculate the external state
-            myDGSEM % externalState(iNode,1:nSWEq,bID) = GetExternalState( nHat, h(iNode,1), x, y, &
+            pState = myDGSEM % prescribedState(iNode,1:nSWeq,bID)
+            myDGSEM % extComm % externalState(iNode,1:nSWEq,bID) = GetExternalState( nHat, h(iNode,1), x, y, &
                                                                            tn, e2, inState(iNode,1:nSWeq), &
                                                                            pState, &
                                                                            myDGSEM % params )
@@ -553,7 +562,7 @@ IMPLICIT NONE
    ! Local
    INTEGER :: iNode, iEdge, bID
    INTEGER :: e1, s1, e2, nS, nP, procID, extElID
-   INTEGER :: thestat(MPI_STATUS_SIZE)
+   INTEGER :: thestat(MPI_STATUS_SIZE), iError, tag
    REAL(prec) :: inState(0:myDGSEM % nS,1:nSWeq)
    REAL(prec) :: exState(0:myDGSEM % nS,1:nSWeq) 
 
@@ -577,41 +586,71 @@ IMPLICIT NONE
             ! the tag for the message will be the global edge ID for the shared edge
             CALL myDGSEM % mesh % GetEdgeKey( iEdge, tag )
 
-            CALL MPI_SEND( inState, (nS+1)*nSWEq, MPI_DOUBLE, procID, tag, theMPICOMM, iError)
+            ! MPI_ISEND ???? ( MPI 3 putting/getting ????)
+            CALL MPI_SEND( inState, &          ! Where the data is stored
+                           (nS+1)*nSWEq, &     ! How much data there is
+                           MPI_DOUBLE, &       ! type of data
+                           procID, tag, &      ! target process, message tag
+                           theMPICOMM, &       ! the MPI communicator
+                           iError) ! 
 
-         ENDIF
-
-      ENDDO 
-
-      DO bID = 1, myDGSEM % nBoundaryEdges
-
-         iEdge = myDGSEM % extComm % boundaryEdgeIDs( bID )
-
-         CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
-         CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
-         CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
-      
-         IF( e2 == SHARED )THEN ! This edge is shared between two processes.
-
-            procID = myDGSEM % extComm % extProcIDs( bID )  ! This is the "destination process" where our boundary data is sent
-                                                            ! It is also a "source process" where we expect data to be received from
-            extElID = myDGSEM % extComm % extElemIDs( bID ) ! The external element ID is the local element ID for 
-                                                            ! the process "procID" 
-            ! the tag for the message will be the global edge ID for the shared edge
-            CALL myDGSEM % mesh % GetEdgeKey( iEdge, tag )
-
+            IF( iError /= MPI_SUCCESS )THEN
+               PRINT*, 'Module ConservativeShallowWaterClass_MPI.f90 : S/R UpdateSharedEdges :'
+               PRINT*, 'MPI_SEND is unsuccessful. Aborting'
+               CALL myDGSEM % Trash( )
+               STOP
+            ENDIF
+            ! MPI_IRECV ???? (MPI 3 putting/getting ????)
             CALL MPI_RECV( exState,      & ! where to store data
                            (nS+1)*nSWEq, & ! how much data
                            MPI_DOUBLE,   & ! type of data
                            procID, tag,  & ! source Process, message tag
-                           theMPICOMM,   &
-                           thestat, iError )  !  communicator
+                           theMPICOMM,   & !  communicator
+                           thestat, iError ) ! status and error 
 
-            myDGSEM % extComm % externalState(:,:,bID) = exState
-
+            IF( iError /= MPI_SUCCESS )THEN
+               PRINT*, 'Module ConservativeShallowWaterClass_MPI.f90 : S/R UpdateSharedEdges :'
+               PRINT*, 'MPI_RECV is unsuccessful. Aborting'
+               CALL myDGSEM % Trash( )
+               STOP
+            ENDIF
          ENDIF
 
-      ENDDO
+      ENDDO 
+
+      myDGSEM % extComm % externalState(:,:,bID) = exState
+      ! MPI_WAIT ????
+
+!      DO bID = 1, myDGSEM % nBoundaryEdges
+
+!         iEdge = myDGSEM % extComm % boundaryEdgeIDs( bID )
+
+!         CALL myDGSEM % mesh % GetEdgePrimaryElementID( iEdge, e1 )
+!         CALL myDGSEM % mesh % GetEdgePrimaryElementSide( iEdge, s1 )
+!         CALL myDGSEM % mesh % GetEdgeSecondaryElementID( iEdge, e2 )
+      
+!         IF( e2 == SHARED )THEN ! This edge is shared between two processes.
+
+!            procID = myDGSEM % extComm % extProcIDs( bID )  ! This is the "destination process" where our boundary data is sent
+!                                                            ! It is also a "source process" where we expect data to be received from
+!            extElID = myDGSEM % extComm % extElemIDs( bID ) ! The external element ID is the local element ID for 
+!                                                            ! the process "procID" 
+!            ! the tag for the message will be the global edge ID for the shared edge
+!            CALL myDGSEM % mesh % GetEdgeKey( iEdge, tag )
+
+!            ! MPI_
+!            CALL MPI_RECV( exState,      & ! where to store data
+!                           (nS+1)*nSWEq, & ! how much data
+!                           MPI_DOUBLE,   & ! type of data
+!                           procID, tag,  & ! source Process, message tag
+!                           theMPICOMM,   &
+!                           thestat, iError )  !  communicator
+
+!            myDGSEM % extComm % externalState(:,:,bID) = exState
+
+!         ENDIF
+
+!      ENDDO
 
  END SUBROUTINE UpdateSharedEdges_ShallowWater
 !
@@ -690,7 +729,7 @@ IMPLICIT NONE
             ! Get the boundary point locations
             CALL myDGSEM % mesh % GetBoundaryLocationAtNode( e1, x, y, iNode, s1 )
 
-            exS = myDGSEM % externalState(k,1:nSWEq,bID)
+            exS = myDGSEM % extComm % externalState(k,1:nSWEq,bID)
 
             ! Calculate the RIEMANN flux
             flux = RiemannSolver( inState(iNode,:), exS, nHat, g, h(iNode,1) )*nHatLength

@@ -1,0 +1,9 @@
+&SpaceManagement
+SpecMeshFile = 'box.mesh',
+nXElem = 100,
+nYElem = 100,
+polyDeg = 2,
+nPlot = 10,
+xScale = 1.0,
+yScale = 1.0,
+/
