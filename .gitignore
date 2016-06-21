@@ -8,3 +8,10 @@
 *.session.gui
 visitlog*
 *.pickup
+integrate_sw
+initialize_sw
+*.txt
+Specmesh+3D
+*.curve
+*.data
+*.dat
