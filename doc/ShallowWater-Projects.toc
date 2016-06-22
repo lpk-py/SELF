@@ -1,0 +1,16 @@
+\contentsline {chapter}{Contents}{i}{section*.1}
+\contentsline {chapter}{\chapternumberline {1}Background and Motivation}{3}{chapter.1}
+\contentsline {section}{\numberline {1.1}The Conservative Shallow Water Equations}{3}{section.1.1}
+\contentsline {section}{\numberline {1.2}Flavors of the Shallow Water Equations}{4}{section.1.2}
+\contentsline {section}{\numberline {1.3}Nodal Discontinuous Galerkin Spatial Discretization}{5}{section.1.3}
+\contentsline {subsection}{Riemann Flux}{8}{equation.1.3.16}
+\contentsline {subsection}{Algorithm}{10}{equation.1.3.28}
+\contentsline {section}{\numberline {1.4}Profiles of the Dipole Example}{11}{section.1.4}
+\contentsline {chapter}{\chapternumberline {2}Projects}{15}{chapter.2}
+\contentsline {section}{\numberline {2.1}Algorithm parallelization through OpenMP}{15}{section.2.1}
+\contentsline {section}{\numberline {2.2}Algorithm parallelization through MPI}{15}{section.2.2}
+\contentsline {section}{\numberline {2.3}Forcing Vectorization}{15}{section.2.3}
+\contentsline {section}{\numberline {2.4}Mixed OpenMP and MPI}{15}{section.2.4}
+\contentsline {section}{\numberline {2.5}Matrix Multiplication on the GPU}{15}{section.2.5}
+\contentsline {section}{\numberline {2.6}Data Structure Mods for Reducing Memory Access Costs}{15}{section.2.6}
+\contentsline {section}{\numberline {2.7}Parallel File I/O}{15}{section.2.7}

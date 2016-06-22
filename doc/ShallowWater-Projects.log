@@ -1,8 +1,8 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  21 JUN 2016 18:32
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2014.5.27)  21 JUN 2016 19:11
 entering extended mode
  %&-line parsing enabled.
-**ShallowWater.tex
-(./ShallowWater.tex
+**ShallowWater-Projects.tex
+(./ShallowWater-Projects.tex
 LaTeX2e <2009/09/24>
 Babel <v3.8l> and hyphenation patterns for english, usenglishmax, dumylang, noh
 yphenation, farsi, arabic, croatian, bulgarian, ukrainian, russian, czech, slov
@@ -974,8 +974,9 @@ Package: titlesec 2007/08/12 v2.8 Sectioning titles
 \titlewidth=\dimen227
 \titlewidthlast=\dimen228
 \titlewidthfirst=\dimen229
-)) (./ShallowWater.aux)
-\openout1 = `ShallowWater.aux'.
+))
+(./ShallowWater-Projects.aux)
+\openout1 = `ShallowWater-Projects.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 17.
 LaTeX Font Info:    ... okay on input line 17.
@@ -1061,15 +1062,16 @@ Package: refcount 2008/08/11 v3.1 Data extraction from references (HO)
 )
 LaTeX Info: Redefining \ref on input line 17.
 LaTeX Info: Redefining \pageref on input line 17.
- (./ShallowWater.out) (./ShallowWater.out)
+
+(./ShallowWater-Projects.out) (./ShallowWater-Projects.out)
 \@outlinefile=\write6
-\openout6 = `ShallowWater.out'.
+\openout6 = `ShallowWater-Projects.out'.
 
 \AtBeginShipoutBox=\box45
 
 Redoing nameref's sectioning
 Redoing nameref's label
-<images/shallowWater.png, id=50, 619.31375pt x 315.1775pt>
+<images/shallowWater.png, id=62, 619.31375pt x 315.1775pt>
 File: images/shallowWater.png Graphic file (type png)
 
 <use images/shallowWater.png> [1
@@ -1078,7 +1080,7 @@ File: images/shallowWater.png Graphic file (type png)
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map} <./images/shallowWater.png 
 (PNG copy)>] [2
 
-] (./ShallowWater.toc
+] (./ShallowWater-Projects.toc
 LaTeX Font Info:    Try loading font information for U+msa on input line 1.
 
 (/usr/share/texmf-texlive/tex/latex/amsfonts/umsa.fd
@@ -1112,80 +1114,51 @@ File: ot1phv.fd 2001/06/04 scalable font definitions for OT1/phv.
 )
 LaTeX Font Info:    Font shape `OT1/phv/bx/n' in size <24.88> not available
 (Font)              Font shape `OT1/phv/b/n' tried instead on input line 74.
+ [1
 
+] [2
 
-Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `\\' on input line 74.
-
+]
 LaTeX Font Info:    Font shape `OT1/phv/bx/n' in size <17.28> not available
-(Font)              Font shape `OT1/phv/b/n' tried instead on input line 77.
-[1
+(Font)              Font shape `OT1/phv/b/n' tried instead on input line 79.
 
-] [2] [3] [4]
+[3] [4] [5] [6]
 
-LaTeX Warning: Reference `chap:GeometryTheory' on page 5 undefined on input lin
-e 192.
+LaTeX Warning: Reference `chap:GeometryTheory' on page 7 undefined on input lin
+e 200.
 
-[5] <figures/normalflux.png, id=175, 468.59868pt x 440.847pt>
+[7]
+LaTeX Font Info:    Font shape `OT1/phv/bx/n' in size <14.4> not available
+(Font)              Font shape `OT1/phv/b/n' tried instead on input line 204.
+ <figures/normalflux.png, id=200, 468.59868pt x 440.847pt>
 File: figures/normalflux.png Graphic file (type png)
 
-<use figures/normalflux.png> [6 <./figures/normalflux.png>] [7]
-Overfull \hbox (11.89522pt too wide) in paragraph at lines 269--269
+<use figures/normalflux.png> [8 <./figures/normalflux.png>] [9] [10]
+Overfull \hbox (11.89522pt too wide) in paragraph at lines 277--277
 []       \OT1/cmtt/m/n/12 Calculate internal derivative and source operations t
 o compute tendency[] 
  []
 
-[8]
+[11] [12] [13] [14
 
-Package natbib Warning: Citation `Flad2016' on page 9 undefined on input line 2
-74.
-
-[9] [10
-
-] [11]
-Overfull \hbox (1.95499pt too wide) in paragraph at lines 317--318
-\OT1/cmr/m/n/12 de-pen-den-cies are ex-pressed in the make-file) and will gen-e
-r-ate two ex-e-cuta-bles, \OT1/cmtt/m/n/12 initialize[]sw
- []
-
-[12]
-Overfull \hbox (37.23961pt too wide) in paragraph at lines 333--334
-\OT1/cmr/m/n/12 Both ex-e-cuta-bles re-quire that you have a namelist file in t
-he di-rec-tory named \OT1/cmtt/m/n/12 shallowwater.params\OT1/cmr/m/n/12 .
- []
-
-[13]
-Overfull \hbox (1.04137pt too wide) in paragraph at lines 350--352
-[]\OT1/cmr/m/n/12 At this point, it is rel-e-vant to dis-cuss three of the pa-r
-am-e-ters in the \OT1/cmtt/m/n/12 shallowwater.params
- []
-
-[14] [15] [16
-
-] [17] (./ShallowWater.bbl [18
-
-
-])
-
-Package natbib Warning: There were undefined citations.
-
-[19]
+] [15]
+No file ShallowWater-Projects.bbl.
 \tf@toc=\write7
-\openout7 = `ShallowWater.toc'.
+\openout7 = `ShallowWater-Projects.toc'.
 
- (./ShallowWater.aux)
+(./ShallowWater-Projects.aux)
 
 LaTeX Warning: There were undefined references.
 
  ) 
 Here is how much of TeX's memory you used:
- 22840 strings out of 493848
- 424044 string characters out of 1152823
+ 22816 strings out of 493848
+ 423877 string characters out of 1152823
  542068 words of memory out of 3000000
- 25588 multiletter control sequences out of 15000+50000
- 19904 words of font info for 61 fonts, out of 3000000 for 9000
+ 25577 multiletter control sequences out of 15000+50000
+ 21537 words of font info for 63 fonts, out of 3000000 for 9000
  714 hyphenation exceptions out of 8191
- 76i,18n,63p,1493b,428s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 76i,18n,63p,1260b,429s stack positions out of 5000i,500n,10000p,200000b,50000s
 {/usr/share/texmf-texlive/fonts/enc/dvips/base/8r.enc}</usr/share/texmf-texli
 ve/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texmf-texlive/fonts/ty
 pe1/public/amsfonts/cm/cmex10.pfb></usr/share/texmf-texlive/fonts/type1/public/
@@ -1203,9 +1176,9 @@ e/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texmf-texlive/fonts/typ
 e1/public/amsfonts/cm/cmtt12.pfb></usr/share/texmf-texlive/fonts/type1/public/a
 msfonts/symbols/msbm10.pfb></usr/share/texmf-texlive/fonts/type1/urw/helvetic/u
 hvb8a.pfb>
-Output written on ShallowWater.pdf (23 pages, 394766 bytes).
+Output written on ShallowWater-Projects.pdf (19 pages, 382470 bytes).
 PDF statistics:
- 376 PDF objects out of 1000 (max. 8388607)
- 88 named destinations out of 1000 (max. 500000)
- 111 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 347 PDF objects out of 1000 (max. 8388607)
+ 76 named destinations out of 1000 (max. 500000)
+ 135 words of extra memory for PDF output out of 10000 (max. 10000000)
 

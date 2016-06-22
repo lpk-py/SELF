@@ -43,7 +43,7 @@
         %Do a subtitle here if you like
         {\fontfamily{cmss}\selectfont
         \huge{
-           Reference Manual
+           PCSRI Projects
         }
         
         \vspace{1.5cm}
@@ -71,7 +71,12 @@
 % Special Style
 \pagestyle{myheadings}
 
-\chapter{Equations, Discretization, \\ and the Serial Algorithm}
+\chapter*{Abstract}
+
+
+\chapter{Background and Motivation}
+
+\section{The Conservative Shallow Water Equations}
 The inviscid shallow water equations are a system of coupled partial differential equations that is hyperbolic. The Nodal Discontinuous Galerkin Spectral Element Method (NDGSEM) is well suited for hyperbolic systems. It is highly accurate through its use of arbitrarily high order piecewise polynomial representation of the approximated solution and geometry. It is well known for exhibiting minimal numerical dispersion and dissipation errors for linear problems. It additionally allows for a flexible treatment of the geometry through the use of a structured or unstructured arrangement of \textit{spectral elements} that can represent boundaries through high order polynomial interpolants. The discretization yields dense and local matrix-vector multiplies for computing derivatives and only requires nearest neighbor communication to calculate exchanges between elements. This last property makes the NDGSEM trivial to parallelize. For these reasons, the NDGSEM is applied to the shallow water equation systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear} to demonstrate its accuracy and scalability for a system of equations that hold many of the important dynamics in geophysics. 
 
 \section{Flavors of the Shallow Water Equations}
@@ -122,7 +127,10 @@ Any flavor of the shallow water equations arise from a conservation law, and as 
 \end{equation}
 The solution vector is represented by $\vec{s}$, $\vec{f}$ is a conservative flux tensor, and $\vec{q}$ is a vector of non-conservative source terms. The derivation of the discrete equations is presented through a discretization of \eqref{eq:conservationlaw}. 
 
-\section{Nodal Discontinuous Galerkin Discretization}
+In the applications discussed in this document, we are primarily focused on the Conservative Form of the Shallow Water equations. In all of the benchmarks, we use the \texttt{dipole} example with a fixed unstructured mesh. 
+
+
+\section{Nodal Discontinuous Galerkin Spatial Discretization}
 The NDGSEM discretizes \eqref{eq:conservationlaw} in its weak form. The physical space over which \eqref{eq:conservationlaw} is solved is denoted by $\Omega$. Solutions to \eqref{eq:conservationlaw} are real functions that are piecewise continuous on $\Omega$. This space of functions is denoted $\mathbb{C}_0(\Omega)$, and is defined mathematically
 \begin{equation}
 \mathbb{C}_0(\Omega) \equiv \left\lbrace \phi(\vec{x}) \in \mathbb{R} : \int_{\Omega} \phi^2 d\Omega < \infty \right\rbrace,
@@ -255,7 +263,7 @@ Equation \eqref{eq:RiemannFlux} is the approximate Riemann flux. The choice of a
 |A| = max( \lambda_i(\vec{s}_L), \lambda_i(\vec{s}_R) ).
 \end{equation}
 
-\section{Algorithm}
+\subsection{Algorithm}
 
 To forward-step the discrete system in Eq. \eqref{eq:discrete2d_system}, the flux divergence and the source terms need to be calculate. To calculate the flux-divergence, the DG-derivative matrix needs to be applied...
 \begin{verbatim}
@@ -269,151 +277,94 @@ To forward-step the discrete system in Eq. \eqref{eq:discrete2d_system}, the flu
        Calculate internal derivative and source operations to compute tendency
 \end{verbatim}
 
-
-\section{Comparison with other SEM-Shallow Water Models}
-The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with isoparametric elements. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost. Since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
-
-
-
-\chapter{Getting Started With an Example}
-The easiest way to get started with the SELF Shallow Water software is run a pre-configured example. Doing so will introduce you to compiling, running, run-time configuring, and viewing the output. Once you are comfortable with a workflow for the example and you are ready to set up the software for your particular experiment, it may be beneficial to browse through other pre-configured examples to find one that is closest to the setup you have in mind. From there, modifications to the code can be made. Details on some of the more important routines and those you are likely to modify are provided in Chapter \ref{chap:Mods}.
-
-\section{Downloading}
-The SELF is currently available on github. There are two ways to obtain the code. If you are interested in obtaining the most recent snapshot of the code, a tar file can be downloaded directly from the git website.  \href{https://github.com/schoonovernumerics/SELF}{Clicking here will bring you to the SELF.} Once you follow the link ( if the embedded link doesn't work, copy and paste
+\section{Profiles of the Dipole Example}
+In order to determine where our attention should be focused for optimizing the solution algorithm, call-graphs are generated using callgrind and kcachegrind to indicate the subroutines that dominate the program execution. More detailed information about the types of instructions that are being called ( memory access, floating point, vectorization, etc.) is obtained using the Allinea-MAP (V6.0) profiler. The profiles presented here are generated on a \textit{(fill in node information (from cpuinfo and/or lstopo)}. The runtime parameters for this example can be found under \texttt{SELF/examples/shallowwater/dipole/run/shallowater.params} and, for completeness, are shown here
 \begin{verbatim}
- https://github.com/schoonovernumerics/SELF 
-\end{verbatim}
-into your browser's url bar ) click on ``Download ZIP'', which is located towards the right side of the page. Unpack the tar file into your favorite directory. This will make a directory ``SELF'' in your favorite directory, underneath which all of the source code and examples included with the SELF. 
-
-Alternatively, if you have git installed on your computer, you can clone the SELF repository by issuing the command
-\begin{center}
-\begin{verbatim}
-git clone https://github.com/schoonovernumerics/SELF
-\end{verbatim}
-\end{center}
-Again, this will make the directory ``SELF'' in the current directory where you issued the clone command. 
-
-\section{Compile the example}
-At this point, you should have downloaded the SELF. We will first navigate to the examples directory and find the example for the ``shelf-steepening'' demo. This example can be found under
-\begin{center}
-\begin{verbatim}
-SELF/examples/shallowwater/shelfsteepening/
-\end{verbatim}
-\end{center}
-Go ahead and change directories to this example.
-
-As with all of the supplied examples, there are three subdirectories
-\begin{center}
-\begin{verbatim}
-build/     localmods/    run/
-\end{verbatim}
-\end{center}
-This subdirectory structure is used in order to keep your model output, source code modifications, and model build details separate. For now we won't worry about the \texttt{localmods/} subdirectory; this subdirectory will be discussed later in Chapter \ref{chap:Mods} where we will illustrate how to modify the source code if needed for your application.
-
-Right now, the most important thing is to get you familiar with compiling and running the code. Change directories into the build subdirectory. Underneath the build directory, there is a makefile and a simple build script. For now, you don't need to worry about changing anything to either one of these files. In Sec. \ref{sec:config}, there are directions for changing your fortran compiler, compiler optimizations, warning flags, debugging flags, etc. To compile the code, simply type the command
-\begin{verbatim}
-./rebuild.sh
-\end{verbatim}
-and press enter. This will compile all of the necessary modules and  driver programs (all of the dependencies are expressed in the makefile) and will generate two executables, \texttt{initialize\_sw} and \texttt{integrate\_sw}. Additionally, the \texttt{rebuild} script cleans up the build directory by removing the \texttt{.o} and \texttt{.mod} files and moves the executable to the run directory. If you have problems running the build script, it may be that the permissions are not set appropriately. To set the proper permissions, do
-\begin{verbatim}
-chmod 755 rebuild.sh
-\end{verbatim}
-and then try to run the script again. If this still doesn't work, send me an e-mail, and, for now, issue the commands
-\begin{verbatim}
-make initialize_sw
-make integrate_sw
-make clean
-mv initialize_sw integrate_sw ../run/
-\end{verbatim}
-
-\section{Running the Code and Viewing the Output}
-Ok, so now you have successfully compiled the code. Change directories to the \texttt{run} directory. In the run directory, you will find the executables (\texttt{initialize\_sw} and \texttt{integrate\_sw}), a SpecMesh file (\texttt{box.mesh}), and a text file ( \texttt{shallowwater.params} ).
-
-\subsection{Running the Code}
-Both executables require that you have a namelist file in the directory named \texttt{shallowwater.params}. There should be one included already with your fresh download. This namelist file specifies parameters that are used for the explicit time stepping, spatial discretization, and plotting and sets physical parameters relevant to the shallow water model. If you like, feel free to take a look at the file to familiarize yourself with the parameters, but don't worry about setting anything; the provided parameters file yields a successful run for this example. In Sec. \ref{sec:config}, we will discuss each parameter.
-
-The work-flow for conducting a simulation is divided into two steps. The first step is the initialization. In the initialization phase, the model grid, bathymetry, forcing terms, and initial conditions are specified. The details of how this is done can be seen in the program \texttt{shelfsteepening/localmods/ShallowWater\_InitialConditions.f90}. 
-
-To run the initialization program, execute
-\begin{verbatim}
-./initialize_sw
-\end{verbatim}
- Once it finishes running, there will be three files that are generated:
-\begin{enumerate}
-\item \texttt{mesh.tec} : A tecplot file that contains the computational mesh and metric terms that were used in the computation of the solution.
-\item \texttt{ShallowWater.init.tec} : A tecplot file that contains the initial conditions that are set in \texttt{ShallowWater\_InitialConditions.f90}
-\item \texttt{ShallowWater.0000000000.pickup} : A ``pickup'' file that contains the necessary data to initialize the forward integration of the model.
-\end{enumerate}
-
-The \texttt{.tec} files can be viewed in VisIt or your favorite visualization software that can read TecPlot files. For this example, the model has already been tested and the initial configuration has been deemed acceptable for the physical problem in quetion. At this point in the work-flow, though, is usually when you would take a look at the initial conditions, the model grid, and the metric terms and verify that the setup is acceptable. Once you are happy with the initial condition configuration, it is time to move on to the forward integration phase.
-
-At this point, it is relevant to discuss three of the parameters in the \texttt{shallowwater.params} file.
-\begin{enumerate}
-\item \texttt{iterInit} : This is the initial iterate, specified as an integer. This integer corresponds to the iteration stamp of the pickup file that you intend to read in. The iteration stamp is an integer that is padded with enough zeros to yield 10 digits.
-\item \texttt{nTimeSteps} : This is the number of time steps that the integration program will execute. At the end of execution, the integration program will create a pickup file with an iteration stamp corresponding to \texttt{iterInit}+\texttt{nTimeSteps}.
-\item \texttt{dumpFreq} : This is the frequency at which tecplot files are written.
-\end{enumerate} 
-These parameters, if you have not modified them, are set as
-\begin{verbatim}
+&ModelForm
+ModelFormulation = 'Conservative',
+nCutoff = 8,
+/
+&TimeManagement
+dt = 0.1,
 iterInit = 0,
-nTimeSteps = 5000,
+nTimeSteps = 1000,
 dumpFreq = 1000,
-\end{verbatim}
-so that the integration will begin with the pickup file generated from the initialization program, 5000 time steps will be executed, and a tecplot file will be generated every 1000 time steps. To run the integration program, do
-\begin{verbatim}
-./integrate_sw
-\end{verbatim}
-Once the program completes, you will see six new tecplot files and a new pickup file (\texttt{ShallowWater.0000005000.pickup}). The new pickup file can be used as a new initial condition if you wish to continue integrating past 5000 time steps, by setting 
-\begin{verbatim}
-iterInit = 5000,
-\end{verbatim}
+/
+&SpaceManagement
+SpecMeshFile = 'box.mesh',
+polyDeg = 10,
+nXElem = 20,
+nYElem = 20,
+nPlot = 20,
+xScale = 4.0D5,
+yScale = 4.0D5,
+/
+&PhysicalParameters
+g = 9.81,
+f0 = 1.0D-4,
+betaX = 0.0,
+betaY = 0.0,
+linearDrag = 0.0,
+/
+&DipoleParameters
+vMax = 1.75,
+x0 = 2.0D5,
+y0 = 205000.0,
+x1 = 2.0D5,
+y1 = 195000.0,
+L  = 1.0D4,
+/
+&SpongeParameters
+Lsponge = 5.0D4,
+rFacMax = 5.0D-2,
+/
+&ShelfParameters
+hMin = 200.0,
+hMax = 3000.0,
+Lshelf = 2.5D5,
+dL = 0.0,
+steepeningCenter = 1.0D6,
+steepeningZoneLength = 5.0D4,
+/
+\end{verbatim} 
 
-At this point, you have successfully compiled and completed the initialization and forward integration steps in the work-flow. This is a good time to discuss visualization before we discuss making modifications to the run-time parameters in \texttt{shallowwater.params}.
+The compiler flags are \textit{(list the compiler flags!!)}.
 
-\subsection{Viewing the output in VisIt}
-Now that the code has finished running and you have some output, you can view the tecplot and curve files in your favorite visualization software. Here, we will describe how to view the output using \href{https://wci.llnl.gov/simulation/computer-codes/visit/}{VisIt}.
+integrate\_sw\_dipole\_boxmesh\_pdeg10\_noOpt\_noOMP.map : \texttt{-g}
 
+integrate\_sw\_dipole\_boxmesh\_pdeg10\_O2\_noOMP.map : \texttt{-O2 -g}
 
-\section{Configuration}\label{sec:config}
+integrate\_sw\_dipole\_boxmesh\_pdeg10\_O3\_noOMP.map : \texttt{-O3 -g}
 
+\chapter{Projects}
+\section{Algorithm parallelization through OpenMP}
 
-\chapter{Making modifications}\label{chap:Mods}
+\section{Algorithm parallelization through MPI}
 
+\section{Forcing Vectorization}
 
-%\chapter{Testing the Linear Form}
-%The linear shallow water equations without planetary rotation support gravity waves. Constant planetary rotation can lead to inertia-gravity waves. Near a no-normal flow boundary, Kelvin waves can arise that travel at the gravity wave speed and have an ``offshore'' decay scale equivalent to the \textit{deformation radius}. By introducing variable bathymetry with planetary rotation, topographic waves can arise that propagate due to the conservation of potential vorticity. A similar wave, known as a Rossby wave, can propagate due to variation of the coriolis parameter. In the following sections, the behavior of each of these waves is detailed and numerical solutions are presented in the form of refinement studies. It will be shown that the NDGSEM solution converges spectrally under p-refinement, consistent with the error analysis theory for a spectral method. Additionally, it will be shown that the NDGSEM produces the appropriate wave speeds and with minimal dissipation.
+\section{Mixed OpenMP and MPI}
 
+\section{Matrix Multiplication on the GPU}
 
-%\section{Gravity Waves}
-%\subsection{Plane Wave Propagation}
-%\subsection{Double Slit Experiment}
+\section{Data Structure Mods for Reducing Memory Access Costs}
 
-%\section{Geostrophic Adjustment}
+\section{Parallel File I/O}
 
-%\section{Kelvin Wave Propagation}
-
-%\section{Rossby Wave Propagation}
-
-%\chapter{Testing the Nonlinear Conservative Form}
-
-%\chapter{Testing the Nonlinear Skew-Symmetric Form}
 
 
 \clearpage
 
-\appendix
-
-%\chapter{Spectral Element Primer}
-
-%\section{Vector Spaces}
-
-
-%\section{Spectral Approximations and Error Analysis}
-
-%\chapter{Differential Geometry}\label{chap:GeometryTheory}
 
 \pagebreak
 
 \bibliography{hpe-refs}
 \bibliographystyle{plainnat}
 \end{document}
+
+
+\section{Nodal Discontinuous Galerkin Discretization}
+
+
+\section{Comparison with other SEM-Shallow Water Models}
+The discretization presented here distinguishes itself from previous shallow water models presented in the literature. The models of \citet{Iskandarani1995} (and Ma1993) make use of the Gauss-Lobatto quadrature points, which were shown in \citet{Kopriva2006} to not satisfy the discrete metric identities and lead to the introduction of spurious modes associated with isoparametric elements. Here, the more accurate Gauss quadrature is used. The increased accuracy and satisfication of the discrete metric identities increases the algorithm cost. Since the Gauss quadrature points do not include the element boundaries, an additional step ( with $\mathcal{O}(N^2)$ operations per element ) is needed to interpolate the solution to the element boundaries before computing Riemann fluxes. An adpative filtering procedure, similar to \citet{Flad2016} is used for maintaining stability when marginally resolved modes violate energy conservation. In this way, the filter lowers the accuracy of the method only in locations where the solution is marginally resolved; the gain in performing the filtering is that numerical stability is maintained. This filtering procedure is different than \citet{Taylor1997} where the filter is applied everywhere at each time step. In the conservative form of the shallow water equations, care was taken in the computation of the bathymetry gradient to guarantee that a motionless fluid remains motionless to machine precision.
