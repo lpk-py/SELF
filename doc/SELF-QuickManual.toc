@@ -1,3 +1,0 @@
-\contentsline {chapter}{Contents}{1}{section*.1}
-\contentsline {chapter}{\chapternumberline {1}Software Overview}{3}{chapter.1}
-\contentsline {chapter}{\chapternumberline {2}Getting Started}{5}{chapter.2}

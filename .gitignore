@@ -1,6 +1,12 @@
 #.gitignore -- schoonovernumerics/SELF/
 
 *~
+*.toc
+*.synctex.gz
+*.out
+*.bbl
+*.aux
+*.log
 *.tec
 *.o
 *.mod
