@@ -6,8 +6,9 @@
 \usepackage{float}
 \usepackage{wrapfig}
 
+
 % logo for the title page
-\newcommand{\swlogo}{{\includegraphics[width=0.25\textwidth]{images/shallowWater.png}}
+\newcommand{\swlogo}{{\includegraphics[width=0.25\textwidth]{../images/shallowWater.png}}
 }
 
 
@@ -197,7 +198,7 @@ Each element can support curvilinear geometry. Define the mapping from physical 
   \begin{equation}
   \vec{x} = \vec{x}(\vec{\xi}).\label{eq:mapping}
   \end{equation}
-In this case, the solution and the source term are weighted by the Jacobian of the mapping and the flux is rotated to the \textit{contravariant} flux. Introducing mappings that are also approximated by polynomial interpolants introduces additional (spectrally accurate) \textit{aliasing} errors. Appendix \ref{chap:GeometryTheory} provides the details on the metric terms that are introduced along with the form of the divergence, gradient, and curl under such a mapping.
+In this case, the solution and the source term are weighted by the Jacobian of the mapping and the flux is rotated to the \textit{contravariant} flux. Introducing mappings that are also approximated by polynomial interpolants introduces additional (spectrally accurate) \textit{aliasing} errors.   Appendix \ref{chap:GeometryTheory} provides the details on the metric terms that are introduced along with the form of the divergence, gradient, and curl under such a mapping.
 
  Computing the divergence of the conservative flux in this framework can be viewed as calculating a sequence of derivatives in each computational direction. Two steps are required to compute the derivative in each direction. The first is an internal matrix-vector multiply, and the second is computing the weighted Riemann fluxes at the element boundaries. The latter is the only step which requires element-to-element communication. The approximate fluxes are now presented for the systems \eqref{eq:conservative}, \eqref{eq:skewsymmetric}, and \eqref{eq:linear}.
 
@@ -205,7 +206,7 @@ In this case, the solution and the source term are weighted by the Jacobian of t
 \textit{This section needs some attention!}\\
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.4\textwidth]{figures/normalflux.png}
+\includegraphics[width=0.4\textwidth]{../figures/normalflux.png}
 \caption{ A depiction of the setup for computing the flux across an edge. The flux is split by upwinding the characteristic variables of the Jacobian matrix. }\label{fig:normalflux}
 \end{center}
 \end{figure}
@@ -265,17 +266,57 @@ Equation \eqref{eq:RiemannFlux} is the approximate Riemann flux. The choice of a
 
 \subsection{Algorithm}
 
-To forward-step the discrete system in Eq. \eqref{eq:discrete2d_system}, the flux divergence and the source terms need to be calculate. To calculate the flux-divergence, the DG-derivative matrix needs to be applied...
-\begin{verbatim}
-  Loop over elements
-       Interpolate solution to element boundaries
-       
-  Loop over edges
-       Calculate Riemann Fluxes
-       
-  Loop over elements
-       Calculate internal derivative and source operations to compute tendency
-\end{verbatim}
+To forward-step the discrete system in Eq. \eqref{eq:discrete2d_system}, the flux divergence and the source terms need to be calculated. The first two lines of \eqref{eq:discrete2d_system} indicate that we need to calculate the flux at each of the interior nodes (for each element) and to estimate the Riemann flux at each of the element boundaries. \citep{Kopriva2009} showed that using the Legendre-Gauss quadrature satisfies the discrete metric identities and therefore does not introduce non-conservative spurious errors due to coordinate mapping. For this reason, and the higher accuracy associated with Gauss Quadrature (as opposed to Gauss-Lobatto), we employ the Legendre-Gauss quadrature. The main drawback with the Legendre-Gauss points is that they do not include the element edges. To calculate the Riemann flux then, we must first interpolate the solution to the element boundaries.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.6\textwidth]{../figures/geometry/elementsimple.png}
+\caption{This schematic depicts where the solution is known (at the blue nodes) within an element; these are the Legendre-Gauss points. The computational coordinate are $s$ and $p$. In this document, the integer $i$ increments the solution in the $s$ direction and $j$ increments the solutions in the $p$ direction. To compute the Riemann Flux, we need to calculate the solution at the element boundaries (at the red nodes). The schematic also indicates how the SELF software references each of the sides of an element. ``South'' refers to the side where $p=-1$, ``North'' $p=1$, ``West'' $s=-1$, and ``East'' $s=1$.}
+\end{center}
+\end{figure}
+
+Recall that the solution is represented as
+\begin{equation}
+\vec{S} =  \sum_{i,j=0}^N \vec{S}_{i,j} l_i(s) l_j(p).
+\end{equation}
+As an example, suppose we want to calculate the solution on the eastern boundary, where $s = 1$, $p = p_n$. Note that the $p_n$ are the interpolation nodes for the Lagrange interpolating polynomials, so that $l_j(p_n) = \delta_{j,n}$, where $\delta_{j,n}$ is the Kronecker Delta function. Then
+\begin{equation}
+\vec{S}_{east} = \sum_{i=0}^N \vec{S}_{i,n} l_i(1)
+\end{equation}
+Similarly,
+\begin{subequations}
+\begin{align}
+ \vec{S}_{west} &= \sum_{i=0}^N \vec{S}_{i,n} l_i(-1) \\
+ \vec{S}_{south} &= \sum_{j=0}^N \vec{S}_{m,j} l_j(-1) \\
+ \vec{S}_{north} &= \sum_{j=0}^N \vec{S}_{m,j} l_j(-1)
+\end{align}
+\end{subequations} 
+Once the solution is known at the boundaries of each of the elements, the boundary flux can be computed using a Riemman flux. To do this, we cycle over the edges in the mesh and calculate the flux across each edge, exchanging the flux with the elements that share common edges. Once we have the flux at the boundary of the elements, we can then calculate the flux divergence using the first two lines of \eqref{eq:discrete2d_system}. The multiplication between the internal flux and the derivative matrix require $\mathcal{O}(N^3)$ operations. The internal flux can be represented as a matrix, so that the flux divergence can be computed by a single matrix-matrix multiply.
+
+ \begin{verbatim}
+   DO j = 0, N
+      DO i = 0, N
+         
+         Fx = Xflux( solution(i,j) )
+         Fy = Yflux( solution(i,j) )
+         GetMetricTerms
+         [F1(i,j), F2(j,i)] = ContravariantFlux( Fx, Fy, MetricTerms )
+        
+      ENDDO
+   ENDDO
+   
+   tend = MATMUL( dMat, F1 ) + MATMUL( dMat, F2 )
+   
+   DO j = 0, N
+      DO i = 0, N
+         tend(i,j) = tend(i,j)  + ( least(i)*F1east(j) + &
+                                    lwest(i)*F1west(j) )/weight(i) + & 
+                                  ( lnorth(j)*F2north(i) + &
+                                    lsouth(j)*F1south(i) )/weight(j)
+      ENDDO
+   ENDDO
+ \end{verbatim}
+ 
 
 \section{Profiles of the Dipole Example}
 In order to determine where our attention should be focused for optimizing the solution algorithm, call-graphs are generated using callgrind and kcachegrind to indicate the subroutines that dominate the program execution. More detailed information about the types of instructions that are being called ( memory access, floating point, vectorization, etc.) is obtained using the Allinea-MAP (V6.0) profiler. The profiles presented here are generated on a \textit{(fill in node information (from cpuinfo and/or lstopo)}. The runtime parameters for this example can be found under \texttt{SELF/examples/shallowwater/dipole/run/shallowater.params} and, for completeness, are shown here
