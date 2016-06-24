@@ -63,30 +63,26 @@
 
 \pagestyle{myheadings}
 \chapter{Purpose and Overview}
- Spectral Element Methods (SEMs) offer a flexible approach to solving partial differential equations in complicated geometry that allows for either algebraic or spectral convergence. Nodal SEMs are popular because they yield localized dense operations for computing the action of derivative operators. These dense computations can be performed in parallel with a trivial amount of modifications to existing serial code. Though the number of operations increases with the use of spectral element methods, there is a compensating gain in solution accuracy. With an algorithm that is appropriately parallelized, the numerical modeler can achieve efficient performance while producing highly accurate solutions.
+ Spectral Element Methods (SEMs) offer a flexible approach to solving partial differential equations in complicated geometry that allows for either algebraic or spectral convergence. Nodal SEMs are popular because they yield localized dense operations for computing the action of derivative operators. The dense computations amount to matrix-matrix multiplications that lend themselves to fast implementation on GPUs, and the localized operations for computing derivatives enables the use of threading over a single process. Additionally, multi-process applications can be constructed with the addition of a single routine that conducts MPI send-receive pairs. With an algorithm that is appropriately parallelized, the numerical modeler can achieve efficient performance while producing highly accurate solutions. The Spectral Element Libraries in Fortran (SELF) are meant to provide scientists and researchers a common set of tools to construct solvers for partial differential equations.
  
  The software described herein is a collection of support modules that enable the development of sophisticated NSEM solvers for partial differential equations. These include modules for 
  \begin{enumerate}
- \item Memory and large code management (e.g. error exception handlers).
- \item Miscellaneous, multipurpose subroutines (e.g. creating new file units, linked lists, hashtables )
  \item Performing Lagrange interpolation, and computing operations on interpolants.
  \item Solution storage handlers for Continous and Discontinuous Galerkin Spectral element methods.
  \item Defining and manipulating a spectral element mesh.
  \end{enumerate}
  
- The goal of this documentation is to supply you with an intuitive knowledge of software organization and supply you with the necessary theory to make practical use of the provided modules to solve more complicated problems. This chapter contains information which helps motivate the software structure and may provide you with a more intuitive feel for its use. We start with a description of how domain decomposition is handled in a spectral element method since this will ultimately determine the software structure. Following the more descriptive discussion is a more detailed look at the spectral element discretizations that yield the various first order ( $\nabla \cdot$ , $\nabla$, $\nabla \times $ ) and second order derivative operators. The descriptive overview and detailed discretization will give you a sense of the routines that are necessary for constructing a SE solver.
+ The goal of this documentation is to supply you with an intuitive knowledge of the SELF organization and outline the necessary theory to make practical use of the provided modules to solve more complicated problems. This chapter contains information which helps motivate the software structure and may provide you with a more intuitive feel for its use. We start with a description of how domain decomposition is handled in a spectral element method since this will ultimately determine the software structure. Following the more descriptive discussion is a more detailed look at the spectral element discretizations that yield the various first order ( $\nabla \cdot$ , $\nabla$, $\nabla \times $ ) and second order derivative operators. The descriptive overview and detailed discretization will give you a sense of the routines that are necessary for constructing a SE solver.
  
-\section{Descriptive Domain Decomposition}
- In a SE discretization, a global domain that is representative of the physical space that you are modelling is broken into a collection of \textit{logical} segments (1-D), quadrilaterals (2-D), or hexahedrons (3-D) that are called \textit{elements}. Logical quadrilaterals are geometric objects that can be mapped to a reference, or computational, quadrilateral. Logical hexahedrons are defined similarly. The elements can be generated via a structured or unstructured mesh generation process, so long as sufficient connectivity information is given to aid in data sharing amongst neighboring elements. Within each element is a structured \textit{quadrature mesh} that is set by the basis function that is being employed. A sample spectral element mesh is shown in Fig. \ref{fig:circlemesh}.
+\section{Domain Decomposition}
+   In a spectral element discretization, the global domain (entire physical space that you are modelling) is broken into a collection of \textit{elements}. The elements are \textit{logical} segments in 1-D, quadrilaterals in 2-D, and hexahedrons in 3-D. A \textit{mesh} contains the elements, nodes, edges, and faces that describe the connectivity. The mesh can be generated via a structured or unstructured mesh generation process, so long as sufficient connectivity information is given to aid in data sharing amongst neighboring elements. Within each element is a structured \textit{local quadrature mesh}. The local quadrature mesh within each element controls the accuracy of differentiation and integration. It defines the points within each element for \textit{Lagrange interpolating polynomials} that are used to approximate the solution. These polynomials can be used to describe the geometry of each element, which permits the use of \textit{isoparametric elements}, elements that can have curvilinear geometry. A schematic of a spectral element mesh is shown in Fig. \ref{fig:simplemesh}. In this schematic, there are four elements. Each contains a local quadrature mesh. The boundary curves of each element can be used to define a mapping from physical space to a ``computational space'' (a square over $[-1,1]^2$). This mapping can be used to calculate the metrics terms necessary to compute differential or integral operations.
  
 \begin{figure}
 \begin{center}
-   \includegraphics[width=0.9\textwidth]{figures/geometry/meshDepiction2D-simple.png}
+   \includegraphics[width=0.9\textwidth]{../figures/geometry/meshDepiction2D-simple.png}
    \caption{A simple schematic of a spectral element mesh. This schematic shows four spectral elements, with isoparametric (curved) sides. }\label{fig:simplemesh}
 \end{center}
 \end{figure} 
- 
- All SEMs then consist of local operations within each element that can be done independent of other elements and a set of nearest neighbor data exchanges. Because of this decomposition, SEMs lend themselves easily to shared memory parallelization (threading with OpenMP), domain decomposed parallelization (message passing interface, e.g. OpenMPI), or some combination of the two.
  
  
 \section{Spectral Element Methods} 
@@ -95,12 +91,14 @@ First, we discuss a taxonomy of SEMs and relate them to general Spectral Methods
 Galerkin methods have typically been used for problems with complicated geometry where an unstructured mesh is necessary; these are \textit{multi-domain} methods. In these problems, the physical domain is decomposed into many ``spectral elements''. Over each element, the solution is approximated by a suitable polynomial basis. The global solution is constructed by piecewise polynomial interpolation. Galerkin methods which require continuity between spectral elements are called \textit{Continuous Galerkin Spectral Element Methods} (CGSEMs). Those which do not enforce continuity are \textit{Discontinuous Galerkin Spectral Element Methods} (DGSEMs). Historically, CGSEMs have been applied to elliptic and parabolic PDEs while DGSEMs have been applied to hyperbolic problems.  
 
 \chapter{SEM Discretizations}
-The main focus of the software is on Legendre-Galerkin Spectral Element Methods. The software can be broken into two distinct components:
+The main focus of the software is on Legendre-Galerkin Spectral Element Methods, though it is trivial to add other polynomial bases. The software can be broken into two distinct components:
 \begin{enumerate}
 \item SEM algorithm core
 \item Geometry
 \end{enumerate}
-Both of these components rely on basic interpolation routines which are used to evaluate certain variables (e.g., the geometric mapping or the solution) over each spectral element.
+Both of these components rely on interpolants, and in this sense interpolation routines comprise the basic building block of the Spectral Element Methods. Here we start with an outline of \textit{projection}, interpolation, differentiation, and integration.
+
+\section{Projection, Interpolation, Differentiation, and Integration}
 
 A generic discretization is outlined for hyperbolic conservation laws to motivate the necessary modular components of the software for DGSEMs. Similarly, a generic elliptic or parabolic PDE is discretized to motivate the modular components of the software for CGSEMs. This illustrates how the two distinct components can be used together to solve PDEs in complicated geometry. Additionally, this exposition will outline the necessary attributes of data-structures that will be used in an object-oriented approach.
 
@@ -233,7 +231,7 @@ Models are just that, they're models. We cannot currently hope to explicitly and
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.9\textwidth]{figures/filters/burger1d-ARF15h10l/Comic-FilterDemo.png}
+\includegraphics[width=0.9\textwidth]{../figures/filters/burger1d-ARF15h10l/Comic-FilterDemo.png}
 \caption{}\label{fig:shockFormation}
 \end{center}
 \end{figure}
@@ -317,6 +315,23 @@ where $I_N[ f(s) ]$ denotes the interpolation of $f(s)$ by a degree $N$. When th
  \end{equation}
  where $s_k$ and $\sigma_k$ are the degree $K$ Legendre Gauss quadrature nodes quadrature weights respectively. 
  
+
+
+
+Figures \ref{fig:GaussianFunction} and \ref{fig:GaussianDerivative} show the interpolants and the interpolant derivatives respectively for polynomial degrees $N=2$ through $N=7$. Qualtitatively, these plots illustrate the convergence of the interpolants to the exact function and derivative. Figure \ref{fig:Errors} shows the $\mathbb{L}_2$ error norm in approximating the function and the derivative for polynomial degrees 2 through 17. Both errors exhibit exponential convergence, in agreement with the theoretical error bounds. Notice that the error in approximating the function is always smaller than in approximating its derivatine (for each polynomial degree). This indicates that approximating the derivative by taking the derivative of the interpolant incurs an additional error; the derivative of the interpolant is not always equal to the interpolant of the derivative.
+
+Given that the function being interpolated is complete (we can take as many derivatives as we like), the theoretical error decay is exponential. This is in agreement with the error trend observed numerically, providing evidence that the interpolation and differentiation routines at the Legendre Gauss nodes are working.
+
+  
+
+
+\pagebreak
+\bibliography{refs}
+\bibliographystyle{plainnat}
+
+\end{document}
+
+
 \begin{figure}
 \begin{center}
 
@@ -429,11 +444,6 @@ where $I_N[ f(s) ]$ denotes the interpolation of $f(s)$ by a degree $N$. When th
 \end{center}
 \end{figure} 
 
-
-Figures \ref{fig:GaussianFunction} and \ref{fig:GaussianDerivative} show the interpolants and the interpolant derivatives respectively for polynomial degrees $N=2$ through $N=7$. Qualtitatively, these plots illustrate the convergence of the interpolants to the exact function and derivative. Figure \ref{fig:Errors} shows the $\mathbb{L}_2$ error norm in approximating the function and the derivative for polynomial degrees 2 through 17. Both errors exhibit exponential convergence, in agreement with the theoretical error bounds. Notice that the error in approximating the function is always smaller than in approximating its derivatine (for each polynomial degree). This indicates that approximating the derivative by taking the derivative of the interpolant incurs an additional error; the derivative of the interpolant is not always equal to the interpolant of the derivative.
-
-Given that the function being interpolated is complete (we can take as many derivatives as we like), the theoretical error decay is exponential. This is in agreement with the error trend observed numerically, providing evidence that the interpolation and differentiation routines at the Legendre Gauss nodes are working.
-
 \begin{figure}[t!]
 \begin{center}
 
@@ -470,11 +480,4 @@ Given that the function being interpolated is complete (we can take as many deri
    \end{tikzpicture}
    \caption{ A semi-log plot of the $\mathbb{L}_2$ Error norm in approximating a gaussian function and its derivative are shown as a function of the approximating polynomial degree. The error decay is shown in this case to be exponential. }\label{fig:Errors}
 \end{center}
-\end{figure}  
-
-
-\pagebreak
-\bibliography{refs}
-\bibliographystyle{plainnat}
-
-\end{document}
+\end{figure}
