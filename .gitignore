@@ -21,3 +21,6 @@ Specmesh+3D
 *.curve
 *.data
 *.dat
+callgrind.*
+*.ods#
+fort.*
