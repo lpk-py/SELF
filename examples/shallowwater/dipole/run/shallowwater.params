@@ -4,9 +4,9 @@ nCutoff = 8,
 /
 &TimeManagement
 dt = 0.1,
-iterInit = 0,
-nTimeSteps = 200,
-dumpFreq = 200,
+iterInit = 500000,
+nTimeSteps = 100000,
+dumpFreq = 5000,
 /
 &SpaceManagement
 SpecMeshFile = 'box.mesh',

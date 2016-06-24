@@ -11,7 +11,7 @@ FCUNI=gfortran
 #LIB=-L/usr/local/lapack -llapack -lrefblas
 LIB=
 INC=
-OPT=-O3 -fopenmp -funroll-loops
+OPT=-g
 #OPT=-O0 -fcheck=all -Wall
 WFLAGS= 
 SRCDIR=../../../../src/
@@ -47,15 +47,14 @@ SWOBJS = ModelPrecision.o \
          QuadElementClass.o \
          QuadMeshClass.o \
          SWParamsClass.o \
-         RollOffFilter2D_Class.o \
          ConservativeShallowWaterClass.o 
 
 # ---------------------------------------------------------------------- #
 #                     ~/src/highend/shallowwater/                        #
 # ---------------------------------------------------------------------- #
          
-adjinitial_sw : ${SWOBJS} ShallowWater_InitialFromPickup.o
-	${FC} ${OPT} ${SWOBJS} ShallowWater_InitialFromPickup.o -o $@
+GTD_Test : ${SWOBJS} ShallowWater_GTD_Test.o
+	${FC} ${OPT} ${SWOBJS} ShallowWater_GTD_Test.o -o $@
 
 initialize_sw : ${SWOBJS} ShallowWater_InitialConditions.o
 	${FC} ${OPT} ${SWOBJS} ShallowWater_InitialConditions.o -o $@
@@ -68,14 +67,14 @@ SWParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRout
 
 ConservativeShallowWaterClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
                       Lagrange_2D_Class.o NodalStorage_2D_Class.o DGSEMSolutionStorageClass_2D.o \
-                      EdgeClass.o QuadElementClass.o QuadMeshClass.o SWParamsClass.o RollOffFilter2D_Class.o
+                      EdgeClass.o QuadElementClass.o QuadMeshClass.o SWParamsClass.o
 	${FC} ${OPT} -c ${INIDIR}localmods/ConservativeShallowWaterClass.f90 -o $@
 
 ShallowWater_InitialConditions.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ConservativeShallowWaterClass.o
 	${FC} ${OPT} -c ${INIDIR}localmods/ShallowWater_InitialConditions.f90 -o $@
 
-ShallowWater_InitialFromPickup.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ConservativeShallowWaterClass.o
-	${FC} ${OPT} -c ${INIDIR}localmods/ShallowWater_InitialFromPickup.f90 -o $@
+ShallowWater_GTD_Test.o : ModelPrecision.o ConservativeShallowWaterClass.o
+	${FC} ${OPT} -c ${INIDIR}localmods/ShallowWater_GTD_Test.f90 -o $@
 
 
 ShallowWater_Driver.o : ModelPrecision.o QuadMeshClass.o SWParamsClass.o ConservativeShallowWaterClass.o
