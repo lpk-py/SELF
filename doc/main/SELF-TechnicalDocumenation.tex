@@ -229,16 +229,17 @@ Two classes of SEMs have been presented. Both require the use of Lagrange interp
 \chapter{Modules}
 \section{Interpolation, Differentiation, and Integration}
 
-
 \section{Geometry}
 
 \section{Solution Storage}
+
+\section{Nodal SEM Storage}
 
 \section{Template DGSEM}
 
 \section{Template CGSEM}
 
-\section{Filters}
+\section{Spectral Filters}
 Models are just that, they're models. We cannot currently hope to explicitly and accurately represent all of the spatial and temporal scales for a problem. Instead, models focus in on the spatial and temporal scales that are important and an informed decision is made to deal with the interactions with smaller scales. In the prototypical problem of shock formation (a la Burger's equation), small scales are forced into existence from the large scale. This nonlinear transfer of energy to small scales, called the ``forward cascade'', poses challenges for numerical models that can become unstable when too much energy is forced into the smallest resolvable scale. The comic shown in Fig. \ref{fig:shockFormation} shows what happens when you don't remove that energy from the grid scale (the red line). The blue line shows the same shock formation occurring, except that the numerical algorithm now includes a "filter" that turns on when too much energy appears in the grid-scale and violates the principles of the forward cascade (it is called ``adaptive'' because of its conditional action). The filter effectively removes the oscillations, so-called ``grid-scale noise'', and removes enough energy to maintain stable numerical integration. The filter used in generating the stable solution in Fig. \ref{fig:shockFormation} is a "Roll-off" filter, meaning that it damps marginally resolved modes much stronger than the well resolved modes. This Adaptive Roll-off Filter (ARF) is a parameterization for shock formation. Motivated by the need for maintaining numerical stability in a justifiable manner, a set of filters are provided with the SELF as one option towards meeting this goal. In this section, the theory behind using filters is presented for 1-D. The advantage that polynomial filtering has over other parameterizations (e.g. Laplacian diffusion), is that the additional error incurred by such a filter is quantifiable.
 
 \begin{figure}
@@ -298,7 +299,7 @@ P_{i,i} =
 \end{equation}
 The matrix $T^{-1}PT$ with $P$ given by \eqref{eq:cutoff} is called a \textit{modal-cutoff filter}.
 
-\chapter{Software Validation}
+\chapter{Software Verification and Validation}
 \section{Lagrange Interpolation}
 
 \subsection{ Guassian Bump in 1-D }
