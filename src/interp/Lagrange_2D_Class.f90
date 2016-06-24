@@ -499,28 +499,35 @@ SUBROUTINE TrashLagrange_2D(myPoly)
   REAL(prec), INTENT(out)         :: fNew(0:nSnew, 0:nPnew)
 
   ! LOCAL
+  REAL(prec) :: fIntT(0:oldPoly % nP,0:nSnew) 
   REAL(prec) :: fInt(0:nSnew,0:oldPoly % nP) 
   INTEGER :: j, nSold, nPold
 
     CALL oldPoly % GetNumberOfNodes( nSold, nPold )
        
-
-    DO j  = 0, nPold ! Loop over the old p-points and interpolate onto the new s-points
+    fInt = MATMUL( Ts, fOld )
+    fIntT = TRANSPOSE( fInt )
+    fNew = MATMUL( Tp, fIntT )
+   ! DO j  = 0, nPold ! Loop over the old p-points and interpolate onto the new s-points
       
        ! Using Ts, calculate function values at old y-points and new x-points
-       CALL oldPoly % sInterp % CoarseToFine(fOld(0:nSold,j), Ts, nSnew, fInt(0:nSnew,j) )   
+       !fInt(j,0:nSnew) = MATMUL( Ts, fOld(0:nSOld,j) )
+   !    CALL oldPoly % sInterp % CoarseToFine(fOld(0:nSold,j), Ts, nSnew, fInt(0:nSnew,j) )   
 
-    ENDDO ! j, loop over the old p-points
+   ! ENDDO ! j, loop over the old p-points
 
-    DO j  = 0, nSnew ! Loop over the new s-points and  interpolate onto the new p-points
+   ! DO j  = 0, nSnew ! Loop over the new s-points and  interpolate onto the new p-points
       
+       !fNew(j,0:nPnew) = MATMUL( Tp, fInt(0:nPold,j) )
        ! Using Tp, calculate function values at new x-points and new y-points
-       CALL oldPoly % sInterp % CoarseToFine( fInt(j,0:nPold), Tp, nPnew, fNew(j,0:nPnew) ) 
+   !    CALL oldPoly % sInterp % CoarseToFine( fInt(j,0:nPold), Tp, nPnew, fNew(j,0:nPnew) ) 
        
-    ENDDO ! jP, loop over the new x-points
+   ! ENDDO ! jP, loop over the new x-points
  
 
   END SUBROUTINE CoarseToFine_2D
+
+
 !
 !
 !==================================================================================================!

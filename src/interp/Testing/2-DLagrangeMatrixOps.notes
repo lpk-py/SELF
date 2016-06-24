@@ -1,0 +1,70 @@
+ INTEGER, PARAMETER :: nDeg = 10
+ INTEGER, PARAMETER :: nPlot = 20
+ INTEGER, PARAMETER :: nCycles = 100000
+
+***************************************************************************************************
+
+    CoarseToFine_2D
+    CALL oldPoly % GetNumberOfNodes( nSold, nPold )
+
+    DO j  = 0, nPold ! Loop over the old p-points and interpolate onto the new s-points
+       CALL oldPoly % sInterp % CoarseToFine(fOld(0:nSold,j), Ts, nSnew, fInt(0:nSnew,j) )   
+    ENDDO ! j, loop over the old p-points
+
+    DO j  = 0, nSnew ! Loop over the new s-points and  interpolate onto the new p-points
+       CALL oldPoly % sInterp % CoarseToFine( fInt(j,0:nPold), Tp, nPnew, fNew(j,0:nPnew) ) 
+    ENDDO ! jP, loop over the new x-points
+ ====================== Timing Results ======================
+  
+ CoarseToFine_2D                         
+ Number of Measurements :    1.0000000000000000     
+ Accumulated Time       :    1.8959999999999999     
+ Average Time           :    1.8959999999999999     
+ ------------------------------------------------------------
+ ------------------------------------------------------------
+
+***************************************************************************************************
+
+    CoarseToFine_2D
+    CALL oldPoly % GetNumberOfNodes( nSold, nPold )
+       
+    DO j  = 0, nPold ! Loop over the old p-points and interpolate onto the new s-points
+      fInt(j,0:nSnew) = MATMUL( Ts, fOld(0:nSOld,j) )
+    ENDDO ! j, loop over the old p-points
+
+    DO j  = 0, nSnew ! Loop over the new s-points and  interpolate onto the new p-points
+       fNew(j,0:nPnew) = MATMUL( Tp, fInt(0:nPold,j) )
+    ENDDO ! jP, loop over the new x-points
+
+ ====================== Timing Results ======================
+  
+ CoarseToFine_2D                         
+ Number of Measurements :    1.0000000000000000     
+ Accumulated Time       :    1.3399999999999999     
+ Average Time           :    1.3399999999999999     
+ ------------------------------------------------------------
+ ------------------------------------------------------------
+
+
+***************************************************************************************************
+
+    CoarseToFine_2D
+    CALL oldPoly % GetNumberOfNodes( nSold, nPold )
+       
+    fInt = MATMUL( Ts, fOld )
+    fIntT = TRANSPOSE( fInt )
+    fNew = MATMUL( Tp, fIntT )
+
+ ====================== Timing Results ======================
+  
+ CoarseToFine_2D                         
+ Number of Measurements :    1.0000000000000000     
+ Accumulated Time       :   0.85599999999999998     
+ Average Time           :   0.85599999999999998     
+ ------------------------------------------------------------
+ ------------------------------------------------------------
+
+***************************************************************************************************
+
+ >> Last test -- map 2-D array to 1-D array and generate O(N^4) Interpolation matrix. Do 
+    1 matrix-vector multiply
