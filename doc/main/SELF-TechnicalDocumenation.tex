@@ -1,7 +1,7 @@
 \documentclass[12pt]{softwaremanual}
 
 
-\author{Joseph Schoonover}
+\author{Joseph Schoonover, Yuliana Zamora, Priscilla Kelly, Neelam Patel, Jennifer Estrada}
 \title{}
 \date{}
 
@@ -15,7 +15,7 @@
         
      \begin{flushright}
         {\fontfamily{cmss}\selectfont
-        \HUGE{\textbf{ Spectral Element Method }}\\
+        \HUGE{\textbf{ Spectral Element Libraries in Fortran }}\\
         }
        
         \vspace{1cm}
@@ -24,7 +24,7 @@
         \textbf{
         \textit{
         \textcolor{blue}{
-           Support Modules
+           SELF
         }}}}
         
      \end{flushright}
@@ -49,8 +49,8 @@
         
         \vfill
         
-        
-        \vspace{0.8cm}
+        \copyright 2015, Joseph Schoonover
+        %\vspace{0.8cm}
         
      \end{center}
         
@@ -63,7 +63,9 @@
 
 \pagestyle{myheadings}
 \chapter{Purpose and Overview}
- Spectral Element Methods (SEMs) offer a flexible approach to solving partial differential equations in complicated geometry that allows for either algebraic or spectral convergence. Nodal SEMs are popular because they yield localized dense operations for computing the action of derivative operators. The dense computations amount to matrix-matrix multiplications that lend themselves to fast implementation on GPUs, and the localized operations for computing derivatives enables the use of threading over a single process. Additionally, multi-process applications can be constructed with the addition of a single routine that conducts MPI send-receive pairs. With an algorithm that is appropriately parallelized, the numerical modeler can achieve efficient performance while producing highly accurate solutions. The Spectral Element Libraries in Fortran (SELF) are meant to provide scientists and researchers a common set of tools to construct solvers for partial differential equations.
+ Spectral Element Methods (SEMs) offer a flexible approach to solving partial differential equations in complicated geometry that allows for either algebraic or spectral convergence. Nodal SEMs are popular because they yield localized dense operations for computing the action of derivative operators. The dense computations amount to matrix-matrix multiplications that lend themselves to fast implementation on GPUs, and the localized operations for computing derivatives enables the use of threading over a single process. Additionally, multi-process applications can be constructed with the addition of a single routine that conducts MPI send-receive pairs. With an algorithm that is appropriately parallelized, the numerical modeler can achieve efficient performance while producing highly accurate solutions. 
+ 
+ The Spectral Element Libraries in Fortran (SELF) are meant to provide scientists and researchers a common set of tools to construct solvers for partial differential equations. Recently, \citet{Kopriva2009} published ``Implementing Spectral Element Methods for Scientists and Engineers'', which illustrates a practical approach towards implementing SEMs. The SELF was inspired originally by Kopriva's text (and graduate course) and aims to provide the modular components for implementing Spectral and Spectral Element Methods. It is our hope that the SELF will become a widely used set of tools to promote more rapid software development for solving PDE systems in complex geometry. Having such a toolkit is part of breaking down the complications associated with reproducibility in science.
  
  The software described herein is a collection of support modules that enable the development of sophisticated NSEM solvers for partial differential equations. These include modules for 
  \begin{enumerate}
@@ -71,6 +73,7 @@
  \item Solution storage handlers for Continous and Discontinuous Galerkin Spectral element methods.
  \item Defining and manipulating a spectral element mesh.
  \end{enumerate}
+ ``Highend'' solvers, such as the shallow-water solver, are also documented here to outline the generic approach for solving PDE systems. 
  
  The goal of this documentation is to supply you with an intuitive knowledge of the SELF organization and outline the necessary theory to make practical use of the provided modules to solve more complicated problems. This chapter contains information which helps motivate the software structure and may provide you with a more intuitive feel for its use. We start with a description of how domain decomposition is handled in a spectral element method since this will ultimately determine the software structure. Following the more descriptive discussion is a more detailed look at the spectral element discretizations that yield the various first order ( $\nabla \cdot$ , $\nabla$, $\nabla \times $ ) and second order derivative operators. The descriptive overview and detailed discretization will give you a sense of the routines that are necessary for constructing a SE solver.
  
@@ -224,7 +227,16 @@ Two classes of SEMs have been presented. Both require the use of Lagrange interp
 
 
 \chapter{Modules}
-\section{Interpolation}
+\section{Interpolation, Differentiation, and Integration}
+
+
+\section{Geometry}
+
+\section{Solution Storage}
+
+\section{Template DGSEM}
+
+\section{Template CGSEM}
 
 \section{Filters}
 Models are just that, they're models. We cannot currently hope to explicitly and accurately represent all of the spatial and temporal scales for a problem. Instead, models focus in on the spatial and temporal scales that are important and an informed decision is made to deal with the interactions with smaller scales. In the prototypical problem of shock formation (a la Burger's equation), small scales are forced into existence from the large scale. This nonlinear transfer of energy to small scales, called the ``forward cascade'', poses challenges for numerical models that can become unstable when too much energy is forced into the smallest resolvable scale. The comic shown in Fig. \ref{fig:shockFormation} shows what happens when you don't remove that energy from the grid scale (the red line). The blue line shows the same shock formation occurring, except that the numerical algorithm now includes a "filter" that turns on when too much energy appears in the grid-scale and violates the principles of the forward cascade (it is called ``adaptive'' because of its conditional action). The filter effectively removes the oscillations, so-called ``grid-scale noise'', and removes enough energy to maintain stable numerical integration. The filter used in generating the stable solution in Fig. \ref{fig:shockFormation} is a "Roll-off" filter, meaning that it damps marginally resolved modes much stronger than the well resolved modes. This Adaptive Roll-off Filter (ARF) is a parameterization for shock formation. Motivated by the need for maintaining numerical stability in a justifiable manner, a set of filters are provided with the SELF as one option towards meeting this goal. In this section, the theory behind using filters is presented for 1-D. The advantage that polynomial filtering has over other parameterizations (e.g. Laplacian diffusion), is that the additional error incurred by such a filter is quantifiable.
