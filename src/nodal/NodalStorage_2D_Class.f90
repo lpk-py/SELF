@@ -209,13 +209,19 @@ IMPLICIT NONE
          DO jP = 0, thisM ! loop over the matrix rows
             DO iP = 0, thisM ! loop over the matrix columns
 
-               myNodal % dMatP(iP,jP) = -tempDmatP(jP,iP)*&
+!               myNodal % dMatP(iP,jP) = -tempDmatP(jP,iP)*&
+!                                         myNodal % qWeightP(jP)/&
+!                                         myNodal % qWeightP(iP)
+               ! Here, we are purposefully using the transpose of the p-derivative matrix
+               ! to conform with a new version of "MappedTimeDerivative"
+               myNodal % dMatP(jP,iP) = -tempDmatP(jP,iP)*&
                                          myNodal % qWeightP(jP)/&
                                          myNodal % qWeightP(iP)
 
             ENDDO
          ENDDO
         
+         
       ELSE
 
          PRINT*,'Module NodalStorage_2D_Class.f90 : S/R BuildNodalStorage_2D : Invalid SEM form. Stopping'

@@ -30,7 +30,6 @@ MODULE Lagrange_2D_Class
 USE ModelPrecision
 USE ConstantsDictionary
 USE CommonRoutines
-USE Lagrange_1D_Class
 
 IMPLICIT NONE
 
@@ -40,9 +39,13 @@ IMPLICIT NONE
     ! Two-dimensional polynomial is the tensor
     ! product of two one-dimensional polynomials
     TYPE, PUBLIC ::  Lagrange_2D
-      INTEGER           :: nS, nP
-      TYPE(Lagrange_1D) :: sInterp
-      TYPE(Lagrange_1D) :: pInterp
+      INTEGER                 :: nS, nP           ! Number of nodal points where we have observations
+      INTEGER                 :: nSo, nPo         ! Number of nodal points where we want observations
+      REAL(prec), ALLOCATABLE :: s(:), p(:)       ! Locations where we have observations
+      REAL(prec), ALLOCATABLE :: bWs(:), bWp(:)   ! Barycentric weights in s and p
+      REAL(prec), ALLOCATABLE :: so(:), po(:)     ! Locations where we want observations
+      REAL(prec), ALLOCATABLE :: Ts(:,:), Tp(:,:) ! Interpolation matrices to get us from what we
+                                                  ! have to what we want 
 
       CONTAINS
       !-------------!
@@ -81,7 +84,7 @@ IMPLICIT NONE
 !==================================================================================================!
 !
 !
- SUBROUTINE BuildLagrange_2D(myPoly, nS, nP, xIn, yIn)
+ SUBROUTINE BuildLagrange_2D( myPoly, nS, nP, nSo, nPo, xIn, yIn )
  ! S/R BuildLagrange_2D
  !
  !
@@ -89,11 +92,32 @@ IMPLICIT NONE
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
-   INTEGER, INTENT(in)               :: nS, nP
+   INTEGER, INTENT(in)               :: nS, nP, nSo, nPo
    REAL(prec), INTENT(in), OPTIONAL  :: xIn(0:nS), yIn(0:nP)
 
-      CALL myPoly % SetNumberOfNodes( nS, nP )
+      myPoly % nS  = nS
+      myPoly % nP  = nP
+      myPoly % nSo = nSo
+      myPoly % nPo = nPo
       
+      ALLOCATE( myPoly % s(0:nS), myPoly % p(0:nS) )
+      myPoly % s = ZERO
+      myPoly % p = ZERO
+
+      ALLOCATE( myPoly % bWs(0:nS), myPoly % bWp(0:nP) )
+
+      ALLOCATE( myPoly % so(0:nS), myPoly % po(0:nS) )
+      myPoly % so = ZERO
+      myPoly % po = ZERO
+      
+      ! I know that, in this allocate statement, Ts is indexed over the new s-points then the old
+      ! s-points and Tp is indexed with the old points first instead. This is because the routine
+      ! to map the solution from the points we have to the points we want requires that the second
+      ! interpolation matrix is transposed.
+      ALLOCATE( myPoly % Ts(0:nSo,0:nS), myPoly % Tp(0:nP,0:nPo) )  
+      myPoly % Ts = ZERO
+      myPoly % Tp = ZERO
+
       IF( PRESENT(xIn) )THEN
          CALL myPoly % sInterp % Build( nS, xIn )
       ELSE
@@ -474,8 +498,8 @@ SUBROUTINE TrashLagrange_2D(myPoly)
   INTEGER, INTENT(in)            :: nSnew, nPnew
   REAL(prec), INTENT(in)         :: sNew(0:nSnew)
   REAL(prec), INTENT(in)         :: pNew(0:nPnew)
-  REAL(prec), INTENT(out)        :: Ts(0:,0:)
-  REAL(prec), INTENT(out)        :: Tp(0:,0:)
+  REAL(prec), INTENT(out)        :: Ts(0:nSnew,0:oldPoly % nS)
+  REAL(prec), INTENT(out)        :: Tp(0:,0:oldPoly % nP)
 
 
      CALL oldPoly % sInterp % CalculateInterpolationMatrix( nSnew, sNew, Ts )  
@@ -499,35 +523,39 @@ SUBROUTINE TrashLagrange_2D(myPoly)
   REAL(prec), INTENT(out)         :: fNew(0:nSnew, 0:nPnew)
 
   ! LOCAL
-  REAL(prec) :: fIntT(0:oldPoly % nP,0:nSnew) 
   REAL(prec) :: fInt(0:nSnew,0:oldPoly % nP) 
   INTEGER :: j, nSold, nPold
 
-    CALL oldPoly % GetNumberOfNodes( nSold, nPold )
+      CALL oldPoly % GetNumberOfNodes( nSold, nPold )
        
-    fInt = MATMUL( Ts, fOld )
-    fIntT = TRANSPOSE( fInt )
-    fNew = MATMUL( Tp, fIntT )
-   ! DO j  = 0, nPold ! Loop over the old p-points and interpolate onto the new s-points
-      
-       ! Using Ts, calculate function values at old y-points and new x-points
-       !fInt(j,0:nSnew) = MATMUL( Ts, fOld(0:nSOld,j) )
-   !    CALL oldPoly % sInterp % CoarseToFine(fOld(0:nSold,j), Ts, nSnew, fInt(0:nSnew,j) )   
+      ! Interpolation in 2-D can be broken into two Matrix-Matrix multiplies,
+      ! To interpolate from the points (s_i, p_j) to (s_a, p_b), we use the interpolation formula,
+      !
+      !                    F_{a,b} = \sum_{j} [ \sum_{i} [F_{i,j} l_i(s_a)] l_j(s_b)]            (1)
+      !
+      ! l_i(s_a) is the a-th row of the i-th column of the "Interpolation Matrix" (Ts). In 2-D,
+      ! we can treat the 2-D array of nodal values as a 2-D matrix. The inner sum over i in the
+      ! Eq. (1) is matrix-matrix multiply. Let M denote the number of points in the new
+      ! grid, and N the number of points in the old grid. (Ts)_{a,i} = l_i(s_a) is an MxN matrix,
+      ! and F_{i,j} is NxN. The matrix-matrix multiply
+      !
+      !                           F*_{a,j} = Ts*F                                                (2)
+      !
+      ! Yields an MxN set of nodal values that are interpolated onto the new nodes in the 
+      ! s-direction, but not in the p-direction. The outer sum in Eq. (1) then can be written
+      !
+      !        F_{a,b} = \sum_{j}[ F*_{a,j}l_j(s_b) ] = \sum_{j}[F*_{a,j}Tp_{b,j}]               (3)
+      !  
+      ! Which amounts to a matrix-matrix multiply with the transpose of the interpolation matrix.
+      ! This is why, when the interpolation matrices are made, the transpose of the p-Interpolation 
+      ! is stored. This illustrates why the algorithm here looks rather simple, with two 
+      ! matrix-matrix multiplies.
+  
+      fInt = MATMUL( Ts, fOld )
+      fNew = MATMUL( Tp, fIntT )
 
-   ! ENDDO ! j, loop over the old p-points
-
-   ! DO j  = 0, nSnew ! Loop over the new s-points and  interpolate onto the new p-points
-      
-       !fNew(j,0:nPnew) = MATMUL( Tp, fInt(0:nPold,j) )
-       ! Using Tp, calculate function values at new x-points and new y-points
-   !    CALL oldPoly % sInterp % CoarseToFine( fInt(j,0:nPold), Tp, nPnew, fNew(j,0:nPnew) ) 
-       
-   ! ENDDO ! jP, loop over the new x-points
- 
 
   END SUBROUTINE CoarseToFine_2D
-
-
 !
 !
 !==================================================================================================!

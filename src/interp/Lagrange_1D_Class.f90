@@ -37,9 +37,13 @@ IMPLICIT NONE
 
 
    TYPE, PUBLIC :: Lagrange_1D
-      INTEGER, PRIVATE                 :: nNodes     ! number of nodes
-      REAL(prec), PRIVATE, ALLOCATABLE :: nodes(:)   ! Interpolation nodes
-      REAL(prec), PRIVATE, ALLOCATABLE :: weights(:) ! barycentric weights
+      INTEGER                 :: nS      ! number of nodal points where we have obersvations
+      INTEGER                 :: nSo     ! number of nodal points where we want observations
+      REAL(prec), ALLOCATABLE :: s(:)    ! locations where we have obervations
+      REAL(prec), ALLOCATABLE :: bWs(:)  ! barycentric weights
+      REAL(prec), ALLOCATABLE :: so(:)   ! Locations where we want observations
+      REAL(prec), ALLOCATABLE :: Ts(:,:) ! Interpolation matrix to get us from what we have to what
+                                         ! we want
 
       CONTAINS
       
@@ -48,22 +52,21 @@ IMPLICIT NONE
       PROCEDURE :: Build => BuildLagrange_1D
       PROCEDURE :: Trash => TrashLagrange_1D
   
-  
       ! Accessors
-      PROCEDURE :: SetNodes => SetNodesLagrange_1D
-      PROCEDURE :: GetNodes => GetNodesLagrange_1D
+      PROCEDURE :: Sets => SetsLagrange_1D
+      PROCEDURE :: Gets => GetsLagrange_1D
       PROCEDURE :: SetNode => SetNodeLagrange_1D
       PROCEDURE :: GetNode => GetNodeLagrange_1D
-      PROCEDURE :: SetWeights => SetWeightsLagrange_1D
-      PROCEDURE :: GetWeights => GetWeightsLagrange_1D
+      PROCEDURE :: SetbWs => SetbWsLagrange_1D
+      PROCEDURE :: GetbWs => GetbWsLagrange_1D
       PROCEDURE :: SetWeight => SetWeightLagrange_1D
       PROCEDURE :: GetWeight => GetWeightLagrange_1D
-      PROCEDURE :: SetNumberOfNodes => SetNumberOfNodesLagrange_1D
-      PROCEDURE :: GetNumberOfNodes => GetNumberOfNodesLagrange_1D
+      PROCEDURE :: SetNumberOfs => SetNumberOfsLagrange_1D
+      PROCEDURE :: GetNumberOfs => GetNumberOfsLagrange_1D
 
 
       ! Data-structure operations
-      PROCEDURE :: CalculateWeights => CalculateBarycentricWeights_1D
+      PROCEDURE :: CalculatebWs => CalculateBarycentricbWs_1D
       PROCEDURE :: EvaluateInterpolant => EvaluateLagrange_1D
       PROCEDURE :: EvaluateLagrangePolynomial => EvaluateLagrangePolynomial_1D
       PROCEDURE :: EvaluateDerivative => EvaluateDerivative_1D
@@ -77,8 +80,8 @@ IMPLICIT NONE
     END TYPE Lagrange_1D
 
 
- INTEGER, PARAMETER, PUBLIC       :: nDefaultNodes = 1          ! Default number of nodes
- REAL(PREC),PARAMETER, PUBLIC     :: LagrangeNodeDefault = ZERO ! The default value to set the nodes
+ INTEGER, PARAMETER, PUBLIC       :: nDefaults = 1          ! Default number of s
+ REAL(PREC),PARAMETER, PUBLIC     :: LagrangeNodeDefault = ZERO ! The default value to set the s
  CHARACTER(17), PARAMETER, PUBLIC :: LagrangeCurveFMT = '(E17.7,2x,E17.7)'
  
  CONTAINS
@@ -89,37 +92,37 @@ IMPLICIT NONE
 !==================================================================================================!
 !
 !
- SUBROUTINE BuildLagrange_1D( myPoly, nNodes, xIn )
+ SUBROUTINE BuildLagrange_1D( myPoly, ns, xIn )
  ! S/R BuildLagrange_1D
  !
- !   This subroutine is the basic constructor. If the number of nodes are input, THEN the desired 
- !   amount of memory is allocated. If the actual interpolation nodes are input, THEN the nodes
- !   are stored and the barycentric weights are calculated. If the number of nodes are not given,
- !   THEN the number of nodes are determined from the size of xIn. In the event that xIn is also 
- !   not given, the default number of nodes is used (nDefaultNodes) and the nodes and barycentric
- !   weights are set to zero.
+ !   This subroutine is the basic constructor. If the number of s are input, THEN the desired 
+ !   amount of memory is allocated. If the actual interpolation s are input, THEN the s
+ !   are stored and the barycentric bWs are calculated. If the number of s are not given,
+ !   THEN the number of s are determined from the size of xIn. In the event that xIn is also 
+ !   not given, the default number of s is used (nDefaults) and the s and barycentric
+ !   bWs are set to zero.
  !
  !
  ! =============================================================================================== !
  ! DECLARATIONS 
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   INTEGER, INTENT(in)               :: nNodes
+   INTEGER, INTENT(in)               :: ns
    REAL(prec), INTENT(in),optional   :: xIn(:)
    
 
-      ! Set the number of nodes
-      CALL myPoly % SetNumberOfNodes( nNodes )
+      ! Set the number of s
+      CALL myPoly % SetNumberOfs( ns )
       
       ! Allocate storage
-      ALLOCATE( myPoly % nodes(0:nNodes), myPoly % weights(0:nNodes) )
+      ALLOCATE( myPoly % s(0:ns), myPoly % bWs(0:ns) )
       
       IF( PRESENT(xIn) )THEN
-         CALL myPoly % SetNodes( xIn )
-         CALL myPoly % CalculateWeights( )
+         CALL myPoly % Sets( xIn )
+         CALL myPoly % CalculatebWs( )
       ELSE
-         CALL myPoly % SetNodes( )
-         CALL myPoly % SetWeights( )
+         CALL myPoly % Sets( )
+         CALL myPoly % SetbWs( )
       ENDIF
  
  END SUBROUTINE BuildLagrange_1D
@@ -136,9 +139,9 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
 
 
-      myPoly % nNodes = 0
+      myPoly % ns = 0
 
-      DEALLOCATE( myPoly % nodes, myPoly % weights )
+      DEALLOCATE( myPoly % s, myPoly % bWs )
 
      
 
@@ -150,10 +153,10 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 !==================================================================================================!
 !
 !
- SUBROUTINE SetNodesLagrange_1D( myPoly, xIn )
- ! S/R SetNodesLagrange_1D
+ SUBROUTINE SetsLagrange_1D( myPoly, xIn )
+ ! S/R SetsLagrange_1D
  !  
- !    Sets the attribute "nodes" to xIn. If xIn is not present, THEN the nodes are set to the 
+ !    Sets the attribute "s" to xIn. If xIn is not present, THEN the s are set to the 
  !    default value (LagrangeNodeDefault)
  !
  !
@@ -161,33 +164,33 @@ SUBROUTINE TrashLagrange_1D(myPoly)
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   REAL(prec), INTENT(in), OPTIONAL  :: xIn(0:myPoly % nNodes)
+   REAL(prec), INTENT(in), OPTIONAL  :: xIn(0:myPoly % ns)
 
        IF( PRESENT(xIn) )THEN
-          myPoly % nodes = xIn
+          myPoly % s = xIn
        ELSE
-          myPoly % nodes = LagrangeNodeDefault
+          myPoly % s = LagrangeNodeDefault
        ENDIF
 
- END SUBROUTINE SetNodesLagrange_1D
+ END SUBROUTINE SetsLagrange_1D
 !
 !
 !
- SUBROUTINE GetNodesLagrange_1D( myPoly, xOut )
- ! S/R GetNodesLagrange_1D
+ SUBROUTINE GetsLagrange_1D( myPoly, xOut )
+ ! S/R GetsLagrange_1D
  !  
- !    Gets the attribute "nodes" and sets xOut.
+ !    Gets the attribute "s" and sets xOut.
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(in) :: myPoly
-   REAL(prec), INTENT(out)        :: xOut(0:myPoly % nNodes)
+   REAL(prec), INTENT(out)        :: xOut(0:myPoly % ns)
 
 
-       xOut = myPoly % nodes 
+       xOut = myPoly % s 
 
- END SUBROUTINE GetNodesLagrange_1D
+ END SUBROUTINE GetsLagrange_1D
 !
 !
 !
@@ -204,7 +207,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    REAL(prec), INTENT(in)            :: xIn
 
 
-      myPoly % nodes(i) = xIn 
+      myPoly % s(i) = xIn 
 
  END SUBROUTINE SetNodeLagrange_1D
 !
@@ -223,16 +226,16 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    REAL(prec), INTENT(out)        :: xOut
 
 
-      xOut = myPoly % nodes(i) 
+      xOut = myPoly % s(i) 
 
  END SUBROUTINE GetNodeLagrange_1D
 !
 !
 !
- SUBROUTINE SetWeightsLagrange_1D( myPoly, wIn )
- ! S/R SetWeightsLagrange_1D
+ SUBROUTINE SetbWsLagrange_1D( myPoly, wIn )
+ ! S/R SetbWsLagrange_1D
  !  
- !    Sets the attribute "weights" to wIn. If wIn is not present, THEN the barycentric weights are
+ !    Sets the attribute "bWs" to wIn. If wIn is not present, THEN the barycentric bWs are
  !    set to the default value (LagrangeNodeDefault)
  !
  !
@@ -240,32 +243,32 @@ SUBROUTINE TrashLagrange_1D(myPoly)
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   REAL(prec), INTENT(in), OPTIONAL  :: wIn(0:myPoly % nNodes)
+   REAL(prec), INTENT(in), OPTIONAL  :: wIn(0:myPoly % ns)
 
        IF( PRESENT(wIn) )THEN
-          myPoly % weights = wIn
+          myPoly % bWs = wIn
        ELSE
-          myPoly % weights = LagrangeNodeDefault
+          myPoly % bWs = LagrangeNodeDefault
        ENDIF
 
- END SUBROUTINE SetWeightsLagrange_1D
+ END SUBROUTINE SetbWsLagrange_1D
 !
 !
 !
- SUBROUTINE GetWeightsLagrange_1D( myPoly, wOut )
- ! S/R GetWeightsLagrange_1D
+ SUBROUTINE GetbWsLagrange_1D( myPoly, wOut )
+ ! S/R GetbWsLagrange_1D
  !  
- !    Gets the attribute "weights" and sets wOut.
+ !    Gets the attribute "bWs" and sets wOut.
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(in) :: myPoly
-   REAL(prec), INTENT(out)        :: wOut(0:myPoly % nNodes)
+   REAL(prec), INTENT(out)        :: wOut(0:myPoly % ns)
 
 
-       wOut = myPoly % weights 
+       wOut = myPoly % bWs 
 
- END SUBROUTINE GetWeightsLagrange_1D
+ END SUBROUTINE GetbWsLagrange_1D
 !
 !
 !
@@ -282,7 +285,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    REAL(prec), INTENT(in)            :: wIn
 
 
-       myPoly % weights(i) = wIn 
+       myPoly % bWs(i) = wIn 
 
  END SUBROUTINE SetWeightLagrange_1D
 !
@@ -301,16 +304,16 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    REAL(prec), INTENT(out)        :: wOut
 
 
-       wOut = myPoly % weights(i) 
+       wOut = myPoly % bWs(i) 
 
  END SUBROUTINE GetWeightLagrange_1D
 !
 !
 !
- SUBROUTINE SetNumberOfNodesLagrange_1D( myPoly, n )
- ! S/R SetNumberOfNodesLagrange_1D(
+ SUBROUTINE SetNumberOfsLagrange_1D( myPoly, n )
+ ! S/R SetNumberOfsLagrange_1D(
  !  
- !    Sets the number of nodes (nNodes) to n.
+ !    Sets the number of s (ns) to n.
  !
  ! =============================================================================================== !
  ! DECLARATIONS
@@ -318,16 +321,16 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
    INTEGER, INTENT(in)             :: n
     
-       myPoly % nNodes = n 
+       myPoly % ns = n 
 
- END SUBROUTINE SetNumberOfNodesLagrange_1D
+ END SUBROUTINE SetNumberOfsLagrange_1D
 !
 !
 !
- SUBROUTINE GetNumberOfNodesLagrange_1D( myPoly, n )
- ! S/R GetNumberOfNodesLagrange_1D
+ SUBROUTINE GetNumberOfsLagrange_1D( myPoly, n )
+ ! S/R GetNumberOfsLagrange_1D
  !  
- !    Sets n to the number of interpolation nodes (nNodes)
+ !    Sets n to the number of interpolation s (ns)
  !
  ! =============================================================================================== !
  ! DECLARATIONS
@@ -336,9 +339,9 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    INTEGER, INTENT(out)           :: n
 
 
-       n = myPoly % nNodes 
+       n = myPoly % ns 
 
- END SUBROUTINE GetNumberOfNodesLagrange_1D
+ END SUBROUTINE GetNumberOfsLagrange_1D
 !
 !
 !==================================================================================================!
@@ -346,50 +349,20 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 !==================================================================================================!
 !
 !
- SUBROUTINE CalculateBarycentricWeights_1D( myPoly )
- ! S/R CalculateBarycentricWeights_1D
+ SUBROUTINE CalculateBarycentricbWs_1D( myPoly )
+ ! S/R CalculateBarycentricbWs_1D
  !  
- !    Calculates the barycentric weights from the interpolation nodes x(0:nP) and stores them in 
- !    the "weights" attribute.
+ !    Calculates the barycentric bWs from the interpolation s x(0:nP) and stores them in 
+ !    the "bWs" attribute.
  !    
  !
 ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   ! LOCAL
-   INTEGER :: jP, kP, nP
    
-      CALL myPoly % GetNumberOfNodes( nP )
-
-      myPoly % weights(0:nP) = ONE ! initialize the weights to 1
-
-      ! Computes the product w_k = w_k*(x_k - x_j), k /= j
-      DO jP = 1,nP ! loop over the interpolation nodes
-
-         DO kP = 0, jP-1 ! loop to perform multiplication for weights
-
-            myPoly % weights(kP) = myPoly % weights(kP)*&
-                                  ( myPoly % nodes(kP) - myPoly % nodes(jP) )
-
-            myPoly % weights(jP) = myPoly % weights(jP)*&
-                                 ( myPoly % nodes(jP) - myPoly % nodes(kP))
-
-         ENDDO ! kP, mulitplication loop
-
-      ENDDO ! jP, loop over the interpolation nodes
-
-
-     DO jP = 0, nP
- 
-        myPoly % weights(jP) = ONE/myPoly % weights(jP)
- 
-     ENDDO ! jP
-    
-  
-     RETURN
-
- END SUBROUTINE CalculateBarycentricWeights_1D
+      myPoly % 
+ END SUBROUTINE CalculateBarycentricbWs_1D
 !
 !
 !
@@ -403,17 +376,17 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(in) :: myPoly
    REAL(prec), INTENT(in)         :: xEval
-   REAL(prec), INTENT(in)         :: f(0:myPoly%nNodes)
+   REAL(prec), INTENT(in)         :: f(0:myPoly%ns)
    REAL(prec)                     :: inFatX 
    ! LOCAL
    REAL(prec) :: num, den, t, thisX, thisW
    INTEGER    :: jP, nP 
  
-     CALL myPoly % GetNumberOfNodes( nP )
+     CALL myPoly % GetNumberOfs( nP )
      num = ZERO
      den = ZERO
 
-     DO jP = 0, nP ! loop over the interpolation nodes
+     DO jP = 0, nP ! loop over the interpolation s
 
         CALL myPoly % GetNode( jP, thisX )
 
@@ -434,7 +407,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
         ENDIF  ! IF the evaluation point is an interpolation node
         
 
-     ENDDO ! jP, loop over the interpolation nodes
+     ENDDO ! jP, loop over the interpolation s
 
 
      inFatX = num/den
@@ -455,17 +428,17 @@ SUBROUTINE TrashLagrange_1D(myPoly)
   IMPLICIT NONE
   CLASS(Lagrange_1D), INTENT(in) :: myPoly
   REAL(prec), INTENT(in)         :: xEval
-  REAL(prec)                     :: lAtX(0:myPoly%nNodes)
+  REAL(prec)                     :: lAtX(0:myPoly%ns)
   ! LOCAL
   REAL(prec) :: temp1, temp2, thisX, thisW
   INTEGER    :: jP, nP
   LOGICAL    :: xMatchesNode
 
-     CALL myPoly % GetNumberOfNodes( nP )
+     CALL myPoly % GetNumberOfs( nP )
      
      xMatchesNode = .FALSE.
 
-     DO jP = 0, nP ! loop over the interpolation nodes
+     DO jP = 0, nP ! loop over the interpolation s
 
         CALL myPoly % GetNode( jP, thisX )
         
@@ -479,10 +452,10 @@ SUBROUTINE TrashLagrange_1D(myPoly)
   
         ENDIF 
 
-     ENDDO ! jP, loop over the interpolation nodes
+     ENDDO ! jP, loop over the interpolation s
 
      
-     IF( xMatchesNode )THEN ! we're done, the evaluation point is one of the nodes
+     IF( xMatchesNode )THEN ! we're done, the evaluation point is one of the s
 
         RETURN
 
@@ -492,7 +465,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 
      temp1 = ZERO
      
-     DO jP = 0, nP ! loop over the interpolation nodes
+     DO jP = 0, nP ! loop over the interpolation s
 
         CALL myPoly % GetWeight( jP, thisW )
         CALL myPoly % GetNode( jP, thisX )
@@ -503,13 +476,13 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 
         temp1 = temp1 + temp2
 
-     ENDDO ! jP, loop over the interpolation nodes
+     ENDDO ! jP, loop over the interpolation s
      
-     DO jP = 0, nP ! loop over the interpolation nodes (again)
+     DO jP = 0, nP ! loop over the interpolation s (again)
 
         lAtX(jP) = lAtX(jP)/temp1
 
-     ENDDO ! jP, loop over the interpolation nodes (again)
+     ENDDO ! jP, loop over the interpolation s (again)
      
 
  END FUNCTION EvaluateLagrangePolynomial_1D
@@ -526,19 +499,19 @@ SUBROUTINE TrashLagrange_1D(myPoly)
   IMPLICIT NONE
   CLASS(Lagrange_1D), INTENT(in) :: myPoly
   REAL(prec), INTENT(in)         :: xEval
-  REAL(prec), INTENT(in)         :: f(0:myPoly%nNodes)
+  REAL(prec), INTENT(in)         :: f(0:myPoly%ns)
   REAL(prec)                     :: dInFdx
   ! LOCAL
   REAL(prec) :: num, den, t, p, thisX, thisW
   INTEGER    :: jP, jS, nP 
   LOGICAL    :: atNode 
 
-     CALL myPoly % GetNumberOfNodes( nP )
+     CALL myPoly % GetNumberOfs( nP )
 
      num = ZERO
      atNode = .FALSE.
 
-     DO jP = 0, nP ! loop over the interpolation nodes
+     DO jP = 0, nP ! loop over the interpolation s
 
         CALL myPoly % GetNode( jP, thisX )
 
@@ -556,14 +529,14 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 
         ENDIF  ! IF the evaluation point is an interpolation node
         
-     ENDDO ! jP, loop over the interpolation nodes
+     ENDDO ! jP, loop over the interpolation s
 
 
 
      IF( atNode ) THEN ! the evaluation location is an interpolating node
 
 
-        DO jP = 0, nP ! loop over the interpolation nodes
+        DO jP = 0, nP ! loop over the interpolation s
 
            IF( .NOT.(jP == jS) ) THEN ! x(jP) is not the interpolating node
 
@@ -574,7 +547,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 
            ENDIF
 
-        ENDDO ! jP, loop over the interpolation nodes
+        ENDDO ! jP, loop over the interpolation s
 
 
      ELSE ! the evaluation location is not an interpolating node
@@ -584,7 +557,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 
         p = EvaluateLagrange_1D(myPoly, xEval, f) 
         
-        DO jP = 0, nP ! loop over the interpolation nodes
+        DO jP = 0, nP ! loop over the interpolation s
 
            CALL myPoly % GetNode( jP, thisX )
            CALL myPoly % GetWeight( jP, thisW )
@@ -595,7 +568,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 
            den = den + t
 
-        ENDDO ! jP, loop over the interpolation nodes
+        ENDDO ! jP, loop over the interpolation s
 
 
      ENDIF ! conditional, IF we're on an interpolating node
@@ -613,14 +586,14 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
  ! S/R CalculateDerivativeMatrix 
  !  Description :
  !  Calculates the derivative matrix "Dmat(:,:)"for calculating the derivative
- !  at the interpolation nodes "myPoly%nodes(:)". 
+ !  at the interpolation s "myPoly%s(:)". 
  !  * Note : the diagonal entries are computed using the "Negative Sum Trick" to
  !    reduce roundoff errors. To further reduce the errors, one should compute all
  !    of the off-diagonal components first, sort them from smallest to largest, and
  !    THEN compute the diagonal components. For now, sorting is not done.
  ! 
  !  If another interpolant is provided, then the derivative matrix is created at the other set of 
- !  nodes. To allow for this option, the derivative matrix is ALLOCATABLE. It is important
+ !  s. To allow for this option, the derivative matrix is ALLOCATABLE. It is important
  !  that the end user take care to release memory taken up by the derivative matrix.
  ! 
  ! =============================================================================================== !
@@ -630,19 +603,19 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
   TYPE(Lagrange_1D), INTENT(in), OPTIONAL :: otherInterpolant
   ! LOCAL
   REAL(prec) :: thisX
-  REAL(prec) :: x(0:myPoly % nNodes), w(0:myPoly % nNodes)
+  REAL(prec) :: x(0:myPoly % ns), w(0:myPoly % ns)
   INTEGER    :: kP, jP, nP, mP
-  REAL(prec), ALLOCATABLE :: temp(:) !offDiags(0:myPoly%nNodes,0:myPoly%nNodes), temp(0:myPoly%nNodes)
+  REAL(prec), ALLOCATABLE :: temp(:) !offDiags(0:myPoly%ns,0:myPoly%ns), temp(0:myPoly%ns)
 
-     CALL myPoly % GetNumberOfNodes( nP )
+     CALL myPoly % GetNumberOfs( nP )
      
-     IF( PRESENT(otherInterpolant) )THEN ! We will generate a derivative matrix at another set of nodes
+     IF( PRESENT(otherInterpolant) )THEN ! We will generate a derivative matrix at another set of s
      
-        CALL otherInterpolant % GetNumberOfNodes( mP )
+        CALL otherInterpolant % GetNumberOfs( mP )
      
         ALLOCATE( dMat(0:mP,0:nP),  temp(0:nP) )
      
-        DO kP = 0, mP ! loop over the interpolation nodes
+        DO kP = 0, mP ! loop over the interpolation s
 
            DO jP = 0, nP! loop over interpolating polynomial
            
@@ -653,24 +626,24 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
               CALL otherInterpolant % GetNode( kP, thisX )
               dMat(kP,jP) = myPoly % EvaluateDerivative( thisX, temp ) 
 
-           ENDDO ! loop over the interpolation nodes
+           ENDDO ! loop over the interpolation s
 
-        ENDDO ! kP, loop over the interpolation nodes
+        ENDDO ! kP, loop over the interpolation s
         
         DEALLOCATE(temp)
      
-     ELSE ! We will generate the derivative matrix at the "native" nodes
+     ELSE ! We will generate the derivative matrix at the "native" s
      
         ALLOCATE( dMat(0:nP,0:nP) )
         
-        CALL myPoly % GetNodes( x )
-        CALL myPoly % GetWeights( w )
+        CALL myPoly % Gets( x )
+        CALL myPoly % GetbWs( w )
 
-        DO kP = 0, nP ! loop over the interpolation nodes
+        DO kP = 0, nP ! loop over the interpolation s
 
            dMat(kP,kP) = ZERO
         
-           DO jP = 0, nP ! loop over the interpolation nodes (again)
+           DO jP = 0, nP ! loop over the interpolation s (again)
            
               IF( .NOT. (jP == kP) )THEN
 
@@ -680,9 +653,9 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
       
                ENDIF
         
-           ENDDO ! loop over the interpolation nodes
+           ENDDO ! loop over the interpolation s
 
-        ENDDO ! kP, loop over the interpolation nodes
+        ENDDO ! kP, loop over the interpolation s
 
       ENDIF
 
@@ -693,8 +666,8 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
  SUBROUTINE CalculateInterpolationMatrix_1D( oldPoly, nNew, zNew, T )  
  ! S/R CalculateInterpolationMatrix 
  !  Description :
- !  Calculates the interpolation matrix between two sets of nodes for the
- !  interpolant with nodes "xOld(0:nP)" and barycentric bweights "weights(0:nP)"
+ !  Calculates the interpolation matrix between two sets of s for the
+ !  interpolant with s "xOld(0:nP)" and barycentric bbWs "bWs(0:nP)"
  !
  ! 
  ! 
@@ -703,23 +676,23 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
   CLASS(Lagrange_1D), INTENT(in) :: oldPoly
   INTEGER, INTENT(in)            :: nNew
   REAL(prec), INTENT(in)         :: zNew(0:nNew)
-  REAL(prec), INTENT(out)        :: T(0:nNew,0:oldPoly % nNodes)
+  REAL(prec), INTENT(out)        :: T(0:nNew,0:oldPoly % ns)
   ! LOCAL
   REAL(prec) :: temp1, temp2
-  REAL(prec) :: x(0:oldPoly % nNodes), w(0:oldPoly % nNodes)
+  REAL(prec) :: x(0:oldPoly % ns), w(0:oldPoly % ns)
   INTEGER :: kP, jP,  oldnP
   LOGICAL :: rowHasMatch 
 
-     CALL oldPoly % GetNumberOfNodes( oldnP )
+     CALL oldPoly % GetNumberOfs( oldnP )
 
-     CALL oldPoly % GetNodes( x )
-     CALL oldPoly % GetWeights( w )
+     CALL oldPoly % Gets( x )
+     CALL oldPoly % GetbWs( w )
 
-     DO kP = 0, nNew ! loop over the new interpolation nodes
+     DO kP = 0, nNew ! loop over the new interpolation s
 
         rowHasMatch = .FALSE.
        
-        DO jP = 0, oldnP ! loop over the old interpolation nodes
+        DO jP = 0, oldnP ! loop over the old interpolation s
 
            T(kP,jP) = ZERO
            
@@ -729,17 +702,17 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
 
               T(kP,jP) = ONE
 
-           ENDIF ! IF the new and old nodes match
+           ENDIF ! IF the new and old s match
 
-        ENDDO ! jP, loop over the old interpolation nodes
+        ENDDO ! jP, loop over the old interpolation s
 
 
-        IF( .NOT.(rowHasMatch) )THEN ! the interpolation nodes are not the same
+        IF( .NOT.(rowHasMatch) )THEN ! the interpolation s are not the same
 
 
            temp1 = ZERO
 
-           DO jP = 0, oldnP ! loop over the old interpolation nodes         
+           DO jP = 0, oldnP ! loop over the old interpolation s         
               
               temp2 = w(jP)/( zNew(kP) - x(jP) )
 
@@ -747,19 +720,19 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
 
               temp1 = temp1 + temp2
 
-           ENDDO ! jP, loop over the old interpolation nodes
+           ENDDO ! jP, loop over the old interpolation s
 
-           DO jP = 0, oldnP ! loop over the old interpolation nodes (again)
+           DO jP = 0, oldnP ! loop over the old interpolation s (again)
 
               T(kP,jP) = T(kP,jP)/temp1
 
-           ENDDO ! jP, loop over the old inteprolation nodes (again)
+           ENDDO ! jP, loop over the old inteprolation s (again)
 
 
-        ENDIF ! IF the interpolation nodes are not the same
+        ENDIF ! IF the interpolation s are not the same
 
 
-     ENDDO ! kP, loop over the new interpolation nodes
+     ENDDO ! kP, loop over the new interpolation s
 
  END SUBROUTINE CalculateInterpolationMatrix_1D
 !
@@ -780,8 +753,8 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
   IMPLICIT NONE
   CLASS(Lagrange_1D), INTENT(in) :: oldPoly
   INTEGER, INTENT(in)            :: nNew
-  REAL(prec), INTENT(in)         :: fOld(0:oldPoly%nNodes)
-  REAL(prec), INTENT(in)         :: T(0:nNew,0:oldPoly%nNodes)
+  REAL(prec), INTENT(in)         :: fOld(0:oldPoly%ns)
+  REAL(prec), INTENT(in)         :: T(0:nNew,0:oldPoly%ns)
   REAL(prec), INTENT(out)        :: fNew(0:nNew)
 
      fNew = MATMUL( T, fOld )
@@ -794,7 +767,7 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
 !==================================================================================================!
 !
 !
- SUBROUTINE WriteCurve_Lagrange_1D(myPoly, fAtNodes, filename)
+ SUBROUTINE WriteCurve_Lagrange_1D(myPoly, fAts, filename)
  ! S/R WriteCurve_Lagrange_1D
  !
  !
@@ -802,12 +775,12 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
  ! =============================================================================================== !
   IMPLICIT NONE
   CLASS(Lagrange_1D), INTENT(in) :: myPoly
-  REAL(prec), INTENT(in)         :: fAtNodes(0:myPoly%nNodes)
+  REAL(prec), INTENT(in)         :: fAts(0:myPoly%ns)
   CHARACTER(*), INTENT(in)       :: filename
   ! LOCAL
   INTEGER :: jS, fUnit, nP
   
-     CALL myPoly % GetNumberOfNodes( nP )
+     CALL myPoly % GetNumberOfs( nP )
 
      OPEN(UNIT=NewUnit(fUnit),&
           FILE=filename//'.curve',form='FORMATTED')
@@ -816,7 +789,7 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
  
      DO jS = 0, nP
         
-        WRITE(fUnit,LagrangeCurveFMT) myPoly % nodes(jS), fAtNodes(jS)
+        WRITE(fUnit,LagrangeCurveFMT) myPoly % s(jS), fAts(jS)
 
      ENDDO
 
