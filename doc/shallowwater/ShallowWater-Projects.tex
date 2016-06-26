@@ -264,7 +264,9 @@ Equation \eqref{eq:RiemannFlux} is the approximate Riemann flux. The choice of a
 |A| = max( \lambda_i(\vec{s}_L), \lambda_i(\vec{s}_R) ).
 \end{equation}
 
-\subsection{Algorithm}
+\section{Algorithm and Implementation}
+
+This section reports on the original algorithm design, originally based on the work of \citet{Kopriva2009}.
 
 To forward-step the discrete system in Eq. \eqref{eq:discrete2d_system}, the flux divergence and the source terms need to be calculated. The first two lines of \eqref{eq:discrete2d_system} indicate that we need to calculate the flux at each of the interior nodes (for each element) and to estimate the Riemann flux at each of the element boundaries. \citep{Kopriva2009} showed that using the Legendre-Gauss quadrature satisfies the discrete metric identities and therefore does not introduce non-conservative spurious errors due to coordinate mapping. For this reason, and the higher accuracy associated with Gauss Quadrature (as opposed to Gauss-Lobatto), we employ the Legendre-Gauss quadrature. The main drawback with the Legendre-Gauss points is that they do not include the element edges. To calculate the Riemann flux then, we must first interpolate the solution to the element boundaries.
 
@@ -275,23 +277,129 @@ To forward-step the discrete system in Eq. \eqref{eq:discrete2d_system}, the flu
 \end{center}
 \end{figure}
 
+\subsection{Interpolation to the Element Boundaries}
 Recall that the solution is represented as
 \begin{equation}
 \vec{S} =  \sum_{i,j=0}^N \vec{S}_{i,j} l_i(s) l_j(p).
 \end{equation}
 As an example, suppose we want to calculate the solution on the eastern boundary, where $s = 1$, $p = p_n$. Note that the $p_n$ are the interpolation nodes for the Lagrange interpolating polynomials, so that $l_j(p_n) = \delta_{j,n}$, where $\delta_{j,n}$ is the Kronecker Delta function. Then
-\begin{equation}
-\vec{S}_{east} = \sum_{i=0}^N \vec{S}_{i,n} l_i(1)
-\end{equation}
-Similarly,
 \begin{subequations}
 \begin{align}
+ \vec{S}_{east} = \sum_{i=0}^N \vec{S}_{i,n} l_i(1)
  \vec{S}_{west} &= \sum_{i=0}^N \vec{S}_{i,n} l_i(-1) \\
  \vec{S}_{south} &= \sum_{j=0}^N \vec{S}_{m,j} l_j(-1) \\
- \vec{S}_{north} &= \sum_{j=0}^N \vec{S}_{m,j} l_j(-1)
+ \vec{S}_{north} &= \sum_{j=0}^N \vec{S}_{m,j} l_j(1) \label{eq:boundaryInterp}
 \end{align}
-\end{subequations} 
-Once the solution is known at the boundaries of each of the elements, the boundary flux can be computed using a Riemman flux. To do this, we cycle over the edges in the mesh and calculate the flux across each edge, exchanging the flux with the elements that share common edges. Once we have the flux at the boundary of the elements, we can then calculate the flux divergence using the first two lines of \eqref{eq:discrete2d_system}. The multiplication between the internal flux and the derivative matrix require $\mathcal{O}(N^3)$ operations. The internal flux can be represented as a matrix, so that the flux divergence can be computed by a single matrix-matrix multiply.
+\end{subequations}
+
+\subsection{Computing the Flux}
+Once the solution is known at the boundaries of each of the elements, the boundary flux can be computed using a Riemman flux. To do this, we cycle over the edges in the mesh and calculate the flux across each edge, exchanging the flux with the elements that share common edges. Once we have the flux at the boundary of the elements, we can then calculate the flux divergence using the first two lines of \eqref{eq:discrete2d_system}.
+
+
+\subsection{Computing the Flux-Divergence}\label{sec:MappedTimeDerivative}
+
+\section{Callgraph of S/R GlobalTimeDerivative}
+The subroutine \texttt{GlobalTimeDerivative} is the workhorse of the DGSEM implemented by the SELF. It is comprised of three main steps
+\begin{enumerate}
+\item Loop over the elements and interpolate the solution to the element's boundaries.
+\item Loop over the edges, compute the Riemann Flux, and copy the flux to the abutting elements.
+\item Loop over the elements and compute the flux divergence according to \eqref{eq:discrete2d_system}
+\end{enumerate}
+
+To begin optimizing the DGSEM-SELF module (for example, with the shallowwater solver) we first make a call-graph of \texttt{GlobalTimeDerivative}, which will indicate where most of the time is spent. The call-graph will be generated here using \texttt{valgrind} with the \texttt{callgrind} tool. A program is written that calls only the \texttt{GlobalTimeDerivative} subroutine after the shallowwater data-structure is constructed. The modules and program are compiled with debugging information turned on using the \texttt{-g} compile-time flag. The program is run underneath valgrind on a Dell-Latitude E6410 Laptop (see Appendix \ref{sec:DellLaptop} for architecture details). The parameters for the shallowwater configuration give $10^{th}$ degree polynomials within the elements of an unstructured mesh. The unstructured mesh is generated from \texttt{SpecMesh+3D} using the control file
+\begin{center} \texttt{SELF/examples/shallowwater/dipole/run/box.control}. 
+\end{center}
+The mesh is stored in the SpecMesh file 
+\begin{center}
+\texttt{SELF/examples/shallowwater/dipole/run/box.mesh}.
+\end{center}
+This mesh consists of  489 corner-nodes, 448 elements, and 936 edges and is shown in Fig. \ref{fig:boxmesh}.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.9\textwidth]{projectFigures/boxmesh.png}
+\caption{The unstructured mesh that is used to calculate the flux-divergence for the examples discussed here.}\label{fig:boxmesh}
+\end{center}
+\end{figure}
+
+The program \texttt{GTD\_Test} is run underneath valgrind with the callgrind tool enabled using the call,
+\begin{center}
+\texttt{ valgrind --tool=callgrind ./GTD\_Test }
+\end{center}
+The output of callgrind is visualized using \texttt{kcachegrind}, and is shown in Fig. \ref{fig:OrignalCallGraph}.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.8\textwidth]{projectFigures/callgraphOriginal.png}
+\caption{The call-graph generated from callgrind and visualized with kcachegrind for the original version of S/R GlobalTimeDerivative for the SELF-shallowwater solver. Immediately, we can see that most of the execution time is spent within the MappedTimeDerivative subroutine.}\label{fig:OrignalCallGraph}
+\end{center}
+\end{figure}
+
+%\section{Profiles of the Dipole Example}
+%In order to determine where our attention should be focused for optimizing the solution algorithm, call-graphs are generated using callgrind and kcachegrind to indicate the subroutines that dominate the program execution. More detailed information about the types of instructions that are being called ( memory access, floating point, vectorization, etc.) is obtained using the Allinea-MAP (V6.0) profiler. The profiles presented here are generated on a \textit{(fill in node information (from cpuinfo and/or lstopo)}. The runtime parameters for this example can be found under \texttt{SELF/examples/shallowwater/dipole/run/shallowater.params} and, for completeness, are shown here
+%\begin{verbatim}
+%&ModelForm
+%ModelFormulation = 'Conservative',
+%nCutoff = 8,
+%/
+%&TimeManagement
+%dt = 0.1,
+%iterInit = 0,
+%nTimeSteps = 1000,
+%dumpFreq = 1000,
+%/
+%&SpaceManagement
+%SpecMeshFile = 'box.mesh',
+%polyDeg = 10,
+%nXElem = 20,
+%nYElem = 20,
+%nPlot = 20,
+%xScale = 4.0D5,
+%yScale = 4.0D5,
+%/
+%&PhysicalParameters
+%g = 9.81,
+%f0 = 1.0D-4,
+%betaX = 0.0,
+%betaY = 0.0,
+%linearDrag = 0.0,
+%/
+%&DipoleParameters
+%vMax = 1.75,
+%x0 = 2.0D5,
+%y0 = 205000.0,
+%x1 = 2.0D5,
+%y1 = 195000.0,
+%L  = 1.0D4,
+%/
+%&SpongeParameters
+%Lsponge = 5.0D4,
+%rFacMax = 5.0D-2,
+%/
+%&ShelfParameters
+%hMin = 200.0,
+%hMax = 3000.0,
+%Lshelf = 2.5D5,
+%dL = 0.0,
+%steepeningCenter = 1.0D6,
+%steepeningZoneLength = 5.0D4,
+%/
+%\end{verbatim} 
+%
+%The compiler flags are \textit{(list the compiler flags!!)}.
+%
+%integrate\_sw\_dipole\_boxmesh\_pdeg10\_noOpt\_noOMP.map : \texttt{-g}
+%
+%integrate\_sw\_dipole\_boxmesh\_pdeg10\_O2\_noOMP.map : \texttt{-O2 -g}
+%
+%integrate\_sw\_dipole\_boxmesh\_pdeg10\_O3\_noOMP.map : \texttt{-O3 -g}
+
+\clearpage
+
+\section{Suggested Algorithm Improvements}
+
+ \subsection{Calculating the Mapped Time Derivative}
+  The multiplication between the internal flux and the derivative matrix require $\mathcal{O}(N^3)$ operations. The internal flux can be represented as a matrix, so that the flux divergence can be computed by a single matrix-matrix multiply.
 
  \begin{verbatim}
    DO j = 0, N
@@ -317,66 +425,32 @@ Once the solution is known at the boundaries of each of the elements, the bounda
    ENDDO
  \end{verbatim}
  
+ \subsection{Boundary Interpolation}
+ When interpolating the solutions within each element to the element boundaries, we currently
+ follow Algorithm ..., where we loop over each computational direction separately, pull a single dimension array of the solution from memory, and perform a vector-vector product. This procedure follows logically from the 1-D problem and made it trivial to extend the 1-D DGSEM software to 2-D and 3-D. However, in 2-D, this algorithm results in many, very small $\mathcal{O}(80-200 \hspace{1mm} bytes)$ memory accesses that are interrupted by vector-vector products. This sort of low memory access coupled with small floating point operations is pervasive throughout the SELF and can be improved by having a single, larger memory access and a single matrix-vector product. 
+ 
+ Recall that the boundary interpolation procedure is mathematically described by \eqref{eq:boundaryInterp}. If the 2-D array $\vec{S}_{i,j}$ is seen as a matrix, call it $\boldsymbol{S}$, and if we write the Lagrange interpolating polynomials interpolants as vectors, then,
+\begin{subequations}
+\begin{align}
+\vec{S}_{east} &= \boldsymbol{S}^T \vec{l}_{east} \\
+\vec{S}_{west} &= \boldsymbol{S}^T \vec{l}_{west} \\
+\vec{S}_{south} &= \boldsymbol{S} \vec{l}_{south} \\
+\vec{S}_{north} &= \boldsymbol{S} \vec{l}_{north} \label{eq:boundaryInterpMatrixVector}
+\end{align}
+\end{subequations} 
+The boundary interpolation can be condensed further as two matrix-matrix products by combining east and west interpolations, and south and north interpolations,
+\begin{subequations}
+\begin{align}
+   \begin{pmatrix} \vec{S}_{east} & \vec{S}_{west} \end{pmatrix} &= \boldsymbol{S}^T \begin{pmatrix} \vec{l}_{east} & \vec{l}_{west} \end{pmatrix}\\
+\begin{pmatrix} \vec{S}_{south} & \vec{S}_{north} \end{pmatrix} &= \boldsymbol{S} \begin{pmatrix} \vec{l}_{south} & \vec{l}_{north} \end{pmatrix}  \label{eq:boundaryInterpMatrixMatrix}
+\end{align} 
+\end{subequations}
+A matrix vector product would require a single solution access per element where we retrieve $Mem = 8*(N+1)^2$ bytes from memory; there are $(N+1)^2$ solution nodal values in each element and we multiply by $8$ assuming that the nodal values are double precision floating point values. Typical values of $N$, the polynomial degree, range from $N=7$ up to $N=15$, so that $Mem = 512\rightarrow 2048$ bytes. Eqs. \eqref{eq:boundaryInterpMatrixVector} requires four separate passes of the solution matrix  and four separate passes of each boundary interpolant array to a matrix-vector product routine. Eqs. \eqref{eq:boundaryInterpMatrixMatrix}, on the other hand, require only two passes of the solution matrix and two passes of pairs interpolant array to a matrix-matrix product routine. Since all of the arrays fit into typical cache memory, an algorithm based off of \eqref{eq:boundaryInterpMatrixMatrix} will have a larger floating point - to - memory access ratio given the fewer passes of the solution and will likely execute faster.
 
-\section{Profiles of the Dipole Example}
-In order to determine where our attention should be focused for optimizing the solution algorithm, call-graphs are generated using callgrind and kcachegrind to indicate the subroutines that dominate the program execution. More detailed information about the types of instructions that are being called ( memory access, floating point, vectorization, etc.) is obtained using the Allinea-MAP (V6.0) profiler. The profiles presented here are generated on a \textit{(fill in node information (from cpuinfo and/or lstopo)}. The runtime parameters for this example can be found under \texttt{SELF/examples/shallowwater/dipole/run/shallowater.params} and, for completeness, are shown here
-\begin{verbatim}
-&ModelForm
-ModelFormulation = 'Conservative',
-nCutoff = 8,
-/
-&TimeManagement
-dt = 0.1,
-iterInit = 0,
-nTimeSteps = 1000,
-dumpFreq = 1000,
-/
-&SpaceManagement
-SpecMeshFile = 'box.mesh',
-polyDeg = 10,
-nXElem = 20,
-nYElem = 20,
-nPlot = 20,
-xScale = 4.0D5,
-yScale = 4.0D5,
-/
-&PhysicalParameters
-g = 9.81,
-f0 = 1.0D-4,
-betaX = 0.0,
-betaY = 0.0,
-linearDrag = 0.0,
-/
-&DipoleParameters
-vMax = 1.75,
-x0 = 2.0D5,
-y0 = 205000.0,
-x1 = 2.0D5,
-y1 = 195000.0,
-L  = 1.0D4,
-/
-&SpongeParameters
-Lsponge = 5.0D4,
-rFacMax = 5.0D-2,
-/
-&ShelfParameters
-hMin = 200.0,
-hMax = 3000.0,
-Lshelf = 2.5D5,
-dL = 0.0,
-steepeningCenter = 1.0D6,
-steepeningZoneLength = 5.0D4,
-/
-\end{verbatim} 
+ Current CPU architectures have cache sizes on the order of MB. The memory fetch ($\mathcal{O}(kB)$) for each boundary interpolation is far smaller than current CPU cache sizes ($\mathcal{O}(MB)$). 
+ \subsection{Mapping solutions to a plotting mesh}
 
-The compiler flags are \textit{(list the compiler flags!!)}.
-
-integrate\_sw\_dipole\_boxmesh\_pdeg10\_noOpt\_noOMP.map : \texttt{-g}
-
-integrate\_sw\_dipole\_boxmesh\_pdeg10\_O2\_noOMP.map : \texttt{-O2 -g}
-
-integrate\_sw\_dipole\_boxmesh\_pdeg10\_O3\_noOMP.map : \texttt{-O3 -g}
-
+ 
 \chapter{Projects}
 \section{Algorithm parallelization through OpenMP}
 
@@ -396,6 +470,35 @@ integrate\_sw\_dipole\_boxmesh\_pdeg10\_O3\_noOMP.map : \texttt{-O3 -g}
 
 \clearpage
 
+\appendix
+
+\chapter{Computing Platforms}
+ This section of the appendix lists the details of the computing platforms that the SELF implementation of the shallowwater solver has been tested on.
+ 
+\section{Dell Latitude E6410 (Quad-Core laptop)}\label{sec:DellLaptop}
+  Below is the output from \textit{cat /proc/cpuinfo} for one of the four cores
+  \begin{verbatim}
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 37
+model name	: Intel(R) Core(TM) i7 CPU       M 640  @ 2.80GHz
+cpu MHz		: 1199.000
+cache size	: 4096 KB
+physical id	: 0
+siblings	: 4
+core id		: 2
+cpu cores	: 2
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+  \end{verbatim}
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.7\textwidth]{projectFigures/dell-latitudee6410.png}
+\caption{A graphical representation of the Dell-Latitude E6410 hardware, from \texttt{lstopo}.}
+\end{center}
+\end{figure}
 
 \pagebreak
 

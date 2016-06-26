@@ -32,6 +32,7 @@ SWOBJS = ModelPrecision.o \
          CommonRoutines.o \
          LinkedListClass.o \
          HashTableClass.o \
+         Timing.o \
          Legendre.o \
          Chebyshev.o \
          Lagrange_1D_Class.o \
@@ -65,7 +66,7 @@ integrate_sw : ${SWOBJS} ShallowWater_Driver.o
 SWParamsClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o
 	${FC} ${OPT} -c ${INIDIR}localmods/SWParamsClass.f90 -o $@
 
-ConservativeShallowWaterClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o \
+ConservativeShallowWaterClass.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o CommonRoutines.o Timing.o \
                       Lagrange_2D_Class.o NodalStorage_2D_Class.o DGSEMSolutionStorageClass_2D.o \
                       EdgeClass.o QuadElementClass.o QuadMeshClass.o SWParamsClass.o
 	${FC} ${OPT} -c ${INIDIR}localmods/ConservativeShallowWaterClass.f90 -o $@

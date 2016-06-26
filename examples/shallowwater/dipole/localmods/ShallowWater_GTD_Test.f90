@@ -27,19 +27,35 @@ PROGRAM ShallowWater_GTD_Test
 
 ! src/common/
 USE ModelPrecision
+!USE Timing
 ! src/highend/shallowwater
 USE ConservativeShallowWaterClass
 
  IMPLICIT NONE
 
  TYPE( ShallowWater ) :: mysw
+ TYPE( MultiTimers )  :: timers
+ INTEGER :: i, n
+
  
    CALL mysw % Build( )
+   n = mysw % params % nTimesteps
 
-   !$OMP PARALLEL
+   !CALL timers % Build( )
+
+   !CALL timers % AddTimer( 'GlobalTimeDerivative', 1 )
+
+   !!!$OMP PARALLEL
+   !CALL timers % StartThisTimer( 1 ) 
+   DO i = 1, n
       CALL mysw % GlobalTimeDerivative( ZERO, 0 )
-   !$OMP END PARALLEL 
+   ENDDO
+   !CALL timers % StopThisTimer( 1 )
+   !!!$OMP END PARALLEL 
  
+   !CALL timers % Write_MultiTimers( )
+
+   !CALL timers % Trash( )
    CALL mysw % Trash( )
 
 
