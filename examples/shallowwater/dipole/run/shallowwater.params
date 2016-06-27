@@ -5,7 +5,7 @@ nCutoff = 8,
 &TimeManagement
 dt = 0.1,
 iterInit = 500000,
-nTimeSteps = 100000,
+nTimeSteps = 1,
 dumpFreq = 5000,
 /
 &SpaceManagement
