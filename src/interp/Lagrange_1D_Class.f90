@@ -46,30 +46,28 @@ IMPLICIT NONE
       
       !-------------!
       ! Constructors/Destructors
-      PROCEDURE :: Build => BuildLagrange_1D
-      PROCEDURE :: Trash => TrashLagrange_1D
+      PROCEDURE :: Build => Build_Lagrange_1D
+      PROCEDURE :: Trash => Trash_Lagrange_1D
   
       ! Accessors
-      PROCEDURE :: Sets => SetsLagrange_1D
-      PROCEDURE :: Gets => GetsLagrange_1D
-      PROCEDURE :: SetNode => SetNodeLagrange_1D
-      PROCEDURE :: GetNode => GetNodeLagrange_1D
-      PROCEDURE :: SetbWs => SetbWsLagrange_1D
-      PROCEDURE :: GetbWs => GetbWsLagrange_1D
-      PROCEDURE :: SetWeight => SetWeightLagrange_1D
-      PROCEDURE :: GetWeight => GetWeightLagrange_1D
-      PROCEDURE :: SetNumberOfs => SetNumberOfsLagrange_1D
-      PROCEDURE :: GetNumberOfs => GetNumberOfsLagrange_1D
+      PROCEDURE :: SetNodes => SetNodes_Lagrange_1D
+      PROCEDURE :: GetNodes => GetNodes_Lagrange_1D
+      PROCEDURE :: SetNode => SetNode_Lagrange_1D
+      PROCEDURE :: GetNode => GetNode_Lagrange_1D
+      PROCEDURE :: SetWeights => SetWeights_Lagrange_1D
+      PROCEDURE :: GetWeights => GetWeights_Lagrange_1D
+      PROCEDURE :: SetNumberOfNodes => SetNumberOfNodes_Lagrange_1D
+      PROCEDURE :: GetNumberOfNodes => GetNumberOfNodes_Lagrange_1D
 
 
       ! Data-structure operations
-      PROCEDURE :: CalculatebWs => CalculateBarycentricbWs_1D
-      PROCEDURE :: EvaluateInterpolant => EvaluateLagrange_1D
-      PROCEDURE :: EvaluateLagrangePolynomial => EvaluateLagrangePolynomial_1D
-      PROCEDURE :: EvaluateDerivative => EvaluateDerivative_1D
-      PROCEDURE :: CalculateDerivativeMatrix => CalculateDerivativeMatrix_1D
-      PROCEDURE :: CalculateInterpolationMatrix => CalculateInterpolationMatrix_1D
-      PROCEDURE :: CoarseToFine => CoarseToFine_1D
+      PROCEDURE :: CalculateBarycentricWeights => CalculateBarycentricWeights_Lagrange_1D
+      PROCEDURE :: EvaluateInterpolant => Evaluate_Lagrange_1D
+      PROCEDURE :: EvaluateLagrangePolynomial => EvaluateLagrangePolynomial_Lagrange_1D
+      PROCEDURE :: EvaluateDerivative => EvaluateDerivative_Lagrange_1D
+      PROCEDURE :: CalculateDerivativeMatrix => CalculateDerivativeMatrix_Lagrange_1D
+      PROCEDURE :: CalculateInterpolationMatrix => CalculateInterpolationMatrix_Lagrange_1D
+      PROCEDURE :: CoarseToFine => CoarseToFine_Lagrange_1D
       
       ! File I/O Routines
       PROCEDURE :: WriteCurve => WriteCurve_Lagrange_1D
@@ -89,60 +87,81 @@ IMPLICIT NONE
 !==================================================================================================!
 !
 !
- SUBROUTINE BuildLagrange_1D( myPoly, ns, xIn )
- ! S/R BuildLagrange_1D
+ SUBROUTINE Build_Lagrange_1D( myPoly, nS, nSo, s, so )
+ ! S/R Build
  !
- !   This subroutine is the basic constructor. If the number of s are input, THEN the desired 
- !   amount of memory is allocated. If the actual interpolation s are input, THEN the s
- !   are stored and the barycentric bWs are calculated. If the number of s are not given,
- !   THEN the number of s are determined from the size of xIn. In the event that xIn is also 
- !   not given, the default number of s is used (nDefaults) and the s and barycentric
- !   bWs are set to zero.
+ !   A manual constructor for the Lagrange_1D class.
+ ! 
+ !   Usage :
+ !      CALL myPoly % Build( nS, nSo, s, so )
  !
+ !      Allocates memory and fills in data for the attributes of the Lagrange_1D class. 
+ !
+ !   Input : 
+ !      myPoly       The Lagrange_1D data structure
+ !      nS           The number of observations where we have data
+ !      nSo          The number of observations that we want
+ !      s(0:nS)      The node locations where we have data
+ !      so(0:nSo)    The node locations where we want data
+ !
+ !   Output :
+ !      myPoly       The Lagrange_1D data structure with its attributes filled in
  !
  ! =============================================================================================== !
  ! DECLARATIONS 
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   INTEGER, INTENT(in)               :: ns
-   REAL(prec), INTENT(in),optional   :: xIn(:)
+   INTEGER, INTENT(in)               :: nS, nSo
+   REAL(prec), INTENT(in)            :: s(0:nS), so(0:nSo)
    
-
-      ! Set the number of s
-      CALL myPoly % SetNumberOfs( ns )
+      ! Set the number of observations (those we have and those we want)
+      myPoly % nS  = nS
+      myPoly % nSo = nSo
       
       ! Allocate storage
-      ALLOCATE( myPoly % s(0:ns), myPoly % bWs(0:ns) )
+      ALLOCATE( myPoly % s(0:nS), myPoly % bWs(0:nS) )
+      ALLOCATE( myPoly % so(0:nSo), myPoly % Ts(0:nSo,0:nS) )
       
-      IF( PRESENT(xIn) )THEN
-         CALL myPoly % Sets( xIn )
-         CALL myPoly % CalculatebWs( )
-      ELSE
-         CALL myPoly % Sets( )
-         CALL myPoly % SetbWs( )
-      ENDIF
+      ! Fill in the nodal locations
+      myPoly % s  =  s
+      myPoly % so = so
+
+      ! and calculate the barycentric weights for quick interpolation.
+      CALL myPoly % CalculateBarycentricWeights( )
+
+      ! Using the two nodal locations, we can construct the interpolation matrix. The interpolation
+      ! matrix enables quick interpolation.
+      CALL myPoly % CalculateInterpolationMatrix( )
  
- END SUBROUTINE BuildLagrange_1D
+ END SUBROUTINE Build_Lagrange_1D
 !
 !
 !
-SUBROUTINE TrashLagrange_1D(myPoly)
- ! S/R TrashLagrange_1D
+SUBROUTINE Trash_Lagrange_1D(myPoly)
+ ! S/R Trash
  !
+ !   A manual destructor for the Lagrange_1D class.
+ ! 
+ !   Usage :
+ !      CALL myPoly % Trash( )
+ !
+ !      Deallocates memory for the Lagrange_1D class. 
+ !
+ !   Input : 
+ !      myPoly       The Lagrange_1D data structure
+ !
+ !   Output :
+ !      myPoly       An empty Lagrange_1D data structure.
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
 
-
-      myPoly % ns = 0
-
       DEALLOCATE( myPoly % s, myPoly % bWs )
+      DEALLOCATE( myPoly % so, myPoly % Ts )
 
-     
-
- END SUBROUTINE TrashLagrange_1D
+ END SUBROUTINE Trash_Lagrange_1D
 !
 !
 !==================================================================================================!
@@ -150,167 +169,191 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 !==================================================================================================!
 !
 !
- SUBROUTINE SetsLagrange_1D( myPoly, xIn )
- ! S/R SetsLagrange_1D
+ SUBROUTINE SetNodes_Lagrange_1D( myPoly, sInput )
+ ! S/R SetNodes
  !  
- !    Sets the attribute "s" to xIn. If xIn is not present, THEN the s are set to the 
- !    default value (LagrangeNodeDefault)
+ !   Uses "sInput" to assign the attribute "s" of the Lagrange_1D data structure. This routine is
+ !   meant to be a convenience, so users do not have to make reference directly to the "s"
+ !   attribute.
  !
+ !   Usage :
+ !      CALL myPoly % SetNodes( sInput )
  !
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   REAL(prec), INTENT(in), OPTIONAL  :: xIn(0:myPoly % ns)
-
-       IF( PRESENT(xIn) )THEN
-          myPoly % s = xIn
-       ELSE
-          myPoly % s = LagrangeNodeDefault
-       ENDIF
-
- END SUBROUTINE SetsLagrange_1D
-!
-!
-!
- SUBROUTINE GetsLagrange_1D( myPoly, xOut )
- ! S/R GetsLagrange_1D
- !  
- !    Gets the attribute "s" and sets xOut.
+ !   Input :
+ !      sInput       A REAL array on nodal locations where we have observations
  !
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS(Lagrange_1D), INTENT(in) :: myPoly
-   REAL(prec), INTENT(out)        :: xOut(0:myPoly % ns)
-
-
-       xOut = myPoly % s 
-
- END SUBROUTINE GetsLagrange_1D
-!
-!
-!
- SUBROUTINE SetNodeLagrange_1D( myPoly, i, xIn )
- ! S/R SetNodeLagrange_1D
- !  
- !    Sets the i-th node to xIn
+ !   Output :
+ !      myPoly       The Lagrange_1D structure with the "s" attribute updated
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   INTEGER, INTENT(in)               :: i
-   REAL(prec), INTENT(in)            :: xIn
+   REAL(prec), INTENT(in)            :: sInput(0:myPoly % ns)
 
+      myPoly % s = sInput
 
-      myPoly % s(i) = xIn 
-
- END SUBROUTINE SetNodeLagrange_1D
+ END SUBROUTINE SetNodes_Lagrange_1D
 !
 !
 !
- SUBROUTINE GetNodeLagrange_1D( myPoly, i, xOut )
- ! S/R GetNodeLagrange_1D
+ SUBROUTINE GetNodes_Lagrange_1D( myPoly, sOutput )
+ ! S/R GetNodes_Lagrange_1D
  !  
- !   Gets ths i-th interpolation node and sets xOut to this value
+ !   Uses the Lagrange_1D data structure to report the locations where we have data ("s") in the
+ !   REAL array "sOutput". This routine is meant to be a convenience, so users do not have to make
+ !   reference directly to the "s" attribute.
+ !
+ !   Usage :
+ !      CALL myPoly % GetNodes( sOutput )
+ !
+ !   Input :
+ !      myPoly       The Lagrange_1D structure (with "s" assigned)
+ !
+ !   Output :
+ !      sOutput      A REAL array on nodal locations where we have observations
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(in) :: myPoly
-   INTEGER, INTENT(in)            :: i
-   REAL(prec), INTENT(out)        :: xOut
+   REAL(prec), INTENT(out)        :: sOutput(0:myPoly % ns)
 
+      sOutput = myPoly % s 
 
-      xOut = myPoly % s(i) 
-
- END SUBROUTINE GetNodeLagrange_1D
+ END SUBROUTINE GetNodes_Lagrange_1D
 !
 !
 !
- SUBROUTINE SetbWsLagrange_1D( myPoly, wIn )
- ! S/R SetbWsLagrange_1D
+SUBROUTINE SetAlternateNodes_Lagrange_1D( myPoly, sInput )
+ ! S/R SetAlternateNodes
  !  
- !    Sets the attribute "bWs" to wIn. If wIn is not present, THEN the barycentric bWs are
- !    set to the default value (LagrangeNodeDefault)
+ !   Uses "sInput" to assign the attribute "so" of the Lagrange_1D data structure. Recall that "so"
+ !   refers to the locations where we want to have new observations, ie, it is the set of locations
+ !   that we will interpolate to.
  !
+ !   This routine is meant to be a convenience, so users do not have to make reference directly to 
+ !   the "so" attribute.
+ !
+ !   Usage :
+ !      CALL myPoly % SetNodes( sInput )
+ !
+ !   Input :
+ !      sInput       A REAL array on nodal locations where we have observations
+ !
+ !   Output :
+ !      myPoly       The Lagrange_1D structure with the "so" attribute updated
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   REAL(prec), INTENT(in), OPTIONAL  :: wIn(0:myPoly % ns)
+   REAL(prec), INTENT(in)            :: sInput(0:myPoly % ns)
 
-       IF( PRESENT(wIn) )THEN
-          myPoly % bWs = wIn
-       ELSE
-          myPoly % bWs = LagrangeNodeDefault
-       ENDIF
+      myPoly % so = sInput
 
- END SUBROUTINE SetbWsLagrange_1D
+ END SUBROUTINE SetAlternateNodes_Lagrange_1D
 !
 !
 !
- SUBROUTINE GetbWsLagrange_1D( myPoly, wOut )
- ! S/R GetbWsLagrange_1D
+ SUBROUTINE GetAlternateNodes_Lagrange_1D( myPoly, sOutput )
+ ! S/R GetAlternateNodes
  !  
- !    Gets the attribute "bWs" and sets wOut.
+ !   Uses the Lagrange_1D data structure to report the locations where we want data ("so") in the
+ !   REAL array "sOutput". Recall that "so" refers to the locations where we want to have new 
+ !   observations, ie, it is the set of locations that we will interpolate to.
+ !
+ !   This routine is meant to be a convenience, so users do not have to make reference directly to 
+ !   the "so" attribute.
+ !
+ !   Usage :
+ !      CALL myPoly % GetNodes( sOutput )
+ !
+ !   Input :
+ !      myPoly       The Lagrange_1D structure (with "so" assigned)
+ !
+ !   Output :
+ !      sOutput      A REAL array on nodal locations where we have observations
+ !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(in) :: myPoly
-   REAL(prec), INTENT(out)        :: wOut(0:myPoly % ns)
+   REAL(prec), INTENT(out)        :: sOutput(0:myPoly % ns)
 
+      sOutput = myPoly % so 
 
-       wOut = myPoly % bWs 
-
- END SUBROUTINE GetbWsLagrange_1D
+ END SUBROUTINE GetAlternateNodes_Lagrange_1D
 !
 !
 !
- SUBROUTINE SetWeightLagrange_1D( myPoly, i, wIn )
- ! S/R SetWeightLagrange_1D
+ SUBROUTINE SetWeights_Lagrange_1D( myPoly, wInput )
+ ! S/R SetWeights
  !  
- !    Sets the i-th barycentric weight to wIn
+ !   Uses "wInput" to assign the attribute "bWs" of the Lagrange_1D data structure. Recall that 
+ !   "bWs" refers to barycentric interpolation weights.
+ !
+ !   This routine is meant to be a convenience, so users do not have to make reference directly to 
+ !   the "bWs" attribute.
+ !
+ !   Usage :
+ !      CALL myPoly % SetWeights( wInput )
+ !
+ !   Input :
+ !      wIn          A REAL array on nodal locations where we have observations
+ !
+ !   Output :
+ !      myPoly       The Lagrange_1D structure with the "bWs" attribute updated
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(inout) :: myPoly
-   INTEGER, INTENT(in)               :: i
-   REAL(prec), INTENT(in)            :: wIn
+   REAL(prec), INTENT(in)            :: wInput(0:myPoly % ns)
 
+      myPoly % bWs = wInput
 
-       myPoly % bWs(i) = wIn 
-
- END SUBROUTINE SetWeightLagrange_1D
+ END SUBROUTINE SetWeights_Lagrange_1D
 !
 !
 !
- SUBROUTINE GetWeightLagrange_1D( myPoly, i, wOut )
- ! S/R GetWeightLagrange_1D
+ SUBROUTINE GetWeights_Lagrange_1D( myPoly, wOutput )
+ ! S/R GetWeights
  !  
- !   Gets the i-th barycentric weight and sets wOut to this value
+ !   Uses the Lagrange_1D data structure to report the barycentric interpolation weights ("bWs") in 
+ !   the REAL array "wOutput". Recall that "bWs" refers to barycentric interpolation weights.
+ !
+ !   This routine is meant to be a convenience, so users do not have to make reference directly to 
+ !   the "bWs" attribute.
+ !
+ !   Usage :
+ !      CALL myPoly % GetWeights( wOutput )
+ !
+ !   Input :
+ !      myPoly       The Lagrange_1D structure, with the "bWs" attribute assigned
+ !
+ !   Output :
+ !      wOuput       A REAL array containing the barycentric weights
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_1D), INTENT(in) :: myPoly
-   INTEGER, INTENT(in)            :: i
-   REAL(prec), INTENT(out)        :: wOut
+   REAL(prec), INTENT(out)        :: wOutput(0:myPoly % ns)
 
+       wOutput = myPoly % bWs 
 
-       wOut = myPoly % bWs(i) 
-
- END SUBROUTINE GetWeightLagrange_1D
+ END SUBROUTINE GetWeights_Lagrange_1D
 !
 !
 !
- SUBROUTINE SetNumberOfsLagrange_1D( myPoly, n )
- ! S/R SetNumberOfsLagrange_1D(
+ SUBROUTINE SetNumberOfNodes_Lagrange_1D( myPoly, N )
+ ! S/R SetNumberOfNodes
  !  
- !    Sets the number of s (ns) to n.
+ !    Sets the "nS" attribute of the Lagrange_1D data structure to N. The "nS" attribute refers
+ !    to the number of nodes where we have observations.
+ !  
+ !
  !
  ! =============================================================================================== !
  ! DECLARATIONS
@@ -320,14 +363,14 @@ SUBROUTINE TrashLagrange_1D(myPoly)
     
        myPoly % ns = n 
 
- END SUBROUTINE SetNumberOfsLagrange_1D
+ END SUBROUTINE SetNumberOfNodesLagrange_1D
 !
 !
 !
- SUBROUTINE GetNumberOfsLagrange_1D( myPoly, n )
- ! S/R GetNumberOfsLagrange_1D
+ SUBROUTINE GetNumberOfNodesLagrange_1D( myPoly, n )
+ ! S/R GetNumberOfNodesLagrange_1D
  !  
- !    Sets n to the number of interpolation s (ns)
+ !    SetNodes n to the number of interpolation s (ns)
  !
  ! =============================================================================================== !
  ! DECLARATIONS
@@ -338,7 +381,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
 
        n = myPoly % ns 
 
- END SUBROUTINE GetNumberOfsLagrange_1D
+ END SUBROUTINE GetNumberOfNodesLagrange_1D
 !
 !
 !==================================================================================================!
@@ -379,7 +422,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
    REAL(prec) :: num, den, t, thisX, thisW
    INTEGER    :: jP, nP 
  
-     CALL myPoly % GetNumberOfs( nP )
+     CALL myPoly % GetNumberOfNodes( nP )
      num = ZERO
      den = ZERO
 
@@ -431,7 +474,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
   INTEGER    :: jP, nP
   LOGICAL    :: xMatchesNode
 
-     CALL myPoly % GetNumberOfs( nP )
+     CALL myPoly % GetNumberOfNodes( nP )
      
      xMatchesNode = .FALSE.
 
@@ -503,7 +546,7 @@ SUBROUTINE TrashLagrange_1D(myPoly)
   INTEGER    :: jP, jS, nP 
   LOGICAL    :: atNode 
 
-     CALL myPoly % GetNumberOfs( nP )
+     CALL myPoly % GetNumberOfNodes( nP )
 
      num = ZERO
      atNode = .FALSE.
@@ -604,11 +647,11 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
   INTEGER    :: kP, jP, nP, mP
   REAL(prec), ALLOCATABLE :: temp(:) !offDiags(0:myPoly%ns,0:myPoly%ns), temp(0:myPoly%ns)
 
-     CALL myPoly % GetNumberOfs( nP )
+     CALL myPoly % GetNumberOfNodes( nP )
      
      IF( PRESENT(otherInterpolant) )THEN ! We will generate a derivative matrix at another set of s
      
-        CALL otherInterpolant % GetNumberOfs( mP )
+        CALL otherInterpolant % GetNumberOfNodes( mP )
      
         ALLOCATE( dMat(0:mP,0:nP),  temp(0:nP) )
      
@@ -633,8 +676,8 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
      
         ALLOCATE( dMat(0:nP,0:nP) )
         
-        CALL myPoly % Gets( x )
-        CALL myPoly % GetbWs( w )
+        CALL myPoly % GetNodes( x )
+        CALL myPoly % GetWeights( w )
 
         DO kP = 0, nP ! loop over the interpolation s
 
@@ -660,10 +703,10 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
 !
 !
 !
- SUBROUTINE CalculateInterpolationMatrix_1D( oldPoly, nNew, zNew, T )  
+ SUBROUTINE CalculateInterpolationMatrix_1D( oldPoly )  
  ! S/R CalculateInterpolationMatrix 
  !  Description :
- !  Calculates the interpolation matrix between two sets of s for the
+ !  Calculates the interpolation matrix between two SetNodes of s for the
  !  interpolant with s "xOld(0:nP)" and barycentric bbWs "bWs(0:nP)"
  !
  ! 
@@ -680,10 +723,10 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
   INTEGER :: kP, jP,  oldnP
   LOGICAL :: rowHasMatch 
 
-     CALL oldPoly % GetNumberOfs( oldnP )
+     CALL oldPoly % GetNumberOfNodes( oldnP )
 
-     CALL oldPoly % Gets( x )
-     CALL oldPoly % GetbWs( w )
+     CALL oldPoly % GetNodes( x )
+     CALL oldPoly % GetWeights( w )
 
      DO kP = 0, nNew ! loop over the new interpolation s
 
@@ -777,7 +820,7 @@ SUBROUTINE CalculateDerivativeMatrix_1D( myPoly, dMat, otherInterpolant )
   ! LOCAL
   INTEGER :: jS, fUnit, nP
   
-     CALL myPoly % GetNumberOfs( nP )
+     CALL myPoly % GetNumberOfNodes( nP )
 
      OPEN(UNIT=NewUnit(fUnit),&
           FILE=filename//'.curve',form='FORMATTED')
