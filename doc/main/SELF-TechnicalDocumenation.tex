@@ -57,11 +57,25 @@
     
 \end{titlingpage}
 
-
+\chapter*{History}
+ The SELF began as a series of homework assignments from a graduate course in spectral element methods taught by David Kopriva (Spring 2013) at the Florida State University. Many of the subroutines are adapted from the pseudo-code presented in Kopriva's book, ``Implementing Spectral Element Methods for Scientists and Engineers''. The SELF became a modularized Fortran embodiment of Kopriva's ideas. Originally, this software was coined ``Software for the Computation of Hydrodynamics Objects and Operations, Achieving Numerical Efficieny and Reliability (SCHOONER)'' by fellow graduate student Carlowen Smith at the Geophysical Fluid Dynamics Institute. This acronym pointed towards the original goal of the software, namely, to produce a set of tools that one could use to solve problems related to fluid flow.\\
+ 
+  Towards the end of graduate school, it became apparent to me that the scientific community would benefit from a single ``toolbox'' that can be used, with a trivial amount of effort, to implement spectral element methods. I believe that such a toolbox has the potential to enhance reproducibility of research that requires numerical methods and can reduce the development time when solving complex PDE systems. The name ``Spectral Element Libraries in Fortran (SELF)'' represents these beliefs. \\
+  
+  The software has undergone much organization and optimization since the original development. During the summer of 2016, four students from the Parallel Computing Summer Research Internship (PCSRI) at Los Alamos National Laboratory refined the (serial) shallow-water solver modules. They additionally explored parallelization schemes through threading with OpenMP, vectorization with GPU's, and domain decomposition with message-passing. Their contributions have greatly improved the efficiency of the software and have spurred a redesign of many other portions of the code. This is where the SELF currently stands.\\
+  
+   Currently, there are officially five developers for the SELF, and a small set of users. It is my hope that this will expand over time. I am glad that you are taking part in the history of the SELF and I look forward to hearing about your research and the role that this software has for your work.
+   
+   \begin{flushright}
+   - Joe Schoonover
+   \end{flushright}
+ 
+ \clearpage
 
 \tableofcontents
 
 \pagestyle{myheadings}
+
 \chapter{Purpose and Overview}
  Spectral Element Methods (SEMs) offer a flexible approach to solving partial differential equations in complicated geometry that allows for either algebraic or spectral convergence. Nodal SEMs are popular because they yield localized dense operations for computing the action of derivative operators. The dense computations amount to matrix-matrix multiplications that lend themselves to fast implementation on GPUs, and the localized operations for computing derivatives enables the use of threading over a single process. Additionally, multi-process applications can be constructed with the addition of a single routine that conducts MPI send-receive pairs. With an algorithm that is appropriately parallelized, the numerical modeler can achieve efficient performance while producing highly accurate solutions. 
  
