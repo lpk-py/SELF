@@ -209,7 +209,8 @@ IMPLICIT NONE
          DO jP = 0, thisM ! loop over the matrix rows
             DO iP = 0, thisM ! loop over the matrix columns
 
-               myNodal % dMatP(iP,jP) = -tempDmatP(jP,iP)*&
+               ! *** Note that I've purposefully transposed this derivative matrix (Joe, June 27,2016)!!
+               myNodal % dMatP(jP,iP) = -tempDmatP(jP,iP)*&
                                          myNodal % qWeightP(jP)/&
                                          myNodal % qWeightP(iP)
 

@@ -54,7 +54,6 @@ USE ConservativeShallowWaterClass
       deltaT = mysw % params % dt
 
       nDumps = (nT)/dFreq
-
       
       WRITE( iterChar, '(I10.10)') iter0   
       !$OMP PARALLEL

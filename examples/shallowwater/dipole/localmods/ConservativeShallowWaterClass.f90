@@ -1625,16 +1625,19 @@ SUBROUTINE MappedTimeDerivative_ShallowWater( myDGSEM, iEl, tn )
    REAL(prec) :: dxdp(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: dyds(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: dydp(0:myDGSEM % nS,0:myDGSEM % nP)
+   REAL(prec) :: x(0:myDGSEM % nS,0:myDGSEM % nP)
+   REAL(prec) :: y(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: J(0:myDGSEM % nS,0:myDGSEM % nP)
+   REAL(prec) :: plv(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: bathy(0:myDGSEM % nS,0:myDGSEM % nS,1:3)
    REAL(prec) :: sol(0:myDGSEM % nS,0:myDGSEM % nS,1:nSWeq)
-   REAL(prec) :: h, s(1:nSWeq), dhdx, dhdy, plv, rev, vorticity, x, y
-   REAL(prec) :: xF(1:nSWEq), yF(1:nSWEq), relaxSol(1:nSWeq), timescale
+   REAL(prec) :: relaxsol(0:myDGSEM % nS,0:myDGSEM % nS,1:nSWeq+1)
+   REAL(prec) :: h, s(1:nSWeq), rs(1:nSWeq), ts, vort, locx, locy
+   REAL(prec) :: hh(1:3)
+   REAL(prec) :: xF(1:nSWEq), yF(1:nSWEq)
    REAL(prec) :: pContFlux(0:myDGSEM % nS,0:myDGSEM % nP,1:nSWEq)
    REAL(prec) :: sContFlux(0:myDGSEM % nS,0:myDGSEM % nP,1:nSWEq)
    REAL(prec) :: localF(0:myDGSEM % nS, 0:myDGSEM % nP)
-   !REAL(prec) :: pContFluxDer(0:myDGSEM % nS,1:nSWEq)
-   !REAL(prec) :: sContFluxDer(0:myDGSEM % nS,1:nSWEq)
    REAL(prec) :: tend(0:myDGSEM % nS,0:myDGSEM % nP,1:nSWEq)
    REAL(prec) :: dMatX(0:myDGSEM % nS,0:myDGSEM % nS)
    REAL(prec) :: dMatY(0:myDGSEM % nP,0:myDGSEM % nP)
@@ -1659,10 +1662,20 @@ SUBROUTINE MappedTimeDerivative_ShallowWater( myDGSEM, iEl, tn )
       CALL myDGSEM % dgStorage % GetEasternInterpolants( least )
       CALL myDGSEM % dgStorage % GetWesternInterpolants( lwest )
 
-      CALL myDGSEM % mesh % GetJacobian( iEl, J  )
+      !CALL myDGSEM % mesh % GetJacobian( iEl, J  )
+      J = myDGSEM % mesh % elements(iEl) % geometry % J
       CALL myDGSEM % mesh % GetCovariantMetrics( iEl, dxds, dxdp, dyds, dydp )
       CALL myDGSEM % GetSolution( iEl, sol )
       CALL myDGSEM % GetBathymetry( iEl, bathy )
+      relaxSol = myDGSEM % relax(iEl) % solution
+      plv = myDGSEM % vorticity(iEl) % solution(0:nS,0:nP,1)
+     ! CALL myDGSEM % GetRelaxationField( iEl, relaxSol )
+     ! CALL myDGSEM % GetRelaxationTimeScale( iEl, timescale )
+      !CALL myDGSEM % GetPlanetaryVorticity( iEl, plv )
+      x = myDGSEM % mesh % elements(iEl) % geometry % x
+      y = myDGSEM % mesh % elements(iEl) % geometry % y
+     ! CALL myDGSEM % mesh % GetPositions( iEl, x, y )
+
 
       fsouth = myDGSEM % sol(iEl) % boundaryFlux(0:nS,1:nSWeq,SOUTH)
       feast  = myDGSEM % sol(iEl) % boundaryFlux(0:nP,1:nSWeq,EAST)
@@ -1676,12 +1689,13 @@ SUBROUTINE MappedTimeDerivative_ShallowWater( myDGSEM, iEl, tn )
             s = sol(iS,iP,1:nSWeq)
 
             ! Calculate the x and y fluxes
-            xF = XFlux(  tn, h, myDGSEM % params, s )
-            yF = YFlux(  tn, h, myDGSEM % params, s )
+            xF = XFlux( tn, h, myDGSEM % params, s )
+            yF = YFlux( tn, h, myDGSEM % params, s )
 
             !And now the contravariant flux
             sContFlux(iS,iP,1:nSWEq) = dydp(iS,iP)*xF(1:nSWEq) - dxdp(iS,iP)*yF(1:nSWEq)
             pContFlux(iS,iP,1:nSWEq) = -dyds(iS,iP)*xF(1:nSWEq) + dxds(iS,iP)*yF(1:nSWEq)
+
          ENDDO ! iS, Loop over the x-points
       ENDDO
 
@@ -1690,39 +1704,37 @@ SUBROUTINE MappedTimeDerivative_ShallowWater( myDGSEM, iEl, tn )
          localF = sContFlux(0:nS,0:nP,iEq)
          tend(0:nS,0:nP,iEq) = MATMUL( dMatX, localF )
          localF = pContFlux(0:nS,0:nP,iEq)
-         tend(0:nS,0:nP,iEq) = tend(0:nS,0:nP,iEq) + MATMUL( dMatY, localF )
+         tend(0:nS,0:nP,iEq) = tend(0:nS,0:nP,iEq) + MATMUL( localF, dMatY )
 
          DO iP = 0, nP
             DO iS = 0, nS
 
                tend(iS,iP,iEq) = tend(iS,iP,iEq) + ( fsouth(iS,iEq)*lsouth(iP) + &
-                                                     fnorth(iS,iEq)*lnorth(iP) )/qWeightY(iP) + &
-                                                   ( fwest(iP,iEq)*lwest(iS) + &
-                                                     feast(iP,iEq)*least(iS) )/qWeightX(iS)
+                                                      fnorth(iS,iEq)*lnorth(iP) )/qWeightY(iP) + &
+                                                    ( fwest(iP,iEq)*lwest(iS) + &
+                                                      feast(iP,iEq)*least(iS) )/qWeightX(iS)
             ENDDO
          ENDDO
 
       ENDDO
 
-     ! COMPUTE THE SOURCE TERMS
-!     DO iS = 0, nS  ! Loop over the x-points
-!        DO iP = 0, nP ! Loop over the y-points
+      ! COMPUTE THE SOURCE TERMS
+      DO iP = 0, nP  
+        DO iS = 0, nS 
 
-!           CALL myDGSEM % GetSolutionAtNode( iEl, iS, iP, sol )
-!           CALL myDGSEM % GetRelaxationFieldAtNode( iEl, iS, iP, relaxSol )
-!           CALL myDGSEM % GetRelaxationTimeScaleAtNode( iEl, iS, iP, timescale )
-!           CALL myDGSEM % GetPlanetaryVorticityAtNode( iEl, iS, iP, plv )
-!           CALL myDGSEM % GetBathymetryAtNode( iEl, iS, iP, bathy )
-!           CALL myDGSEM % mesh % GetPositionAtNode( iEl, x, y, iS, iP )
+           s = sol(iS,iP,1:nSWeq)
+           rs = relaxSol(iS,iP,1:nSWeq)
+           ts = relaxSol(iS,iP,nSWeq+1)
+           hh  = bathy(iS,iP,1:3)
+           vort = plv(iS,iP)
+           locx = x(iS,iP)
+           locy = y(iS,iP)
            
-!           vorticity = plv
-                  
-!           tend(iS,iP,1:nSWEq) = tend(iS,iP,1:nSWEq)+ Source( tn, sol, relaxSol, timescale, &
-!                                                              plv, bathy, &
-!                                                              x, y, myDGSEM % params  )
+           tend(iS,iP,1:nSWEq) = -tend(iS,iP,1:nSWEq)/J(iS,iP) + Source( tn, s, rs, ts, vort, hh, &
+                                                                         locx, locy, myDGSEM % params  )
 
-!        ENDDO ! iP, Loop over the y-points
-!     ENDDO ! iS, Loop over the x-points
+        ENDDO ! iP
+     ENDDO ! iS
 
      CALL myDGSEM % SetTendency( iEl, tend )
 
@@ -1950,14 +1962,18 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
    CLASS(ShallowWater), INTENT(inout) :: myDGSEM
    INTEGER, INTENT(in)                :: iEl
    ! LOCAL
-   REAL(prec) :: dxds, dxdp, dyds, dydp, J, normLength, normVec(1:2)
-   REAL(prec) :: h, bathy(1:3), plv, rev
+   REAL(prec) :: dxds(0:myDGSEM % nS,0:myDGSEM % nS)
+   REAL(prec) :: dxdp(0:myDGSEM % nS,0:myDGSEM % nS) 
+   REAL(prec) :: dyds(0:myDGSEM % nS,0:myDGSEM % nS)
+   REAL(prec) :: dydp(0:myDGSEM % nS,0:myDGSEM % nS)
+   REAL(prec) :: J(0:myDGSEM % nS,0:myDGSEM % nS)
+   REAL(prec) :: normLength, normVec(1:2)
+   REAL(prec) :: h, bathy(0:myDGSEM % nS,0:myDGSEM % nS,1:3), plv, rev
    REAL(prec) :: xF(1:2), yF(1:2)
-   REAL(prec) :: pContFlux(0:myDGSEM % nS,1:2)
-   REAL(prec) :: sContFlux(0:myDGSEM % nS,1:2)
-   REAL(prec) :: pContFluxDer(0:myDGSEM % nS,1:2)
-   REAL(prec) :: sContFluxDer(0:myDGSEM % nS,1:2)
+   REAL(prec) :: pContFlux(0:myDGSEM % nS,0:myDGSEM % nP,1:2)
+   REAL(prec) :: sContFlux(0:myDGSEM % nS,0:myDGSEM % nP,1:2)
    REAL(prec) :: tend(0:myDGSEM % nS,0:myDGSEM % nP,1:2)
+   REAL(prec) :: localF(0:myDGSEM % nS, 0:myDGSEM % nP)
    REAL(prec) :: dMatX(0:myDGSEM % nS,0:myDGSEM % nS)
    REAL(prec) :: dMatY(0:myDGSEM % nP,0:myDGSEM % nP)
    REAL(prec) :: qWeightX(0:myDGSEM % nS)
@@ -1970,6 +1986,10 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
    REAL(prec) :: hnorth(0:myDGSEM % nP,1:3)
    REAL(prec) :: heast(0:myDGSEM % nS,1:3)
    REAL(prec) :: hwest(0:myDGSEM % nS,1:3)
+   REAL(prec) :: fsouth(0:myDGSEM % nP,1:2)
+   REAL(prec) :: fnorth(0:myDGSEM % nP,1:2)
+   REAL(prec) :: feast(0:myDGSEM % nS,1:2)
+   REAL(prec) :: fwest(0:myDGSEM % nS,1:2)
    REAL(prec) :: fL(1:2), fR(1:2)
    INTEGER    :: iS, iP, nS, nP, iEq
 
@@ -1985,95 +2005,64 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
      CALL myDGSEM % GetBathymetryAtBoundary( iEl, East, hEast )
      CALL myDGSEM % GetBathymetryAtBoundary( iEl, North, hNorth )
      CALL myDGSEM % GetBathymetryAtBoundary( iEl, West, hWest ) 
-     DO iP = 0,nP ! Loop over the y-points
+     DO iS = 0, nS
+        CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, south ) 
+        fSouth(iS,1:2) = hSouth(iS,1)*normvec(1:2)*normlength
+     ENDDO
+     DO iS = 0, nS
+        CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, east )
+        fEast(iS,1:2) = hEast(iS,1)*normvec(1:2)*normlength
+     ENDDO
+     DO iS = 0, nS
+        CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, north )
+        fNorth(iS,1:2) = hNorth(iS,1)*normvec(1:2)*normlength
+     ENDDO
+     DO iS = 0, nS
+        CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, west )
+        fWest(iS,1:2) = hWest(iS,1)*normvec(1:2)*normlength
+     ENDDO
 
-        DO iS = 0,nS ! Loop over the x-points
+      J = myDGSEM % mesh % elements(iEl) % geometry % J
+      CALL myDGSEM % mesh % GetCovariantMetrics( iEl, dxds, dxdp, dyds, dydp )
+      CALL myDGSEM % GetBathymetry( iEl, bathy )
 
-           ! Get the metric terms to calculate the contravariant flux
-           CALL myDGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
-           ! Get the depth - needed for wave speed calculation 
-           CALL myDGSEM % GetBathymetryAtNode( iEl, iS, iP, bathy )
-           h = bathy(1)
+      DO iP = 0,nP ! Loop over the y-points
+         DO iS = 0,nS ! Loop over the x-points
 
-           ! Calculate the x and y fluxes
-           xF = (/ h, ZERO /)
-           yF = (/ ZERO, h /)
+            h = bathy(iS,iP,1)
 
-           !And now the contravariant flux
-           sContFlux(iS,1:2) = dydp*xF - dxdp*yF
+            ! Calculate the x and y fluxes
+            xF = (/h, ZERO/)
+            yF = (/ZERO, h/)
 
-        ENDDO ! iS, Loop over the x-points
+            !And now the contravariant flux
+            sContFlux(iS,iP,1:2) = dydp(iS,iP)*xF(1:2) - dxdp(iS,iP)*yF(1:2)
+            pContFlux(iS,iP,1:2) = -dyds(iS,iP)*xF(1:2) + dxds(iS,iP)*yF(1:2)
 
-        ! East edge
-         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iP, East ) 
-         fR = ( hEast(iP,1)*normVec )*normLength
-           
-         ! West edge
-         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iP, West ) 
-         fL = ( hWest(iP,1)*normVec )*normLength
+         ENDDO ! iS, Loop over the x-points
+      ENDDO
+
+      DO iEq = 1, 2
          
-        ! At this y-level, calculate the DG-advective derivative
-         DO iEq = 1, 2
-            sContFluxDer(0:nS,iEq) = DGSystemDerivative(  nS, dMatX, qWeightX, fL(iEq), fR(iEq), &
-                                                          sContFlux(:,iEq), lwest, least )
+         localF = sContFlux(0:nS,0:nP,iEq)
+         tend(0:nS,0:nP,iEq) = MATMUL( dMatX, localF )
+         localF = pContFlux(0:nS,0:nP,iEq)
+         tend(0:nS,0:nP,iEq) = tend(0:nS,0:nP,iEq) + MATMUL( localF, dMatY )
+
+         DO iP = 0, nP
+            DO iS = 0, nS
+
+               tend(iS,iP,iEq) = tend(iS,iP,iEq) + ( fsouth(iS,iEq)*lsouth(iP) + &
+                                                     fnorth(iS,iEq)*lnorth(iP) )/qWeightY(iP) + &
+                                                   ( fwest(iP,iEq)*lwest(iS) + &
+                                                     feast(iP,iEq)*least(iS) )/qWeightX(iS) 
+            ENDDO
          ENDDO
+        
+         tend(0:nS,0:nP,iEq) = -tend(0:nS,0:nP,iEq)/J(0:nS,0:nP)
 
-         DO iS = 0, nS ! Loop over the x-points
-            DO iEq = 1, 2 ! Loop over the number of equations
-               tend(iS, iP, iEq) = sContFluxDer(iS,iEq)
-            ENDDO ! Loop over the number of equations
-         ENDDO ! Loop over the x-points
-
+      ENDDO
       
-     ENDDO ! iP  
-
-
-     DO iS = 0,nS ! Loop over the x-points
-
-        DO iP = 0,nP ! Loop over the y-points
-
-           ! Get the metric terms to calculate the contravariant flux
-           CALL myDGSEM % mesh % GetCovariantMetricsAtNode( iEl, dxds, dxdp, dyds, dydp, iS, iP )
-
-           ! Get the depth - needed for wave speed calculation 
-           CALL myDGSEM % GetBathymetryAtNode( iEl, iS, iP, bathy )
-           h = bathy(1)
-
-           ! Calculate the x and y fluxes
-           xF = (/ h, ZERO /)
-           yF = (/ ZERO, h /)
-
-           !And now the contravariant flux
-           pContFlux(iP,:) = -dyds*xF + dxds*yF
-
-        ENDDO ! iP, Loop over the y-points
-
-        ! North edge
-         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, North ) 
-         fR = ( hNorth(iS,1)*normVec )*normLength
-           
-         ! South edge
-         CALL myDGSEM % mesh % GetBoundaryNormalAtNode( iEl, normVec, normlength, iS, South ) 
-         fL = ( hSouth(iS,1)*normVec )*normLength
-
-        ! At this x-level, calculate the y-DG-advective derivative
-         DO iEq = 1, 2
-            pContFluxDer(0:nP,iEq) = DGSystemDerivative(  nP, dMatY, qWeightY, fL(iEq), fR(iEq), &
-                                                          pContFlux(:,iEq), lsouth, lnorth  )
-         ENDDO
-         
-         DO iP = 0, nP ! Loop over the y-points
-            DO iEq = 1, 2  ! Loop over the number of equations
-                CALL myDGSEM % mesh % GetJacobianAtNode( iEl, J, iS, iP )
-!                CALL myDGSEM % GetBathymetryAtNode( iEl, iS, iP, bathy )
-!                h = bathy(1)
-                tend(iS, iP, iEq) = ( tend(iS, iP, iEq)+ pContFluxDer(iP,iEq) )/(J)
-            ENDDO ! Loop over the number of equations
-         ENDDO ! Loop over the x-points
-
-      
-     ENDDO ! iP
-         
      CALL myDGSEM % bathymetry(iEl) % SetSolutionWithVarID( 2, tend(:,:,1) ) ! set dhdx
      CALL myDGSEM % bathymetry(iEl) % SetSolutionWithVarID( 3, tend(:,:,2) ) ! set dhdy
 

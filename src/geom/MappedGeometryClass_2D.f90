@@ -46,14 +46,14 @@ IMPLICIT NONE
 
 
    TYPE MappedGeometry_2D
-      INTEGER                             :: nS, nP, nMax
-      TYPE(Vector), ALLOCATABLE, PRIVATE  :: nHat(:,:) 
-      REAL(prec), ALLOCATABLE, PRIVATE    :: xBound(:,:)
-      REAL(prec), ALLOCATABLE, PRIVATE    :: yBound(:,:) 
-      REAL(prec), ALLOCATABLE, PRIVATE    :: x(:,:), y(:,:)
-      REAL(prec), ALLOCATABLE, PRIVATE    :: J(:,:)    
-      REAL(prec), ALLOCATABLE, PRIVATE    :: dxds(:,:), dxdp(:,:)
-      REAL(prec), ALLOCATABLE, PRIVATE    :: dyds(:,:), dydp(:,:)
+      INTEGER                    :: nS, nP, nMax
+      TYPE(Vector), ALLOCATABLE  :: nHat(:,:) 
+      REAL(prec), ALLOCATABLE    :: xBound(:,:)
+      REAL(prec), ALLOCATABLE    :: yBound(:,:) 
+      REAL(prec), ALLOCATABLE    :: x(:,:), y(:,:)
+      REAL(prec), ALLOCATABLE    :: J(:,:)    
+      REAL(prec), ALLOCATABLE    :: dxds(:,:), dxdp(:,:)
+      REAL(prec), ALLOCATABLE    :: dyds(:,:), dydp(:,:)
 
       CONTAINS
 

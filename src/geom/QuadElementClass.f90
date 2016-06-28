@@ -46,7 +46,7 @@ IMPLICIT NONE
       INTEGER, PRIVATE                :: nodeIDs(1:4)   ! Corner Node ID's
       INTEGER, PRIVATE                :: neighbors(1:4) ! Elements IDs for the neighbors
       INTEGER, PRIVATE                :: globElID       ! Global Element ID 
-      TYPE(MappedGeometry_2D),PRIVATE :: geometry       ! Contains the element metric terms, etc.
+      TYPE(MappedGeometry_2D)         :: geometry       ! Contains the element metric terms, etc.
 
 
       CONTAINS
