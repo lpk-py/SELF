@@ -326,8 +326,10 @@ The program \texttt{GTD\_Test} is run underneath valgrind with the callgrind too
 \begin{center}
 \texttt{ valgrind --tool=callgrind ./GTD\_Test }
 \end{center}
-The output of callgrind is visualized using \texttt{kcachegrind}, and is shown in Fig. \ref{fig:OrignalCallGraph}.
+The output of callgrind is visualized using \texttt{kcachegrind}, and is shown in Fig. \ref{fig:OrignalCallGraph}. This call-graph indicates that, of the time spent in \texttt{GlobalTimeDerivative}, 85.68\% of the time is spent in \texttt{MappedTimeDerivative} (even though it is called fewer times than \texttt{EdgeFlux}). Inside of \texttt{MappedTimeDerivative}, most of the time is spent gathering the solution (8.45\%), bathymetry(7.72\%), and covariant metric terms (6.87\%) from memory, totalling 23.04\% of the time spent in \texttt{MappedTimeDerivative}. A significant portion of the time (19.77\%) is spent within \texttt{DGSystemDerivative} which computes the flux gradient along a single computational direction.
 
+ This call graph clearly indicates that \texttt{MappedTimeDerivative} is the most expensive routine, with most of its time spent performing data-gathers from memory. Although spectral element methods have the potential to be computationally intensive, this particular implementation is not meeting this potential. Instead it is bogged down retrieving data from memory. A sampling profile of the integration program (\texttt{integrate\_sw}) obtained from Allinea-MAP is shown in Fig. \ref{fig:OrignalMAP}. For reference, the integration program was run here for 1000 time-steps so that the initialization (manual constructor) did not occupy the majority of the program cost. On average, 68.6\% percent of the program is spent executing memory instructions and only 19.6\% is spent executing floating point operations. For the dense computations that the discretization \eqref{eq:discrete2d_system} implies, we would expect a larger floating-point to memory load \textit{(Can we estimate this ratio ??)}.
+ 
 \begin{figure}
 \begin{center}
 \includegraphics[width=0.8\textwidth]{projectFigures/callgraphOriginal.png}
@@ -335,6 +337,13 @@ The output of callgrind is visualized using \texttt{kcachegrind}, and is shown i
 \end{center}
 \end{figure}
 
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.8\textwidth]{projectFigures/map-Original-noOpt_integrate_sw.png}
+\caption{A sampling profile obtained with Allinea-MAP profiler. The \texttt{integrate\_sw} executable (for this profile) is generated with no optimizations and no OpenMP. The profile gives a breakdown of the percent time spent, on average, executing various CPU instructions. Currently, the execution time is dominated by memory instructions.}\label{fig:OrignalMAP}
+\end{center}
+\end{figure}
 %\section{Profiles of the Dipole Example}
 %In order to determine where our attention should be focused for optimizing the solution algorithm, call-graphs are generated using callgrind and kcachegrind to indicate the subroutines that dominate the program execution. More detailed information about the types of instructions that are being called ( memory access, floating point, vectorization, etc.) is obtained using the Allinea-MAP (V6.0) profiler. The profiles presented here are generated on a \textit{(fill in node information (from cpuinfo and/or lstopo)}. The runtime parameters for this example can be found under \texttt{SELF/examples/shallowwater/dipole/run/shallowater.params} and, for completeness, are shown here
 %\begin{verbatim}
