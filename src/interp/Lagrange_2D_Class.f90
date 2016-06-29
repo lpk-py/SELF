@@ -1,81 +1,110 @@
 ! Lagrange_2D_Class.f90
 ! 
-! Copyright 2015 Joseph Schoonover <schoonover.numerics@gmail.com>
-! 
+! Copyright 2015 Joseph Schoonover <schoonover.numerics@gmail.com>, The Florida State University
+!
 ! Lagrange_2D_Class.f90 is part of the Spectral Element Libraries in Fortran (SELF).
 ! 
-! Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
-! and associated documentation files (the "Software"), to deal in the Software without restriction, 
-! including without limitation the rights to use, copy, modify, merge, publish, distribute, 
-! sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is 
-! furnished to do so, subject to the following conditions: 
-! 
-! The above copyright notice and this permission notice shall be included in all copies or  
-! substantial portions of the Software. 
-! 
-! THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
-! BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
-! NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
-! DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+! Licensed under the Apache License, Version 2.0 (the "License"); 
+! You may obtain a copy of the License at 
+!
+! http://www.apache.org/licenses/LICENSE-2.0 
+!
+! Unless required by applicable law or agreed to in writing, software 
+! distributed under the License is distributed on an "AS IS" BASIS, 
+! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+! See the License for the specific language governing permissions and  
+! limitations under the License.
 !
 ! //////////////////////////////////////////////////////////////////////////////////////////////// !
+
  
  
 MODULE Lagrange_2D_Class
 ! ========================================= Logs ================================================= !
-!2016-05-11  Joseph Schoonover  schoonover.numerics@gmail.com 
+!  2016/06/29 : Joe Schoonover (schoonover.numerics@gmail.com)
+!     > Switched over to Apache 2.0 License. 
+!     > Cleaned up comments and code formatting to enhance readability.
+!     > Removed Get/Set...AtNode routines to encourage larger memory accesses in practice.
+!     > Renamed attributes of the data-structure, so that higher-dimension interpolants can follow
+!       a simple naming pattern.
+!     > Added interpolation and derivative matrices to the data-structure.
 !
 ! //////////////////////////////////////////////////////////////////////////////////////////////// ! 
+
+!src/common
 USE ModelPrecision
 USE ConstantsDictionary
 USE CommonRoutines
+! src/interp
+USE InterpolationSupportRoutines
 
 IMPLICIT NONE
 
 
 
-
-    ! Two-dimensional polynomial is the tensor
-    ! product of two one-dimensional polynomials
-    TYPE, PUBLIC ::  Lagrange_2D
-      INTEGER                 :: nS, nP           ! Number of nodal points where we have observations
-      INTEGER                 :: nSo, nPo         ! Number of nodal points where we want observations
-      REAL(prec), ALLOCATABLE :: s(:), p(:)       ! Locations where we have observations
-      REAL(prec), ALLOCATABLE :: bWs(:), bWp(:)   ! Barycentric weights in s and p
-      REAL(prec), ALLOCATABLE :: so(:), po(:)     ! Locations where we want observations
-      REAL(prec), ALLOCATABLE :: Ts(:,:), Tp(:,:) ! Interpolation matrices to get us from what we
-                                                  ! have to what we want 
-
+   ! The Lagrange_2D structure and routines are constructed based on the idea that the 2-D 
+   ! interpolation can be conducted via a tensor product of two 1-D interpolants. It is assumed
+   ! that the polynomial degree in each computational direction ("s" and "p") is the same.
+   ! For this reason, only a 1-D array of nodes, and a single set of barycentric weights needs
+   ! to be stored.
+   TYPE, PUBLIC :: Lagrange_2D
+      INTEGER                 :: nS      ! number of nodal points where we have obersvations
+      INTEGER                 :: nSo     ! number of nodal points where we want observations
+      REAL(prec), ALLOCATABLE :: s(:)    ! locations where we have obervations
+      REAL(prec), ALLOCATABLE :: bWs(:)  ! barycentric weights
+      REAL(prec), ALLOCATABLE :: so(:)   ! Locations where we want observations
+      REAL(prec), ALLOCATABLE :: Ts(:,:) ! Interpolation matrix to get us from what we have to what
+                                         ! we want, in the "s" direction.
+      REAL(prec), ALLOCATABLE :: Tp(:,:) ! Transpose of "Ts". Interpolation from one set of points
+                                         ! to another may occur frequently in application. To avoid
+                                         ! computing the transpose repeatedly, we store it here 
+      REAL(prec), ALLOCATABLE :: Ds(:,:) ! Derivative matrix to calculate the derivative of an 
+                                         ! interpolant at the interpolation nodes ("s"). 
+                                         ! This derivative matrix is used to calculate the 
+                                         ! derivative in the "s" computational direction.
+      REAL(prec), ALLOCATABLE :: Dp(:,:) ! Derivative matrix to calculate the derivative of an 
+                                         ! interpolant at the interpolation nodes ("s").
+                                         ! This derivative matrix is used to calculate the 
+                                         ! derivative in the "p" computational direction. We store
+                                         ! a separate matrix for the "p" computational direction,
+                                         ! b/c it is the transpose of "Ds" and in practice,
+                                         ! the derivative operation will be called frequently. Due
+                                         ! to the expected frequency of calls to compute the 
+                                         ! derivative, storing "Dp" avoids having to compute the
+                                         ! transpose repeatedly.
       CONTAINS
-      !-------------!
-      PROCEDURE :: Build => BuildLagrange_2D
-      PROCEDURE :: Trash => TrashLagrange_2D
-  
-      PROCEDURE :: SetNodes => SetNodesLagrange_2D
-      PROCEDURE :: GetNodes => GetNodesLagrange_2D
-      PROCEDURE :: SetNode => SetNodeLagrange_2D
-      PROCEDURE :: GetNode => GetNodeLagrange_2D
-      PROCEDURE :: SetWeights => SetWeightsLagrange_2D
-      PROCEDURE :: GetWeights => GetWeightsLagrange_2D
-      PROCEDURE :: SetWeight => SetWeightLagrange_2D
-      PROCEDURE :: GetWeight => GetWeightLagrange_2D
-      PROCEDURE :: SetNumberOfNodes => SetNumberOfNodesLagrange_2D
-      PROCEDURE :: GetNumberOfNodes => GetNumberOfNodesLagrange_2D
       
-      PROCEDURE :: CalculateWeights => CalculateBarycentricWeights_2D
-      PROCEDURE :: EvaluateInterpolant => EvaluateLagrange_2D
-      PROCEDURE :: EvaluateDerivative => EvaluateDerivative_2D
-      PROCEDURE :: CalculateDerivativeMatrix => CalculateDerivativeMatrix_2D
-      PROCEDURE :: CalculateInterpolationMatrix => CalculateInterpolationMatrix_2D
-      PROCEDURE :: CoarseToFine => CoarseToFine_2D
-      PROCEDURE :: WriteTecplot => WriteTecplot_Lagrange_2D
+      !-------------!
+      ! Constructors/Destructors
+      PROCEDURE :: Build => Build_Lagrange_2D
+      PROCEDURE :: Trash => Trash_Lagrange_2D
+  
+      ! Accessors
+      PROCEDURE :: SetNodes                  => SetNodes_Lagrange_2D
+      PROCEDURE :: GetNodes                  => GetNodes_Lagrange_2D
+      PROCEDURE :: SetAlternateNodes         => SetAlternateNodes_Lagrange_2D
+      PROCEDURE :: GetAlternateNodes         => GetAlternateNodes_Lagrange_2D
+      PROCEDURE :: SetWeights                => SetWeights_Lagrange_2D
+      PROCEDURE :: GetWeights                => GetWeights_Lagrange_2D
+      PROCEDURE :: SetNumberOfNodes          => SetNumberOfNodes_Lagrange_2D
+      PROCEDURE :: GetNumberOfNodes          => GetNumberOfNodes_Lagrange_2D
+      PROCEDURE :: SetNumberOfAlternateNodes => SetNumberOfAlternateNodes_Lagrange_2D
+      PROCEDURE :: GetNumberOfAlternateNodes => GetNumberOfAlternateNodes_Lagrange_2D
+
+      ! Type-Specific
+      PROCEDURE :: CalculateBarycentricWeights  => CalculateBarycentricWeights_Lagrange_2D
+      PROCEDURE :: CalculateInterpolationMatrix => CalculateInterpolationMatrix_Lagrange_2D
+      PROCEDURE :: CalculateDerivativeMatrix    => CalculateDerivativeMatrix_Lagrange_2D
+      PROCEDURE :: Interpolate                  => Interpolate_Lagrange_2D
+      PROCEDURE :: LagrangePolynomials          => LagrangePolynomials_Lagrange_2D
+      PROCEDURE :: EvaluateDerivative           => EvaluateDerivative_Lagrange_2D
+      PROCEDURE :: ApplyInterpolationMatrix     => ApplyInterpolationMatrix_Lagrange_2D
+      PROCEDURE :: ApplyDerivativeMatrix        => ApplyDerivativeMatrix_Lagrange_2D
       
     END TYPE Lagrange_2D
 
-
-
-
+ INTEGER, PRIVATE :: nDim = 2
+ 
  CONTAINS
 !
 !
@@ -84,279 +113,366 @@ IMPLICIT NONE
 !==================================================================================================!
 !
 !
- SUBROUTINE BuildLagrange_2D( myPoly, nS, nP, nSo, nPo, xIn, yIn )
- ! S/R BuildLagrange_2D
+ SUBROUTINE Build_Lagrange_2D( myPoly, nS, nSo, s, so )
+ ! S/R Build
  !
+ !   A manual constructor for the Lagrange_2D class.
+ ! 
+ !   Usage :
+ !      CALL myPoly % Build( nS, nSo, s, so )
+ !
+ !      Allocates memory and fills in data for the attributes of the Lagrange_2D class. 
+ !
+ !   Input : 
+ !      myPoly       The Lagrange_2D data structure
+ !      nS           The number of observations where we have data
+ !      nSo          The number of observations that we want
+ !      s(0:nS)      The node locations where we have data
+ !      so(0:nSo)    The node locations where we want data
+ !
+ !   Output :
+ !      myPoly       The Lagrange_2D data structure with its attributes filled in
  !
  ! =============================================================================================== !
- ! DECLARATIONS
+ ! DECLARATIONS 
    IMPLICIT NONE
    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
-   INTEGER, INTENT(in)               :: nS, nP, nSo, nPo
-   REAL(prec), INTENT(in), OPTIONAL  :: xIn(0:nS), yIn(0:nP)
-
+   INTEGER, INTENT(in)               :: nS, nSo
+   REAL(prec), INTENT(in)            :: s(0:nS), so(0:nSo)
+   
+      ! Set the number of observations (those we have and those we want)
       myPoly % nS  = nS
-      myPoly % nP  = nP
       myPoly % nSo = nSo
-      myPoly % nPo = nPo
       
-      ALLOCATE( myPoly % s(0:nS), myPoly % p(0:nS) )
-      myPoly % s = ZERO
-      myPoly % p = ZERO
-
-      ALLOCATE( myPoly % bWs(0:nS), myPoly % bWp(0:nP) )
-
-      ALLOCATE( myPoly % so(0:nS), myPoly % po(0:nS) )
-      myPoly % so = ZERO
-      myPoly % po = ZERO
+      ! Allocate storage
+      ALLOCATE( myPoly % s(0:nS), myPoly % bWs(0:nS) )
+      ALLOCATE( myPoly % so(0:nSo), myPoly % Ts(0:nSo,0:nS), myPoly % Tp(0:nS,0:nSo) )
+      ALLOCATE( myPoly % Ds(0:nS,0:nS), myPoly % Dp(0:nS,0:nS) )
       
-      ! I know that, in this allocate statement, Ts is indexed over the new s-points then the old
-      ! s-points and Tp is indexed with the old points first instead. This is because the routine
-      ! to map the solution from the points we have to the points we want requires that the second
-      ! interpolation matrix is transposed.
-      ALLOCATE( myPoly % Ts(0:nSo,0:nS), myPoly % Tp(0:nP,0:nPo) )  
-      myPoly % Ts = ZERO
-      myPoly % Tp = ZERO
+      ! Fill in the nodal locations
+      myPoly % s  = s
+      myPoly % so = so
 
-      IF( PRESENT(xIn) )THEN
-         CALL myPoly % sInterp % Build( nS, xIn )
-      ELSE
-         CALL myPoly % sInterp % Build( nS )
-      ENDIF
-      
-      IF( PRESENT(yIn) )THEN
-         CALL myPoly % pInterp % Build( nP, yIn )
-      ELSE
-         CALL myPoly % pInterp % Build( nP )
-      ENDIF
-         
+      ! and calculate the barycentric weights for quick interpolation.
+      CALL myPoly % CalculateBarycentricWeights( )
 
+      ! Using the two nodal locations, we can construct the interpolation matrix. The interpolation
+      ! matrix enables quick interpolation.
+      CALL myPoly % CalculateInterpolationMatrix( )
 
- END SUBROUTINE BuildLagrange_2D
+      CALL myPoly % CalculateDerivativeMatrix( )
+ 
+ END SUBROUTINE Build_Lagrange_2D
 !
 !
 !
-SUBROUTINE TrashLagrange_2D(myPoly)
- ! S/R TrashLagrange_2D
- ! 
- !    DEALLOCATES memory occupied by myPoly
+SUBROUTINE Trash_Lagrange_2D(myPoly)
+ ! S/R Trash
  !
+ !   A manual destructor for the Lagrange_2D class.
  ! 
+ !   Usage :
+ !      CALL myPoly % Trash( )
+ !
+ !      Deallocates memory for the Lagrange_2D class. 
+ !
+ !   Input : 
+ !      myPoly       The Lagrange_2D data structure
+ !
+ !   Output :
+ !      myPoly       An empty Lagrange_2D data structure.
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
 
+      DEALLOCATE( myPoly % s, myPoly % bWs )
+      DEALLOCATE( myPoly % so, myPoly % Ts, myPoly % Tp )
+      DEALLOCATE( myPoly % Ds, myPoly % Dp )
 
-      CALL myPoly % sInterp % Trash( )
-      CALL myPoly % pInterp % Trash( )
-
- END SUBROUTINE TrashLagrange_2D
+ END SUBROUTINE Trash_Lagrange_2D
 !
 !
 !==================================================================================================!
 !--------------------------------------- Accessors ------------------------------------------------!
+! These routines are meant to be for convenience, so users do not have to make reference directly to 
+! the attributes of the data-structure directly. Of course, if the programmer knows the attributes,
+! nothing is currently stopping them from accessing the data directly; no data-hiding is implemented
+! here.
 !==================================================================================================!
 !
 !
- SUBROUTINE SetNodesLagrange_2D( myPoly, xIn, yIn )
- ! S/R SetNodesLagrange_2D
+ SUBROUTINE SetNodes_Lagrange_2D( myPoly, sInput )
+ ! S/R SetNodes
  !  
+ !   Uses "sInput" to assign the attribute "s" of the Lagrange_2D data structure. 
  !
+ !   Usage :
+ !      CALL myPoly % SetNodes( sInput )
+ !
+ !   Input :
+ !      sInput       A REAL array on nodal locations where we have observations
+ !
+ !   Output :
+ !      myPoly       The Lagrange_2D structure with the "s" attribute updated
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
-    REAL(prec), INTENT(in), OPTIONAL  :: xIn(0:myPoly % nS), yIn(0:myPoly % nP)
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(inout) :: myPoly
+   REAL(prec), INTENT(in)            :: sInput(0:myPoly % ns)
 
-       IF( PRESENT(xIn) )THEN
-          CALL myPoly % sInterp % SetNodes(xIn)
-       ELSE
-          CALL myPoly % sInterp % SetNodes( )
-       ENDIF
-       
-       IF( PRESENT(yIn) )THEN
-          CALL myPoly % pInterp % SetNodes(yIn)
-       ELSE
-          CALL myPoly % pInterp % SetNodes( )
-       ENDIF 
+      myPoly % s = sInput
 
- END SUBROUTINE SetNodesLagrange_2D
+ END SUBROUTINE SetNodes_Lagrange_2D
 !
 !
 !
- SUBROUTINE GetNodesLagrange_2D( myPoly, xOut, yOut )
- ! S/R GetNodesLagrange_2D
+ SUBROUTINE GetNodes_Lagrange_2D( myPoly, sOutput )
+ ! S/R GetNodes_Lagrange_2D
  !  
+ !   Uses the Lagrange_2D data structure to report the locations where we have data ("s") in the
+ !   REAL array "sOutput". 
+ !
+ !   Usage :
+ !      CALL myPoly % GetNodes( sOutput )
+ !
+ !   Input :
+ !      myPoly       The Lagrange_2D structure (with "s" assigned)
+ !
+ !   Output :
+ !      sOutput      A REAL array on nodal locations where we have observations
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(in) :: myPoly
-    REAL(prec), INTENT(out)        :: xOut(0:myPoly % nS), yOut(0:myPoly % nP)
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(in) :: myPoly
+   REAL(prec), INTENT(out)        :: sOutput(0:myPoly % ns)
 
+      sOutput = myPoly % s 
 
-       CALL myPoly % sInterp % GetNodes(xOut)
-       CALL myPoly % pInterp % GetNodes(yOut)    
-
- END SUBROUTINE GetNodesLagrange_2D
+ END SUBROUTINE GetNodes_Lagrange_2D
 !
 !
 !
- SUBROUTINE SetNodeLagrange_2D( myPoly, iX, iY, xIn, yIn)
- ! S/R SetNodeLagrange_2D
+SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
+ ! S/R SetAlternateNodes
  !  
+ !   Uses "sInput" to assign the attribute "so" of the Lagrange_2D data structure. Recall that "so"
+ !   refers to the locations where we want to have new observations, ie, it is the set of locations
+ !   that we will interpolate to.
+ !
+ !   Usage :
+ !      CALL myPoly % SetNodes( sInput )
+ !
+ !   Input :
+ !      sInput       A REAL array on nodal locations where we have observations
+ !
+ !   Output :
+ !      myPoly       The Lagrange_2D structure with the "so" attribute updated
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
-    INTEGER, INTENT(in)               :: iX, iY
-    REAL(prec), INTENT(out)           :: xIn, yIn
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(inout) :: myPoly
+   REAL(prec), INTENT(in)            :: sInput(0:myPoly % ns)
 
+      myPoly % so = sInput
 
-       CALL myPoly % sInterp % SetNode(iX, xIn)
-       CALL myPoly % pInterp % SetNode(iY, yIn)    
-
- END SUBROUTINE SetNodeLagrange_2D
+ END SUBROUTINE SetAlternateNodes_Lagrange_2D
 !
 !
 !
- SUBROUTINE GetNodeLagrange_2D( myPoly, iX, iY, xOut, yOut)
- ! S/R GetNodeLagrange_2D
+ SUBROUTINE GetAlternateNodes_Lagrange_2D( myPoly, sOutput )
+ ! S/R GetAlternateNodes
  !  
+ !   Uses the Lagrange_2D data structure to report the locations where we want data ("so") in the
+ !   REAL array "sOutput". Recall that "so" refers to the locations where we want to have new 
+ !   observations, ie, it is the set of locations that we will interpolate to.
+ !
+ !   Usage :
+ !      CALL myPoly % GetNodes( sOutput )
+ !
+ !   Input :
+ !      myPoly       The Lagrange_2D structure (with "so" assigned)
+ !
+ !   Output :
+ !      sOutput      A REAL array on nodal locations where we have observations
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(in) :: myPoly
-    INTEGER, INTENT(in)            :: iX, iY
-    REAL(prec), INTENT(out)        :: xOut, yOut
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(in) :: myPoly
+   REAL(prec), INTENT(out)        :: sOutput(0:myPoly % ns)
 
+      sOutput = myPoly % so 
 
-       CALL myPoly % sInterp % GetNode(iX, xOut)
-       CALL myPoly % pInterp % GetNode(iY, yOut)    
-
- END SUBROUTINE GetNodeLagrange_2D
+ END SUBROUTINE GetAlternateNodes_Lagrange_2D
 !
 !
 !
- SUBROUTINE SetWeightsLagrange_2D( myPoly, wsIn, wpIn )
- ! S/R SetWeightsLagrange_2D
+ SUBROUTINE SetWeights_Lagrange_2D( myPoly, wInput )
+ ! S/R SetWeights
  !  
+ !   Uses "wInput" to assign the attribute "bWs" of the Lagrange_2D data structure. Recall that 
+ !   "bWs" refers to barycentric interpolation weights.
  !
+ !   Usage :
+ !      CALL myPoly % SetWeights( wInput )
+ !
+ !   Input :
+ !      wIn          A REAL array on nodal locations where we have observations
+ !
+ !   Output :
+ !      myPoly       The Lagrange_2D structure with the "bWs" attribute updated
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
-    REAL(prec), INTENT(in), OPTIONAL  :: wsIn(0:myPoly % nS), wpIn(0:myPoly % nP)
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(inout) :: myPoly
+   REAL(prec), INTENT(in)            :: wInput(0:myPoly % ns)
 
-       IF( PRESENT(wsIn) )THEN
-          CALL myPoly % sInterp % SetWeights(wsIn)
-       ELSE
-          CALL myPoly % sInterp % SetWeights( )
-       ENDIF
-       
-       IF( PRESENT(wpIn) )THEN
-          CALL myPoly % pInterp % SetWeights(wpIn)
-       ELSE
-          CALL myPoly % pInterp % SetWeights( )
-       ENDIF 
+      myPoly % bWs = wInput
 
- END SUBROUTINE SetWeightsLagrange_2D
+ END SUBROUTINE SetWeights_Lagrange_2D
 !
 !
 !
- SUBROUTINE GetWeightsLagrange_2D( myPoly, wsOut, wpOut )
- ! S/R GetWeightsLagrange_2D
+ SUBROUTINE GetWeights_Lagrange_2D( myPoly, wOutput )
+ ! S/R GetWeights
  !  
+ !   Uses the Lagrange_2D data structure to report the barycentric interpolation weights ("bWs") in 
+ !   the REAL array "wOutput". Recall that "bWs" refers to barycentric interpolation weights.
+ !
+ !   Usage :
+ !      CALL myPoly % GetWeights( wOutput )
+ !
+ !   Input :
+ !      myPoly       The Lagrange_2D structure, with the "bWs" attribute assigned
+ !
+ !   Output :
+ !      wOuput       A REAL array containing the barycentric weights
  !
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(in) :: myPoly
-    REAL(prec), INTENT(out)        :: wsOut(0:myPoly % nS), wpOut(0:myPoly % nP)
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(in) :: myPoly
+   REAL(prec), INTENT(out)        :: wOutput(0:myPoly % nS)
 
+      wOutput = myPoly % bWs 
 
-       CALL myPoly % sInterp % GetWeights(wsOut)
-       CALL myPoly % pInterp % GetWeights(wpOut)    
-
- END SUBROUTINE GetWeightsLagrange_2D
+ END SUBROUTINE GetWeights_Lagrange_2D
 !
 !
 !
- SUBROUTINE SetWeightLagrange_2D( myPoly, iX, iY, wsIn, wpIn )
- ! S/R SetWeightLagrange_2D
+ SUBROUTINE SetNumberOfNodes_Lagrange_2D( myPoly, N )
+ ! S/R SetNumberOfNodes
  !  
+ !    Sets the "nS" attribute of the Lagrange_2D data structure to N. The "nS" attribute refers
+ !    to the number of nodes where we have observations.
  !
+ !    Usage :
+ !       CALL myPoly % SetNumberOfNodes( N )
+ !
+ !    Input :
+ !       myPoly      Lagrange_2D data structure
+ !       N           Integer, indicating the number of nodes that we have
+ !
+ !    Output :
+ !       myPoly      Lagrange_2D data structure with the number of nodes that we have (nS ) assigned
+ !  
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
-    INTEGER, INTENT(in)               :: iX, iY
-    REAL(prec), INTENT(out)           :: wsIn, wpIn
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(inout) :: myPoly
+   INTEGER, INTENT(in)               :: N
+    
+      myPoly % nS = N 
 
-
-       CALL myPoly % sInterp % SetWeight(iX, wsIn)
-       CALL myPoly % pInterp % SetWeight(iY, wpIn)    
-
- END SUBROUTINE SetWeightLagrange_2D
+ END SUBROUTINE SetNumberOfNodes_Lagrange_2D
 !
 !
 !
- SUBROUTINE GetWeightLagrange_2D( myPoly, iX, iY, wsOut, wpOut )
- ! S/R GetWeightLagrange_2D
+ SUBROUTINE GetNumberOfNodes_Lagrange_2D( myPoly, N )
+ ! S/R GetNumberOfNodes_Lagrange_2D
  !  
+ !    Gets the "nS" attribute from the Lagrange_2D data structure. The "nS" attribute refers
+ !    to the number of nodes where we have observations.
  !
+ !    Usage :
+ !       CALL myPoly % GetNumberOfNodes( N )
+ !
+ !    Input :
+ !       myPoly      Lagrange_2D data structure
+ !
+ !    Output :
+ !       N           Integer, indicating the number of nodes that we have
+ !  
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(in) :: myPoly
-    INTEGER, INTENT(in)            :: iX, iY
-    REAL(prec), INTENT(out)        :: wsOut, wpOut
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(in) :: myPoly
+   INTEGER, INTENT(out)           :: N
 
+      N = myPoly % nS 
 
-       CALL myPoly % sInterp % GetWeight(iX, wsOut)
-       CALL myPoly % pInterp % GetWeight(iY, wpOut)    
-
- END SUBROUTINE GetWeightLagrange_2D
+ END SUBROUTINE GetNumberOfNodes_Lagrange_2D
 !
 !
 !
- SUBROUTINE SetNumberOfNodesLagrange_2D( myPoly, nS, nP )
- ! S/R SetNumberOfNodesLagrange_2D
+ SUBROUTINE SetNumberOfAlternateNodes_Lagrange_2D( myPoly, N )
+ ! S/R SetNumberOfAlternateNodes
  !  
+ !    Sets the "nSo" attribute of the Lagrange_2D data structure to N. The "nSo" attribute refers
+ !    to the number of AlternateNodess where we want observations.
  !
+ !    Usage :
+ !       CALL myPoly % SetNumberOfAlternateNodes( N )
+ !
+ !    Input :
+ !       myPoly      Lagrange_2D data structure
+ !       N           Integer, indicating the number of nodes that we want
+ !
+ !    Output :
+ !       myPoly      Lagrange_2D data structure with the number of nodes that we want (nSo) assigned
+ !  
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
-    INTEGER, INTENT(in)               :: nS, nP
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(inout) :: myPoly
+   INTEGER, INTENT(in)               :: N
+    
+      myPoly % nSo = N 
 
-       myPoly % nS = nS
-       myPoly % nP = nP
-
- END SUBROUTINE SetNumberOfNodesLagrange_2D
+ END SUBROUTINE SetNumberOfAlternateNodess_Lagrange_2D
 !
 !
 !
- SUBROUTINE GetNumberOfNodesLagrange_2D( myPoly, nS, nP )
- ! S/R GetNumberOfNodesLagrange_2D
+ SUBROUTINE GetNumberOfAlternateNodes_Lagrange_2D( myPoly, N )
+ ! S/R GetNumberOfAlternateNodes
  !  
+ !    Gets the "nSo" attribute from the Lagrange_2D data structure. The "nSo" attribute refers
+ !    to the number of nodes where we want observations.
  !
+ !    Usage :
+ !       CALL myPoly % GetNumberOfAlternateNodes( N )
+ !
+ !    Input :
+ !       myPoly      Lagrange_2D data structure
+ !
+ !    Output :
+ !       N           Integer, indicating the number of AlternateNodess that we have
+ !  
  ! =============================================================================================== !
  ! DECLARATIONS
-    IMPLICIT NONE
-    CLASS(Lagrange_2D), INTENT(in) :: myPoly
-    INTEGER, INTENT(out)           :: nS, nP
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(in) :: myPoly
+   INTEGER, INTENT(out)           :: N
 
-       nS = myPoly % nS
-       nP = myPoly % nP
+      N = myPoly % nso 
 
- END SUBROUTINE GetNumberOfNodesLagrange_2D
+ END SUBROUTINE GetNumberOfAlternateNodes_Lagrange_2D
 !
 !
 !==================================================================================================!
@@ -364,198 +480,307 @@ SUBROUTINE TrashLagrange_2D(myPoly)
 !==================================================================================================!
 !
 !
- SUBROUTINE CalculateBarycentricWeights_2D(myPoly)
- ! S/R CalculateBarycentricWeights_2D
+ SUBROUTINE CalculateBarycentricWeights_Lagrange_2D( myPoly )
+ ! S/R CalculateBarycentricWeights
  !  
+ !    Calculates the barycentric weights from the interpolation nodes and stores them in 
+ !    the "bWs" attribute. This routine should be called after the interpolation nodes (s) have 
+ !    been assigned.
+ !
+ !    This subroutine is from Alg. # on pg. # of D.A. Kopriva, 2011, "Implementing Spectral Element
+ !    Methods for Scientists and Engineers"
+ !
+ !    Usage :
+ !       CALL myPoly % CalculateBarycentricWeights( )
+ !
+ !    Input :
+ !       myPoly (% s)     The Lagrange_2D data structure is sent in with the interpolation nodes
+ !                        already filled in.
+ !
+ !    Output :
+ !       myPoly (% bWs)   The Lagrange_2D data structure is returned with the barycentric weights
+ !                        filled in.
  !
  ! =============================================================================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Lagrange_2D), INTENT(inout) :: myPoly
+   ! Local
+   REAL(prec) :: s(0:myPoly % nS)
+   INTEGER    :: N
 
-   
-      CALL myPoly % sInterp % CalculateWeights( )
-      CALL myPoly % pInterp % CalculateWeights( )
+      N = myPoly % nS
+      s = myPoly % s
 
- END SUBROUTINE CalculateBarycentricWeights_2D
-!
-!
-!
- FUNCTION EvaluateLagrange_2D(myPoly, xEval, yEval, f) RESULT (inFatXY)  
- ! FUNCTION EvaluateLagrange_2D
- !  
- !
- ! =============================================================================================== !
-  IMPLICIT NONE
-  CLASS(Lagrange_2D), INTENT(in) :: myPoly
-  REAL(prec), INTENT(in)         :: xEval, yEval
-  REAL(prec), INTENT(in)         :: f(0:myPoly % nS, 0:myPoly % nP)
-  REAL(prec)                     :: inFatXY 
-  ! LOCAL
-  REAL(prec)  :: lS(0:myPoly % nS)
-  REAL(prec)  :: lP(0:myPoly % nP)
-  INTEGER     :: jS, jP, nS, nP
+      myPoly % bWs = BarycentricWeights( s, N )
  
-     CALL myPoly % GetNumberOfNodes( nS, nP )
-     
-     lS = myPoly % sInterp % EvaluateLagrangePolynomial( xEval ) 
-     lP = myPoly % pInterp % EvaluateLagrangePolynomial( yEval )
-
-     inFatXY = ZERO
-
-     DO jS = 0, nS ! Loop over the s-nodes
-        DO jP = 0, nP ! Loop over the p-nodes 
-  
-           inFatXY = inFatXY + f(jS,jP)*lS(jS)*lP(jP)
-
-        ENDDO ! jS, loop over the p-nodes
-     ENDDO ! jP, loop over the s-nodes
-
-  
-
- END FUNCTION EvaluateLagrange_2D
+ END SUBROUTINE CalculateBarycentricWeights_Lagrange_2D
 !
 !
 !
- FUNCTION EvaluateDerivative_2D( myPoly, xEval, yEval, f ) RESULT(gradF)  
- ! FUNCTION EvaluateDerivative_2D 
- !  
+ SUBROUTINE CalculateInterpolationMatrix_Lagrange_2D( myPoly )  
+ ! S/R CalculateInterpolationMatrix 
+ ! 
+ !    The interpolation of a function from one set of points (myPoly % s) to another (myPoly % so)
+ !    can be written as {f}_j = sum_{i}( f_i l_i(so_j) ). The sum (for each j) represents a matrix
+ !    vector product where the factor "l_i(so_j)" is the interpolation matrix. This subroutine
+ !    fills in the interpolation matrix.
  !
+ !    This subroutine is from Alg. # on pg. # of D.A. Kopriva, 2011, "Implementing Spectral Element
+ !    Methods for Scientists and Engineers"
+
+ !    Usage :
+ !       CALL myPoly % CalculateInterpolationMatrix( )
+ !
+ !    Input :
+ !       myPoly (% s) (% bWs) (% so)   Lagrange_2D data structure with the nodes, barycentric 
+ !                                     weights, and alternate nodes filled in
+ !
+ !    Output
+ !       myPoly (% Ts)                 Lagrange_2D data structure with the interpolation matrix
+ !                                     filled in.
+ ! 
+ ! 
  ! =============================================================================================== !
- ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS(Lagrange_2D), INTENT(in)  :: myPoly
-  REAL(prec), INTENT(in)          :: xEval, yEval
-  REAL(prec), INTENT(in)          :: f(0:myPoly % nS, 0:myPoly % nP)
-  REAL(prec)                      :: gradF(1:2)
-  ! LOCAL
-  REAL(prec)                      :: dfds, dfdp
-  REAL(prec)  :: lS(0:myPoly % nS), f1(0:myPoly % nS)
-  REAL(prec)  :: lP(0:myPoly % nP), f2(0:myPoly % nP)
-  INTEGER     :: jS, jP, nS, nP
- 
-     CALL myPoly % GetNumberOfNodes( nS, nP )
-     
-     lS = myPoly % sInterp % EvaluateLagrangePolynomial(xEval) 
-     lP = myPoly % pInterp % EvaluateLagrangePolynomial(yEval)
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(inout) :: myPoly
+   ! LOCAL
+   REAL(prec) :: temp1, temp2
+   REAL(prec) :: s(0:myPoly % nS), w(0:myPoly % nS)
+   REAL(prec) :: so(0:myPoly % nSo), T(0:myPoly % nSo, 0:myPoly % nS)
+   INTEGER    :: k, j,  N, Nnew
+   LOGICAL    :: rowHasMatch 
 
-     dfds = ZERO
-     dfdp = ZERO
+      N    = myPoly % nS
+      nNew = myPoly % nSo
+      s    = myPoly % s
+      w    = myPoly % bWs
+      so   = myPoly % so
 
-     DO jP = 0, nP ! Loop over p-points
+      DO k = 0, nNew ! loop over the new interpolation nodes ("so")
 
-        f1 = f(0:nS,jP)
-        ! Evaluate s-derivative
-        dfds = dfds + ( myPoly % sInterp % EvaluateDerivative(xEval, f1) )*lP(jP)
+         rowHasMatch = .FALSE.
+       
+         DO j = 0, N ! loop over the old interpolation nodes ("s")
 
-     ENDDO
+            T(k,j) = ZERO
+           
+            IF( AlmostEqual( so(k), s(j) ) )THEN
+               rowHasMatch = .TRUE.
+               T(k,j) = ONE
+            ENDIF
 
-     DO jS = 0, nS ! Loop over s-points
+         ENDDO 
 
-        f2 = f(jS,0:nP)
-        ! Evaluate p-derivative
-        dfdp = dfdp + ( myPoly % pInterp % EvaluateDerivative(yEval, f2) )*lS(jS)
+         IF( .NOT.(rowHasMatch) )THEN 
 
-     ENDDO
-     
-     gradf(1) = dfds
-     gradf(2) = dfdp
+            temp1 = ZERO
 
- END FUNCTION EvaluateDerivative_2D
+            DO j = 0, N ! loop over the old interpolation nodes ("s")         
+               temp2 = w(j)/( so(k) - s(j) )
+               T(k,j) = temp2
+               temp1 = temp1 + temp2
+            ENDDO 
+
+            DO j = 0, N 
+               T(k,j) = T(k,j)/temp1
+            ENDDO
+
+         ENDIF 
+
+      ENDDO
+
+      myPoly % Ts = T
+      myPoly % Tp = TRANSPOSE( T )
+
+ END SUBROUTINE CalculateInterpolationMatrix_Lagrange_2D
 !
 !
 !
- SUBROUTINE CalculateDerivativeMatrix_2D( myPoly, dMatX, dMatY, otherInterpolant )  
+ SUBROUTINE CalculateDerivativeMatrix_Lagrange_2D( myPoly )  
  ! S/R CalculateDerivativeMatrix 
  !  
+ !    Given nodal values of an interpolant, the derivative can be estimated at the interpolation 
+ !    nodes using the summation
+ !                             {f'}_j = sum_{i}( f_i l'_i(s_j) )
+ !    The summation is a matrix-vector product, where the factor l'_i(s_j) is the derivative 
+ !    matrix. This subroutine calculates the derivative matrix and stores it in the "Ds" attribute
+ !    of myPoly for later use.
+ !
+ !    This subroutine is from Alg. # on pg. # of D.A. Kopriva, 2011, "Implementing Spectral Element
+ !    Methods for Scientists and Engineers"
+ ! 
+ !     Usage :
+ !        CALL myPoly % CalculateDerivativeMatrix( )
+ !
+ !     Input :
+ !        myPoly (% s) (% bWs)    The Lagrange_2D data structure with the interpolation nodes ("s")
+ !                                and barycentric weights ("bWs") filled in.
+ !
+ !     Output
+ !        myPoly (% Ds)           The Lagrange_2D data structure with the derivative matrix filled
+ !                                in.
  !
  ! =============================================================================================== !
-  IMPLICIT NONE
-  CLASS(Lagrange_2D), INTENT(in)          :: myPoly
-  REAL(prec), INTENT(out), ALLOCATABLE    :: dMatX(:,:)
-  REAL(prec), INTENT(out), ALLOCATABLE    :: dMatY(:,:)
-  TYPE(Lagrange_2D), INTENT(in), OPTIONAL :: otherInterpolant
+   IMPLICIT NONE
+   CLASS(Lagrange_2D), INTENT(inout) :: myPoly
+   ! LOCAL
+   REAL(prec) :: s(0:myPoly % nS), w(0:myPoly % nS)
+   REAL(prec) :: dMat(0:myPoly % nS, 0:myPoly % nS)
+   INTEGER    :: k, j, N
+
+      N = myPoly % nS
+      s = myPoly % s
+      w = myPoly % bWs
+      
+      dMat = DerivativeMatrix( w, s, N )
   
-     IF( PRESENT(otherInterpolant) )THEN
-        CALL myPoly % sInterp % CalculateDerivativeMatrix( dMatX, otherInterpolant % sInterp )
-        CALL myPoly % pInterp % CalculateDerivativeMatrix( dMatY, otherInterpolant % pInterp )
-     ELSE
-        CALL myPoly % sInterp % CalculateDerivativeMatrix( dMatX )
-        CALL myPoly % pInterp % CalculateDerivativeMatrix( dMatY )
+      myPoly % Ds = dMat
+      myPoly % Dp = TRANSPOSE( dMat )
+
+ END SUBROUTINE CalculateDerivativeMatrix_Lagrange_2D
+!
+!
+!
+ FUNCTION LagrangePolynomials_Lagrange_2D( myPoly, sE ) RESULT( lAtS )  
+ ! FUNCTION LagrangePolynomials
+ !  
+ !    Given an evaluation location, this function returns each of the lagrange interpolating 
+ !    polynomials evaluated at "sE". This is helpful if your program repeatedly requires 
+ !    interpolation onto a given point.
+ !
+ !    Usage :
+ !       lAtS = myPoly % LagrangePolynomials( sE )
+ ! 
+ !    Input :
+ !       myPoly (% s) (% bWs)   Lagrange_2D Structure with the interpolation nodes and barycentric
+ !                              weights filled in
+ !   
+ !       sE                     REAL(prec) value where we want to evaluate the Lagrange 
+ !                              interpolating polynomials.
+ !    Output :
+ !       lAtS(0:myPoly % nS)    REAL(prec) array of the Lagrange interpolating polynomials evaluated
+ !                              at sE
+ !  
+ ! =============================================================================================== !
+   IMPLICIT NONE
+   CLASS(Lagrange_2D) :: myPoly
+   REAL(prec)         :: sE
+   REAL(prec)         :: lAtS(0:myPoly % nS)
+   ! LOCAL
+   REAL(prec) :: temp1, temp2
+   REAL(prec) :: s(0:myPoly % nS), w(0:myPoly % nS)
+   INTEGER    :: j, N
+   LOGICAL    :: xMatchesNode
+
+      N = myPoly % nS
+      s = myPoly % s
+      w = myPoly % bWs
+
+      xMatchesNode = .FALSE.
+
+      DO j = 0, N
+        
+         lAtS(j) = ZERO
+
+         IF( AlmostEqual(sE, s(j)) ) THEN
+            lAtS(j) = ONE
+            xMatchesNode = .TRUE.
+         ENDIF 
+
+     ENDDO
+
+     IF( xMatchesNode )THEN 
+        RETURN
      ENDIF
 
- END SUBROUTINE CalculateDerivativeMatrix_2D
+     temp1 = ZERO
+     
+     DO j = 0, N 
+        temp2 = w(j)/(sE - s(j))
+        lAtS(j) = temp2
+        temp1 = temp1 + temp2
+     ENDDO 
+     
+     DO j = 0, N 
+        lAtS(j) = lAtS(j)/temp1
+     ENDDO 
+     
+
+ END FUNCTION LagrangePolynomials_Lagrange_2D
 !
 !
 !
- SUBROUTINE CalculateInterpolationMatrix_2D( oldPoly, nSnew, nPnew, sNew, pNew, Ts, Tp)  
- ! S/R CalculateInterpolationMatrix
- !  
+ FUNCTION ApplyInterpolationMatrix_Lagrange_2D( myPoly, f ) RESULT( fNew )  
+ ! ApplyInterpolationMatrix
+ !
+ !   This function performs the matrix-vector multiply between the interpolation matrix 
+ !   (myPoly % Ts) and the "vector" of nodal-values "f". The application of the interpolation 
+ !   matrix maps "f" from the points "myPoly % s" to the points "myPoly % so".
+ !
+ !
+ !   Usage :
+ !      fNew = myPoly % ApplyInterpolationMatrix( f )
+ !
+ !   Input :
+ !      myPoly (% Ts)               Lagrange_2D data structure that has the interpolation matrix 
+ !                                  filled in.
+ ! 
+ !      f(0:myPoly % nS)            A REAL(prec) array of nodal values of a function at the points
+ !                                  "myPoly % s".
+ !
+ !   Output :
+ !      fNew(0:myPoly % nSo)        A REAL(prec) array of nodal values of a function at the points
+ !                                  "myPoly % so".
  !
  ! =============================================================================================== !
   IMPLICIT NONE
-  CLASS(Lagrange_2D), INTENT(in) :: oldPoly
-  INTEGER, INTENT(in)            :: nSnew, nPnew
-  REAL(prec), INTENT(in)         :: sNew(0:nSnew)
-  REAL(prec), INTENT(in)         :: pNew(0:nPnew)
-  REAL(prec), INTENT(out)        :: Ts(0:nSnew,0:oldPoly % nS)
-  REAL(prec), INTENT(out)        :: Tp(0:,0:oldPoly % nP)
+  CLASS(Lagrange_2D) :: myPoly
+  REAL(prec)         :: f(0:myPoly % nS)
+  REAL(prec)         :: fNew(0:myPoly % nSo)
+  ! Local
+  REAL(prec) :: fInt(0:myPoly % nSo, 0:myPoly % nS)
 
+     fInt = MATMUL( myPoly % Ts, f )
+     fNew = MATMUL( fInt, myPoly % Tp )
 
-     CALL oldPoly % sInterp % CalculateInterpolationMatrix( nSnew, sNew, Ts )  
-     CALL oldPoly % pInterp % CalculateInterpolationMatrix( nPnew, pNew, Tp )  
-
- END SUBROUTINE CalculateInterpolationMatrix_2D
+ END SUBROUTINE ApplyInterpolationMatrix_Lagrange_2D
 !
 !
 !
- SUBROUTINE CoarseToFine_2D( oldPoly, fOld, Ts, Tp, nSnew, nPnew, fNew) 
- ! S/R CoarseToFine_2D 
- !  
+ FUNCTION ApplyDerivativeMatrix_Lagrange_2D( myPoly, f ) RESULT( derF )  
+ ! ApplyDerivativeMatrix
+ !
+ !   This function performs the matrix-vector multiply between the Derivative matrix 
+ !   (myPoly % Ds) and the "vector" of nodal-values "f". The application of the Derivative 
+ !   matrix estimates the derivative of "f" at the nodal locations.
+ !
+ !
+ !   Usage :
+ !      fNew = myPoly % ApplyDerivativeMatrix( f )
+ !
+ !   Input :
+ !      myPoly (% Ds)               Lagrange_2D data structure that has the Derivative matrix 
+ !                                  filled in.
+ ! 
+ !      f(0:myPoly % nS)            A REAL(prec) array of nodal values of a function at the points
+ !                                  "myPoly % s".
+ !
+ !   Output :
+ !      derF(0:myPoly % nS,1:ndim)  A REAL(prec) array of nodal values of the derivative of the 
+ !                                  interpolant at the tensor product of points "myPoly % s".
+ !                                  derF(:,1) = dFds and derF(:,2) = dFdp. 
  !
  ! =============================================================================================== !
   IMPLICIT NONE
-  CLASS(Lagrange_2D), INTENT(in)  :: oldPoly
-  INTEGER, INTENT(in)             :: nSnew, nPnew
-  REAL(prec), INTENT(in)          :: Ts(0:nSnew,0:oldPoly % nS)
-  REAL(prec), INTENT(in)          :: Tp(0:nPnew,0:oldPoly % nP)
-  REAL(prec), INTENT(in)          :: fOld(0:oldPoly % nS, 0:oldPoly % nP)
-  REAL(prec), INTENT(out)         :: fNew(0:nSnew, 0:nPnew)
+  CLASS(Lagrange_2D) :: myPoly
+  REAL(prec)         :: f(0:myPoly % nS,0:myPoly % nS)
+  REAL(prec)         :: derF(0:myPoly % nS,1:ndim)
 
-  ! LOCAL
-  REAL(prec) :: fInt(0:nSnew,0:oldPoly % nP) 
-  INTEGER :: j, nSold, nPold
+     derF(:,1) = MATMUL( myPoly % Ds, f )
+     derF(:,2) = MATMUL( f, myPoly % Dp )
 
-      CALL oldPoly % GetNumberOfNodes( nSold, nPold )
-       
-      ! Interpolation in 2-D can be broken into two Matrix-Matrix multiplies,
-      ! To interpolate from the points (s_i, p_j) to (s_a, p_b), we use the interpolation formula,
-      !
-      !                    F_{a,b} = \sum_{j} [ \sum_{i} [F_{i,j} l_i(s_a)] l_j(s_b)]            (1)
-      !
-      ! l_i(s_a) is the a-th row of the i-th column of the "Interpolation Matrix" (Ts). In 2-D,
-      ! we can treat the 2-D array of nodal values as a 2-D matrix. The inner sum over i in the
-      ! Eq. (1) is matrix-matrix multiply. Let M denote the number of points in the new
-      ! grid, and N the number of points in the old grid. (Ts)_{a,i} = l_i(s_a) is an MxN matrix,
-      ! and F_{i,j} is NxN. The matrix-matrix multiply
-      !
-      !                           F*_{a,j} = Ts*F                                                (2)
-      !
-      ! Yields an MxN set of nodal values that are interpolated onto the new nodes in the 
-      ! s-direction, but not in the p-direction. The outer sum in Eq. (1) then can be written
-      !
-      !        F_{a,b} = \sum_{j}[ F*_{a,j}l_j(s_b) ] = \sum_{j}[F*_{a,j}Tp_{b,j}]               (3)
-      !  
-      ! Which amounts to a matrix-matrix multiply with the transpose of the interpolation matrix.
-      ! This is why, when the interpolation matrices are made, the transpose of the p-Interpolation 
-      ! is stored. This illustrates why the algorithm here looks rather simple, with two 
-      ! matrix-matrix multiplies.
-  
-      fInt = MATMUL( Ts, fOld )
-      fNew = MATMUL( Tp, fIntT )
-
-
-  END SUBROUTINE CoarseToFine_2D
+ END SUBROUTINE ApplyDerivativeMatrix_Lagrange_2D
 !
 !
 !==================================================================================================!
@@ -563,42 +788,7 @@ SUBROUTINE TrashLagrange_2D(myPoly)
 !==================================================================================================!
 !
 !
- SUBROUTINE WriteTecplot_Lagrange_2D( myPoly, func, funcname, filename )
-! S/R WriteTecplot_Lagrange_2D
- !  Description :
- !  
- !
- ! =============================================================================================== !
-  IMPLICIT NONE
-  CLASS(Lagrange_2D), INTENT(in) :: myPoly
-  REAL(prec), INTENT(in)         :: func(0:myPoly % nS, 0:myPoly % nP)
-  CHARACTER(*), INTENT(in)       :: funcname, filename  
-  ! Local
-  INTEGER    :: jS, jP, nS, nP, fUnit
-  REAL(prec) :: s, p
-  
-    CALL myPoly % GetNumberOfNodes( nS, nP )
-    
-    OPEN( UNIT=NewUnit(fUnit), &
-          FILE= trim(filename)//'.tec',&
-          FORM='formatted' )
-
-    WRITE(fUnit,*) 'VARIABLES = "X", "Y", "'//trim(funcname)//'"'
-    WRITE(fUnit,*) 'ZONE I=',nS+1,', J=', nP+1,',DATAPACKING=POINT'
-
-    DO jP = 0, nP
-       DO jS = 0, nS
-       
-          CALL myPoly % GetNode( jS, jP, s, p )
-
-          WRITE (fUnit,*) s, p, func(jS,jP)
-
-       ENDDO
-    ENDDO
-
-    CLOSE(UNIT=fUnit)
-
- END SUBROUTINE WriteTecplot_Lagrange_2D
+ 
 !
 !
 !

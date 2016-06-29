@@ -92,14 +92,17 @@ Chebyshev.o : ModelPrecision.o ConstantsDictionary.o
 Legendre.o : ModelPrecision.o ModelFlags.o ConstantsDictionary.o
 	${FC} ${OPT} -c ${SRCDIR}interp/Legendre.f90 -o $@
 
-Lagrange_1D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o
+InterpolationSupportRoutines.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o 
+	${FC} ${OPT} -c ${SRCDIR}interp/InterpolationSupportRoutines.f90 -o $@
+
+Lagrange_1D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o InterpolationSupportRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}interp/Lagrange_1D_Class.f90 -o $@
 
-Lagrange_2D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o Lagrange_1D_Class.o
+Lagrange_2D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o InterpolationSupportRoutines.o
 	${FC} ${OPT} -c ${SRCDIR}interp/Lagrange_2D_Class.f90 -o $@
 	
-Lagrange_3D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o Lagrange_1D_Class.o
-	${FC} ${OPT} -c ${SRCDIR}interp/Lagrange_3D_Class.f90 -o $@
+#Lagrange_3D_Class.o : ModelPrecision.o ConstantsDictionary.o CommonRoutines.o
+#	${FC} ${OPT} -c ${SRCDIR}interp/Lagrange_3D_Class.f90 -o $@
 
 # Test Programs
 
