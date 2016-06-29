@@ -580,7 +580,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_1D( myPoly, sInput )
       w = myPoly % bWs
       
       dMat = DerivativeMatrix( w, s, N )
-  
+
       myPoly % Ds = dMat
 
  END SUBROUTINE CalculateDerivativeMatrix_Lagrange_1D

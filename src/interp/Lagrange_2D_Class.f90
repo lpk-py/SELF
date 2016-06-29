@@ -95,9 +95,7 @@ IMPLICIT NONE
       PROCEDURE :: CalculateBarycentricWeights  => CalculateBarycentricWeights_Lagrange_2D
       PROCEDURE :: CalculateInterpolationMatrix => CalculateInterpolationMatrix_Lagrange_2D
       PROCEDURE :: CalculateDerivativeMatrix    => CalculateDerivativeMatrix_Lagrange_2D
-      PROCEDURE :: Interpolate                  => Interpolate_Lagrange_2D
       PROCEDURE :: LagrangePolynomials          => LagrangePolynomials_Lagrange_2D
-      PROCEDURE :: EvaluateDerivative           => EvaluateDerivative_Lagrange_2D
       PROCEDURE :: ApplyInterpolationMatrix     => ApplyInterpolationMatrix_Lagrange_2D
       PROCEDURE :: ApplyDerivativeMatrix        => ApplyDerivativeMatrix_Lagrange_2D
       
@@ -445,7 +443,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
     
       myPoly % nSo = N 
 
- END SUBROUTINE SetNumberOfAlternateNodess_Lagrange_2D
+ END SUBROUTINE SetNumberOfAlternateNodes_Lagrange_2D
 !
 !
 !
@@ -462,7 +460,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
  !       myPoly      Lagrange_2D data structure
  !
  !    Output :
- !       N           Integer, indicating the number of AlternateNodess that we have
+ !       N           Integer, indicating the number of AlternateNodes that we have
  !  
  ! =============================================================================================== !
  ! DECLARATIONS
@@ -528,7 +526,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
  !
  !    This subroutine is from Alg. # on pg. # of D.A. Kopriva, 2011, "Implementing Spectral Element
  !    Methods for Scientists and Engineers"
-
+ !
  !    Usage :
  !       CALL myPoly % CalculateInterpolationMatrix( )
  !
@@ -557,38 +555,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
       w    = myPoly % bWs
       so   = myPoly % so
 
-      DO k = 0, nNew ! loop over the new interpolation nodes ("so")
-
-         rowHasMatch = .FALSE.
-       
-         DO j = 0, N ! loop over the old interpolation nodes ("s")
-
-            T(k,j) = ZERO
-           
-            IF( AlmostEqual( so(k), s(j) ) )THEN
-               rowHasMatch = .TRUE.
-               T(k,j) = ONE
-            ENDIF
-
-         ENDDO 
-
-         IF( .NOT.(rowHasMatch) )THEN 
-
-            temp1 = ZERO
-
-            DO j = 0, N ! loop over the old interpolation nodes ("s")         
-               temp2 = w(j)/( so(k) - s(j) )
-               T(k,j) = temp2
-               temp1 = temp1 + temp2
-            ENDDO 
-
-            DO j = 0, N 
-               T(k,j) = T(k,j)/temp1
-            ENDDO
-
-         ENDIF 
-
-      ENDDO
+      T = InterpolationMatrix( s, w, so, N, nNew )
 
       myPoly % Ts = T
       myPoly % Tp = TRANSPOSE( T )
@@ -726,25 +693,25 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
  !      myPoly (% Ts)               Lagrange_2D data structure that has the interpolation matrix 
  !                                  filled in.
  ! 
- !      f(0:myPoly % nS)            A REAL(prec) array of nodal values of a function at the points
- !                                  "myPoly % s".
+ !      f(:,:)                       A REAL(prec) 2-D array of nodal values of a function at the 
+ !                                   points "myPoly % s".
  !
  !   Output :
- !      fNew(0:myPoly % nSo)        A REAL(prec) array of nodal values of a function at the points
- !                                  "myPoly % so".
+ !      fNew(:,:)                   A REAL(prec) 2-D array of nodal values of a function at the 
+ !                                  points "myPoly % so".
  !
  ! =============================================================================================== !
   IMPLICIT NONE
   CLASS(Lagrange_2D) :: myPoly
-  REAL(prec)         :: f(0:myPoly % nS)
-  REAL(prec)         :: fNew(0:myPoly % nSo)
+  REAL(prec)         :: f(0:myPoly % nS,0:myPoly % nS)
+  REAL(prec)         :: fNew(0:myPoly % nSo,0:myPoly % nSo)
   ! Local
   REAL(prec) :: fInt(0:myPoly % nSo, 0:myPoly % nS)
 
      fInt = MATMUL( myPoly % Ts, f )
      fNew = MATMUL( fInt, myPoly % Tp )
 
- END SUBROUTINE ApplyInterpolationMatrix_Lagrange_2D
+ END FUNCTION ApplyInterpolationMatrix_Lagrange_2D
 !
 !
 !
@@ -754,7 +721,6 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
  !   This function performs the matrix-vector multiply between the Derivative matrix 
  !   (myPoly % Ds) and the "vector" of nodal-values "f". The application of the Derivative 
  !   matrix estimates the derivative of "f" at the nodal locations.
- !
  !
  !   Usage :
  !      fNew = myPoly % ApplyDerivativeMatrix( f )
@@ -767,7 +733,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
  !                                  "myPoly % s".
  !
  !   Output :
- !      derF(0:myPoly % nS,1:ndim)  A REAL(prec) array of nodal values of the derivative of the 
+ !      derF(:,:1:ndim)             A REAL(prec) array of nodal values of the derivative of the 
  !                                  interpolant at the tensor product of points "myPoly % s".
  !                                  derF(:,1) = dFds and derF(:,2) = dFdp. 
  !
@@ -775,21 +741,17 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
   IMPLICIT NONE
   CLASS(Lagrange_2D) :: myPoly
   REAL(prec)         :: f(0:myPoly % nS,0:myPoly % nS)
-  REAL(prec)         :: derF(0:myPoly % nS,1:ndim)
+  REAL(prec)         :: derF(0:myPoly % nS,0:myPoly % nS, 1:ndim)
 
-     derF(:,1) = MATMUL( myPoly % Ds, f )
-     derF(:,2) = MATMUL( f, myPoly % Dp )
+     derF(:,:,1) = MATMUL( myPoly % Ds, f )
+     derF(:,:,2) = MATMUL( f, myPoly % Dp )
 
- END SUBROUTINE ApplyDerivativeMatrix_Lagrange_2D
+ END FUNCTION ApplyDerivativeMatrix_Lagrange_2D
 !
 !
 !==================================================================================================!
 !--------------------------------- File I/O Routines ----------------------------------------------!
 !==================================================================================================!
-!
-!
- 
-!
 !
 !
 END MODULE Lagrange_2D_Class
