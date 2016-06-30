@@ -112,7 +112,7 @@ IMPLICIT NONE
 !
 !
  SUBROUTINE Build_Lagrange_2D( myPoly, nS, nSo, s, so )
- ! S/R Build
+ ! S/R Build_Lagrange_2D
  !
  !   A manual constructor for the Lagrange_2D class.
  ! 
@@ -165,7 +165,7 @@ IMPLICIT NONE
 !
 !
 SUBROUTINE Trash_Lagrange_2D(myPoly)
- ! S/R Trash
+ ! S/R Trash_Lagrange_2D
  !
  !   A manual destructor for the Lagrange_2D class.
  ! 
@@ -202,7 +202,7 @@ SUBROUTINE Trash_Lagrange_2D(myPoly)
 !
 !
  SUBROUTINE SetNodes_Lagrange_2D( myPoly, sInput )
- ! S/R SetNodes
+ ! S/R SetNodes_Lagrange_2D
  !  
  !   Uses "sInput" to assign the attribute "s" of the Lagrange_2D data structure. 
  !
@@ -255,7 +255,7 @@ SUBROUTINE Trash_Lagrange_2D(myPoly)
 !
 !
 SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
- ! S/R SetAlternateNodes
+ ! S/R SetAlternateNodes_Lagrange_2D
  !  
  !   Uses "sInput" to assign the attribute "so" of the Lagrange_2D data structure. Recall that "so"
  !   refers to the locations where we want to have new observations, ie, it is the set of locations
@@ -283,7 +283,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE GetAlternateNodes_Lagrange_2D( myPoly, sOutput )
- ! S/R GetAlternateNodes
+ ! S/R GetAlternateNodes_Lagrange_2D
  !  
  !   Uses the Lagrange_2D data structure to report the locations where we want data ("so") in the
  !   REAL array "sOutput". Recall that "so" refers to the locations where we want to have new 
@@ -311,7 +311,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE SetWeights_Lagrange_2D( myPoly, wInput )
- ! S/R SetWeights
+ ! S/R SetWeights_Lagrange_2D
  !  
  !   Uses "wInput" to assign the attribute "bWs" of the Lagrange_2D data structure. Recall that 
  !   "bWs" refers to barycentric interpolation weights.
@@ -338,7 +338,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE GetWeights_Lagrange_2D( myPoly, wOutput )
- ! S/R GetWeights
+ ! S/R GetWeights_Lagrange_2D
  !  
  !   Uses the Lagrange_2D data structure to report the barycentric interpolation weights ("bWs") in 
  !   the REAL array "wOutput". Recall that "bWs" refers to barycentric interpolation weights.
@@ -365,7 +365,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE SetNumberOfNodes_Lagrange_2D( myPoly, N )
- ! S/R SetNumberOfNodes
+ ! S/R SetNumberOfNodes_Lagrange_2D
  !  
  !    Sets the "nS" attribute of the Lagrange_2D data structure to N. The "nS" attribute refers
  !    to the number of nodes where we have observations.
@@ -420,7 +420,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE SetNumberOfAlternateNodes_Lagrange_2D( myPoly, N )
- ! S/R SetNumberOfAlternateNodes
+ ! S/R SetNumberOfAlternateNodes_Lagrange_2D
  !  
  !    Sets the "nSo" attribute of the Lagrange_2D data structure to N. The "nSo" attribute refers
  !    to the number of AlternateNodess where we want observations.
@@ -448,7 +448,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE GetNumberOfAlternateNodes_Lagrange_2D( myPoly, N )
- ! S/R GetNumberOfAlternateNodes
+ ! S/R GetNumberOfAlternateNodes_Lagrange_2D
  !  
  !    Gets the "nSo" attribute from the Lagrange_2D data structure. The "nSo" attribute refers
  !    to the number of nodes where we want observations.
@@ -479,7 +479,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE CalculateBarycentricWeights_Lagrange_2D( myPoly )
- ! S/R CalculateBarycentricWeights
+ ! S/R CalculateBarycentricWeights_Lagrange_2D
  !  
  !    Calculates the barycentric weights from the interpolation nodes and stores them in 
  !    the "bWs" attribute. This routine should be called after the interpolation nodes (s) have 
@@ -517,15 +517,12 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE CalculateInterpolationMatrix_Lagrange_2D( myPoly )  
- ! S/R CalculateInterpolationMatrix 
+ ! S/R CalculateInterpolationMatrix_Lagrange_2D 
  ! 
  !    The interpolation of a function from one set of points (myPoly % s) to another (myPoly % so)
  !    can be written as {f}_j = sum_{i}( f_i l_i(so_j) ). The sum (for each j) represents a matrix
  !    vector product where the factor "l_i(so_j)" is the interpolation matrix. This subroutine
  !    fills in the interpolation matrix.
- !
- !    This subroutine is from Alg. # on pg. # of D.A. Kopriva, 2011, "Implementing Spectral Element
- !    Methods for Scientists and Engineers"
  !
  !    Usage :
  !       CALL myPoly % CalculateInterpolationMatrix( )
@@ -565,7 +562,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  SUBROUTINE CalculateDerivativeMatrix_Lagrange_2D( myPoly )  
- ! S/R CalculateDerivativeMatrix 
+ ! S/R CalculateDerivativeMatrix_Lagrange_2D 
  !  
  !    Given nodal values of an interpolant, the derivative can be estimated at the interpolation 
  !    nodes using the summation
@@ -574,8 +571,6 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
  !    matrix. This subroutine calculates the derivative matrix and stores it in the "Ds" attribute
  !    of myPoly for later use.
  !
- !    This subroutine is from Alg. # on pg. # of D.A. Kopriva, 2011, "Implementing Spectral Element
- !    Methods for Scientists and Engineers"
  ! 
  !     Usage :
  !        CALL myPoly % CalculateDerivativeMatrix( )
@@ -610,11 +605,14 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  FUNCTION LagrangePolynomials_Lagrange_2D( myPoly, sE ) RESULT( lAtS )  
- ! FUNCTION LagrangePolynomials
+ ! FUNCTION LagrangePolynomials_Lagrange_2D 
  !  
  !    Given an evaluation location, this function returns each of the lagrange interpolating 
  !    polynomials evaluated at "sE". This is helpful if your program repeatedly requires 
  !    interpolation onto a given point.
+ !
+ !    This subroutine is from Alg. # on pg. # of D.A. Kopriva, 2011, "Implementing Spectral Element
+ !    Methods for Scientists and Engineers"
  !
  !    Usage :
  !       lAtS = myPoly % LagrangePolynomials( sE )
@@ -679,7 +677,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  FUNCTION ApplyInterpolationMatrix_Lagrange_2D( myPoly, f ) RESULT( fNew )  
- ! ApplyInterpolationMatrix
+ ! FUNCTION ApplyInterpolationMatrix_Lagrange_2D 
  !
  !   This function performs the matrix-vector multiply between the interpolation matrix 
  !   (myPoly % Ts) and the "vector" of nodal-values "f". The application of the interpolation 
@@ -716,7 +714,7 @@ SUBROUTINE SetAlternateNodes_Lagrange_2D( myPoly, sInput )
 !
 !
  FUNCTION ApplyDerivativeMatrix_Lagrange_2D( myPoly, f ) RESULT( derF )  
- ! ApplyDerivativeMatrix
+ ! FUNCTION ApplyDerivativeMatrix_Lagrange_2D 
  !
  !   This function performs the matrix-vector multiply between the Derivative matrix 
  !   (myPoly % Ds) and the "vector" of nodal-values "f". The application of the Derivative 

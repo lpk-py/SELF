@@ -1,0 +1,100 @@
+\documentclass[12pt]{softwaremanual}
+
+
+\author{Joseph Schoonover}
+\title{}
+\date{}
+
+
+\begin{document}
+
+% Doing a custom title-page
+\begin{titlingpage}
+    
+        \vspace*{2cm}
+        
+     \begin{flushright}
+        {\fontfamily{cmss}\selectfont
+        \HUGE{\textbf{ Spectral Element Libraries in Fortran }}\\
+        }
+       
+        \vspace{1cm}
+        
+        \huge{
+        \textbf{
+        \textit{
+        \textcolor{blue}{
+           SELF
+        }}}}
+        
+     \end{flushright}
+         
+        \vspace{2cm}
+        
+     \begin{center}
+     
+        %Do a subtitle here if you like
+        {\fontfamily{cmss}\selectfont
+        \huge{
+           Quick Reference Manual
+        }
+        
+        \vspace{1.5cm}
+        
+        % Enter the author's name
+        \textbf{
+        \large{
+           \theauthor 
+         }}}
+        
+        \vfill
+        
+        
+        \vspace{0.8cm}
+        
+     \end{center}
+        
+    
+\end{titlingpage}
+
+
+
+\tableofcontents
+
+\pagestyle{myheadings}
+\chapter{Software Overview}
+The Spectral Element Libraries in Fortran (SELF) provide supporting data-structures for implementing spectral element methods (SEMs) to solve partial differential equations (PDEs) in multiple dimensions. The focus of the libraries is particularly on Legendre-Galerkin type methods. Legendre-Galerkin methods solve PDEs by approximating the solution and geometry by interpolating polynomials. Discrete equations are formed by solving the weak form of the PDE in which the integrals are approximated by discrete Gauss or Gauss-Lobatto quadrature. Underneath the umbrella of ``Legendre-Galerkin'' are Continuous Galerkin (CG) and Discontinuous Galerkin (DG) methods. CG methods are primarily used for elliptic or parabolic PDEs while DG methods are focused on hyperbolic systems.
+
+The software is broken into the following components :
+\begin{enumerate}
+\item Commonly used routines and dictionaries,
+\item Interpolation and Quadrature,
+\item Geometry,
+\item Spectral Operator storage structures,
+\item Solution storage data structures,
+\item Spectral filters,
+\item \textbf{\textit{High end solvers}}
+\end{enumerate}
+
+This document primarily focuses on the use and modification of the pre-constructed and tested high-end solvers. The first six components all serve as support for computing high order discrete differentiation on structured or unstructured meshes. Modification of these lower-end support modules is not recommended. 
+
+\chapter{Getting Started}
+The quickest way to get started is to browse through the examples subdirectory and identify a test-case that is appealing to you. The next steps are to compile and execute the example program. This process is now described for the ``spot-advection'' example for for advection3d highend solver.
+
+
+\chapter{Module List}
+This chapter of the documentation provides an overview of each subdirectory underneath the main \texttt{src/} directory. Each subdirectory contains, usually, a collection of modules that corresponds to the subdirectory category. Within the modules are data structures and associated subroutines and functions. This pattern of organization applies to every subdirectory, except for \texttt{common/}, which supplies an assortment of useful constants and assorted routines that did not fit directly in any of the other subdirectories.
+
+ This chapter contains overviews of the data-structures and the accompanying routines. As part of the overview, calling syntax is provided here so that the end-user can make use of these routines. Keep in mind that, template solvers (under \texttt{dgsem/} and \texttt{cgsem/}) provide a solid ``jumping-off'' point for a variety of problems; this chapter should help you better understand how these template solvers work so that you can begin making your own modifications.
+ 
+\section{common}
+\subsection{\texttt{ModelPrecision.f90}}
+ \textbf{Overview}:
+    This module sets the precision of floating point data throughout the rest of the software. Definitions are provided for single and double precision floating point arithmetic, and a selector (\texttt{prec}) is provided in order to select either choice.
+\section{interp}
+\section{nodal}
+\section{geom}
+\section{dgsem}
+\section{cgsem}
+
+\end{document}
