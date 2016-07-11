@@ -19,6 +19,13 @@
 ! DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
 ! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
 !
+!  2016/07/05 : Jenniffer Estrada (estradjm@gmail.com)
+!     > Replaced one MATMUL instance with cuMatMul implementation (in MappedTimeDerivative module)
+!  2016/07/11 : Jenniffer Estrada (estradjm@gmail.com)
+!     > Switched over to Apache 2.0 License. 
+!     > Cleaned up comments and code formatting to enhance readability.
+!     > Verified with VisIt 2.10.3 for initialization and integration
+!
 ! //////////////////////////////////////////////////////////////////////////////////////////////// !
  
  
@@ -167,9 +174,9 @@ IMPLICIT NONE
       PROCEDURE :: IntegrateEnergies               => IntegrateEnergies_ShallowWater
       
       PROCEDURE :: CoarseToFine => CoarseToFine_ShallowWater
-      PROCEDURE :: WriteTecplot => WriteTecplot_ShallowWater
-      PROCEDURE :: WritePickup => WritePickup_ShallowWater
-      PROCEDURE :: ReadPickup => ReadPickup_ShallowWater
+!      PROCEDURE :: WriteTecplot => WriteTecplot_ShallowWater
+!      PROCEDURE :: WritePickup => WritePickup_ShallowWater
+!      PROCEDURE :: ReadPickup => ReadPickup_ShallowWater
 
     END TYPE ShallowWater
 
@@ -250,7 +257,7 @@ IMPLICIT NONE
       IF( .NOT. PRESENT(forceNoPickup) )then
          
          ! This call reads the solution, the addons and the relaxation-parameter
-         CALL myDGSEM % ReadPickup( myDGSEM % params % iterInit )
+!         CALL myDGSEM % ReadPickup( myDGSEM % params % iterInit )
 
          DO iEl = 1, myDGSEM % mesh % nElems
             CALL myDGSEM %  CalculateBathymetryGradient( iEl ) 
@@ -1639,6 +1646,7 @@ SUBROUTINE MappedTimeDerivative_ShallowWater( myDGSEM, iEl, tn )
    REAL(prec) :: sContFlux(0:myDGSEM % nS,0:myDGSEM % nP,1:nSWEq)
    REAL(prec) :: localF(0:myDGSEM % nS, 0:myDGSEM % nP)
    REAL(prec) :: tend(0:myDGSEM % nS,0:myDGSEM % nP,1:nSWEq)
+   REAL(prec) :: dummyTend(0:myDGSEM % nS,0:myDGSEM % nP)
    REAL(prec) :: dMatX(0:myDGSEM % nS,0:myDGSEM % nS)
    REAL(prec) :: dMatY(0:myDGSEM % nP,0:myDGSEM % nP)
    REAL(prec) :: qWeightX(0:myDGSEM % nS)
@@ -1702,7 +1710,17 @@ SUBROUTINE MappedTimeDerivative_ShallowWater( myDGSEM, iEl, tn )
       DO iEq = 1, nSWeq
          
          localF = sContFlux(0:nS,0:nP,iEq)
-         tend(0:nS,0:nP,iEq) = MATMUL( dMatX, localF )
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! GPU Implementation of MATMUL
+! dMatX = A
+! localF = B
+! tend(..) = C (return matrix)
+! nP = size of dimensions of arrays (assumed all to be the same right now)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
+!         tend(0:nS,0:nP,iEq) = MATMUL( dMatX, localF )
+        call cuMatMul(dMatX,localF,dummyTend(0:nS,0:nP),nP,nP,nP,nP,nP,nP)       
+        tend(0:nS,0:nP,iEq) = dummyTend(0:nS,0:nP) 
+
          localF = pContFlux(0:nS,0:nP,iEq)
          tend(0:nS,0:nP,iEq) = tend(0:nS,0:nP,iEq) + MATMUL( localF, dMatY )
 
@@ -2229,233 +2247,231 @@ FUNCTION DGSystemDerivative(  nP, dMat, qWei, lFlux, rFlux, intFlux, lagLeft, la
 !
 !
 !
- SUBROUTINE WriteTecplot_ShallowWater( myDGSEM, filename )
- ! S/R WriteTecplot
- !  
- ! =============================================================================================== !
- ! DECLARATIONS
-  IMPLICIT NONE
-  CLASS( ShallowWater ), INTENT(in)  :: myDGsem
-  CHARACTER(*), INTENT(in), OPTIONAL :: filename
-  !LOCAL
-  REAL(prec)  :: x(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
-  REAL(prec)  :: y(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
-  REAL(prec)  :: depth(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
-  REAL(prec)  :: u(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
-  REAL(prec)  :: v(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
-  REAL(prec)  :: eta(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
-  REAL(prec)  :: vorticity(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
-  INTEGER     :: iS, iP, iEl, fUnit, nPlot
-  CHARACTER(len=5) :: zoneID
-
-    nPlot = myDGSEM % nPlot
-    
-    IF( PRESENT(filename) )THEN
-       OPEN( UNIT=NEWUNIT(fUnit), &
-             FILE= TRIM(filename)//'.tec', &
-             FORM='formatted', &
-             STATUS='replace')
-    ELSE
-       OPEN( UNIT=NEWUNIT(fUnit), &
-             FILE= 'ShallowWater.tec', &
-             FORM='formatted', &
-             STATUS='replace')  
-    ENDIF
-    
-    WRITE(fUnit,*) 'VARIABLES = "X", "Y", "Depth" "U", "V", "Eta" '
- 
-   DO iEl = 1, myDGsem % mesh % nElems
-
-      CALL myDGSEM % CoarseToFine( iEl, x, y, depth, u, v, eta, vorticity )
-      WRITE(zoneID,'(I5.5)') iEl
-      WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nPlot+1,', J=', nPlot+1,',F=POINT'
-
-      DO iP = 0, nPlot
-         DO iS = 0, nPlot
-            WRITE (fUnit,*) x( iS, iP ), y( iS, iP ), depth(iS,iP), &
-                            u(iS,iP)/(eta(iS,iP)+depth(iS,iP)), &
-                            v(iS,iP)/(eta(iS,iP)+depth(iS,iP)),&
-                            eta(iS,iP)
-         ENDDO
-      ENDDO
-        
-   ENDDO
-
-    CLOSE(UNIT=fUnit)
-
- END SUBROUTINE WriteTecplot_ShallowWater
+! SUBROUTINE WriteTecplot_ShallowWater( myDGSEM, filename )
+! ! S/R WriteTecplot
+! !  
+! ! =============================================================================================== !
+! ! DECLARATIONS
+!  IMPLICIT NONE
+!  CLASS( ShallowWater ), INTENT(in)  :: myDGsem
+!  CHARACTER(*), INTENT(in), OPTIONAL :: filename
+!  !LOCAL
+!  REAL(prec)  :: x(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
+!  REAL(prec)  :: y(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
+!  REAL(prec)  :: depth(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
+!  REAL(prec)  :: u(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
+!  REAL(prec)  :: v(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
+!  REAL(prec)  :: eta(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
+!  REAL(prec)  :: vorticity(0:myDGSEM % nPlot,0:myDGSEM % nPlot)
+!  INTEGER     :: iS, iP, iEl, fUnit, nPlot
+!  CHARACTER(len=5) :: zoneID
+!
+!    nPlot = myDGSEM % nPlot
+!    
+!    IF( PRESENT(filename) )THEN
+!       OPEN( UNIT=NEWUNIT(fUnit), &
+!             FILE= TRIM(filename)//'.tec', &
+!             FORM='formatted', &
+!             STATUS='replace')
+!    ELSE
+!       OPEN( UNIT=NEWUNIT(fUnit), &
+!             FILE= 'ShallowWater.tec', &
+!             FORM='formatted', &
+!             STATUS='replace')  
+!    ENDIF
+!    
+!    WRITE(fUnit,*) 'VARIABLES = "X", "Y", "Depth" "U", "V", "Eta" '
+! 
+!   DO iEl = 1, myDGsem % mesh % nElems
+!
+!      CALL myDGSEM % CoarseToFine( iEl, x, y, depth, u, v, eta, vorticity )
+!      WRITE(zoneID,'(I5.5)') iEl
+!      WRITE(fUnit,*) 'ZONE T="el'//trim(zoneID)//'", I=',nPlot+1,', J=', nPlot+1,',F=POINT'
+!
+!      DO iP = 0, nPlot
+!         DO iS = 0, nPlot
+!            WRITE (fUnit,*) x( iS, iP ), y( iS, iP ), depth(iS,iP), &
+!                            u(iS,iP)/(eta(iS,iP)+depth(iS,iP)), &
+!                            v(iS,iP)/(eta(iS,iP)+depth(iS,iP)),&
+!                            eta(iS,iP)
+!         ENDDO
+!      ENDDO
+!        
+!   ENDDO
+!
+!    CLOSE(UNIT=fUnit)
+!
+! END SUBROUTINE WriteTecplot_ShallowWater
 !
 !
 !
- SUBROUTINE WritePickup_ShallowWater( myDGSEM, iter )
- ! S/R WritePickup
- ! 
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( ShallowWater ), INTENT(in) :: myDGSEM
-   INTEGER, INTENT(in)               :: iter
-  ! LOCAL
-   REAL(prec)    :: sol(0:myDGSEM % nS, 0:myDGSEM % nP,1:nSWeq)
-   REAL(prec)    :: bathy(0:myDGSEM % nS, 0:myDGSEM % nP, 1:3)
-   REAL(prec)    :: plv(0:myDGSEM % nS, 0:myDGSEM % nP)
-   CHARACTER(10) :: iterChar
-   INTEGER       :: iEl
-   INTEGER       :: thisRec, fUnit
-   INTEGER       :: iS, iP, iEq, nS, nP
-
-     nS = myDGSEM % nS
-     nP = myDGSEM % nP
-     
-     WRITE(iterChar,'(I10.10)') iter
-
-     OPEN( UNIT=NEWUNIT(fUnit), &
-           FILE='ShallowWater.'//iterChar//'.pickup', &
-           FORM='unformatted',&
-           ACCESS='direct',&
-           STATUS='replace',&
-           ACTION='WRITE',&
-           CONVERT='big_endian',&
-           RECL=prec*(nS+1)*(nP+1) )
-
-     thisRec = 1 
-     DO iEl = 1, myDGSEM % mesh % nElems
-        
-        CALL myDGSEM % GetSolution( iEl, sol )
-        DO iEq = 1, nSWeq
-           WRITE( fUnit, REC=thisRec )sol(:,:,iEq) 
-           thisRec = thisRec+1
-        ENDDO
-        
-        CALL myDGSEM % GetRelaxationField( iEl, sol )
-        DO iEq = 1, nSWeq
-           WRITE( fUnit, REC=thisRec )sol(:,:,iEq) 
-           thisRec = thisRec+1
-        ENDDO
-        
-        CALL myDGSEM % GetRelaxationTimeScale( iEl, plv )
-        WRITE( fUnit, REC=thisRec )plv 
-        thisRec = thisRec+1
-        
-        CALL myDGSEM % GetBathymetry( iEl, bathy )
-        WRITE( fUnit, REC=thisRec ) bathy(:,:,1)
-        thisRec = thisRec+1
-        
-        CALL myDGSEM % GetPlanetaryVorticity( iEl, plv )
-        WRITE( fUnit, REC=thisRec ) plv
-        thisRec = thisRec+1
-
-     ENDDO
-
-     CLOSE(UNIT=fUnit)
-
-     OPEN( UNIT=NEWUNIT(fUnit), &
-           FILE='ShallowWater-ExtState.'//iterChar//'.pickup', &
-           FORM='unformatted',&
-           ACCESS='direct',&
-           STATUS='replace',&
-           ACTION='WRITE',&
-           CONVERT='big_endian',&
-           RECL=prec*(nS+1)*nSWeq )
-
-     thisRec = 1 
-     DO iEl= 1, myDGSEM % nBoundaryEdges
-        WRITE( fUnit, REC=thisRec ) myDGSEM % prescribedState(:,:,iEl)
-        thisRec = thisRec+1
-     ENDDO
-     CLOSE(UNIT=fUnit)
-
- END SUBROUTINE WritePickup_ShallowWater
+! SUBROUTINE WritePickup_ShallowWater( myDGSEM, iter )
+! ! S/R WritePickup
+! ! 
+! ! =============================================================================================== !
+! ! DECLARATIONS
+!   IMPLICIT NONE
+!   CLASS( ShallowWater ), INTENT(in) :: myDGSEM
+!   INTEGER, INTENT(in)               :: iter
+!  ! LOCAL
+!   REAL(prec)    :: sol(0:myDGSEM % nS, 0:myDGSEM % nP,1:nSWeq)
+!   REAL(prec)    :: bathy(0:myDGSEM % nS, 0:myDGSEM % nP, 1:3)
+!   REAL(prec)    :: plv(0:myDGSEM % nS, 0:myDGSEM % nP)
+!   CHARACTER(10) :: iterChar
+!   INTEGER       :: iEl
+!   INTEGER       :: thisRec, fUnit
+!   INTEGER       :: iS, iP, iEq, nS, nP
+!
+!    nS = myDGSEM % nS
+!     nP = myDGSEM % nP
+!     
+!     WRITE(iterChar,'(I10.10)') iter
+!
+!     OPEN( UNIT=NEWUNIT(fUnit), &
+!           FILE='ShallowWater.'//iterChar//'.pickup', &
+!           FORM='unformatted',&
+!           ACCESS='direct',&
+!           STATUS='replace',&
+!           ACTION='WRITE',&
+!           CONVERT='big_endian',&
+!           RECL=prec*(nS+1)*(nP+1) )
+!
+!     thisRec = 1 
+!     DO iEl = 1, myDGSEM % mesh % nElems
+!        
+!        CALL myDGSEM % GetSolution( iEl, sol )
+!        DO iEq = 1, nSWeq
+!           WRITE( fUnit, REC=thisRec )sol(:,:,iEq) 
+!           thisRec = thisRec+1
+!        ENDDO
+!        
+!        CALL myDGSEM % GetRelaxationField( iEl, sol )
+!        DO iEq = 1, nSWeq
+!           WRITE( fUnit, REC=thisRec )sol(:,:,iEq) 
+!           thisRec = thisRec+1
+!        ENDDO
+!        
+!        CALL myDGSEM % GetRelaxationTimeScale( iEl, plv )
+!        WRITE( fUnit, REC=thisRec )plv 
+!        thisRec = thisRec+1
+!        
+!        CALL myDGSEM % GetBathymetry( iEl, bathy )
+!        WRITE( fUnit, REC=thisRec ) bathy(:,:,1)
+!        thisRec = thisRec+1
+!        
+!        CALL myDGSEM % GetPlanetaryVorticity( iEl, plv )
+!        WRITE( fUnit, REC=thisRec ) plv
+!        thisRec = thisRec+1
+!
+!     ENDDO
+!
+!     CLOSE(UNIT=fUnit)
+!
+!     OPEN( UNIT=NEWUNIT(fUnit), &
+!           FILE='ShallowWater-ExtState.'//iterChar//'.pickup', &
+!           FORM='unformatted',&
+!           ACCESS='direct',&
+!           STATUS='replace',&
+!           ACTION='WRITE',&
+!           CONVERT='big_endian',&
+!           RECL=prec*(nS+1)*nSWeq )
+!
+!     thisRec = 1 
+!     DO iEl= 1, myDGSEM % nBoundaryEdges
+!        WRITE( fUnit, REC=thisRec ) myDGSEM % prescribedState(:,:,iEl)
+!        thisRec = thisRec+1
+!     ENDDO
+!     CLOSE(UNIT=fUnit)
+!
+! END SUBROUTINE WritePickup_ShallowWater
 !
 !
+!  SUBROUTINE ReadPickup_ShallowWater( myDGSEM, iter )
+! ! S/R ReadPickup
+! ! 
+! ! =============================================================================================== !
+! ! DECLARATIONS
+!   IMPLICIT NONE
+!   CLASS( ShallowWater ), INTENT(inout) :: myDGSEM
+!   INTEGER, INTENT(in)                  :: iter
+!  ! LOCAL
+!   REAL(prec)    :: sol(0:myDGSEM % nS, 0:myDGSEM % nP,1:nSWeq)
+!   REAL(prec)    :: bathy(0:myDGSEM % nS, 0:myDGSEM % nP, 1:3)
+!   REAL(prec)    :: plv(0:myDGSEM % nS, 0:myDGSEM % nP)
+!   CHARACTER(10) :: iterChar
+!   INTEGER       :: iEl
+!   INTEGER       :: thisRec, fUnit
+!   INTEGER       :: iS, iP, iEq, nS, nP
 !
-  SUBROUTINE ReadPickup_ShallowWater( myDGSEM, iter )
- ! S/R ReadPickup
- ! 
- ! =============================================================================================== !
- ! DECLARATIONS
-   IMPLICIT NONE
-   CLASS( ShallowWater ), INTENT(inout) :: myDGSEM
-   INTEGER, INTENT(in)                  :: iter
-  ! LOCAL
-   REAL(prec)    :: sol(0:myDGSEM % nS, 0:myDGSEM % nP,1:nSWeq)
-   REAL(prec)    :: bathy(0:myDGSEM % nS, 0:myDGSEM % nP, 1:3)
-   REAL(prec)    :: plv(0:myDGSEM % nS, 0:myDGSEM % nP)
-   CHARACTER(10) :: iterChar
-   INTEGER       :: iEl
-   INTEGER       :: thisRec, fUnit
-   INTEGER       :: iS, iP, iEq, nS, nP
-
-     nS = myDGSEM % nS
-     nP = myDGSEM % nP
-     bathy = ZERO
-     
-     WRITE(iterChar,'(I10.10)') iter
-
-     OPEN( UNIT=NEWUNIT(fUnit), &
-           FILE='ShallowWater.'//iterChar//'.pickup', &
-           FORM='unformatted',&
-           ACCESS='direct',&
-           STATUS='old',&
-           ACTION='READ',&
-           CONVERT='big_endian',&
-           RECL=prec*(nS+1)*(nP+1) )
-     
-     thisRec = 1
-     DO iEl = 1, myDGSEM % mesh % nElems
-        
-        DO iEq = 1, nSWeq
-           READ( fUnit, REC=thisRec )sol(:,:,iEq) 
-           thisRec = thisRec+1
-        ENDDO
-        CALL myDGSEM % SetSolution( iEl, sol )
-        
-        DO iEq = 1, nSWeq
-           READ( fUnit, REC=thisRec )sol(:,:,iEq) 
-           thisRec = thisRec+1
-        ENDDO
-        CALL myDGSEM % SetRelaxationField( iEl, sol )
-        
-        READ( fUnit, REC=thisRec )plv 
-        thisRec = thisRec+1
-        CALL myDGSEM % SetRelaxationTimeScale( iEl, plv )
-        
-        READ( fUnit, REC=thisRec ) bathy(:,:,1)
-        thisRec = thisRec+1
-        CALL myDGSEM % SetBathymetry( iEl, bathy )
-        
-        READ( fUnit, REC=thisRec ) plv
-        thisRec = thisRec+1
-        CALL myDGSEM % SetPlanetaryVorticity( iEl, plv )
-        
-        CALL myDGSEM % CalculateBathymetryAtBoundaries( iEl )
-        
-     ENDDO
-
-     CLOSE(UNIT=fUnit)
-
-     OPEN( UNIT=NEWUNIT(fUnit), &
-           FILE='ShallowWater-ExtState.'//iterChar//'.pickup', &
-           FORM='unformatted',&
-           ACCESS='direct',&
-           STATUS='old',&
-           ACTION='READ',&
-           CONVERT='big_endian',&
-           RECL=prec*(nS+1)*nSWeq )
-
-     thisRec = 1 
-     DO iEl= 1, myDGSEM % nBoundaryEdges
-        READ( fUnit, REC=thisRec ) myDGSEM % prescribedState(:,:,iEl)
-        thisRec = thisRec+1
-     ENDDO
-     CLOSE(UNIT=fUnit)
-
-     
- END SUBROUTINE ReadPickup_ShallowWater
+!     nS = myDGSEM % nS
+!     nP = myDGSEM % nP
+!     bathy = ZERO
+!     
+!     WRITE(iterChar,'(I10.10)') iter
+!
+!     OPEN( UNIT=NEWUNIT(fUnit), &
+!           FILE='ShallowWater.'//iterChar//'.pickup', &
+!           FORM='unformatted',&
+!           ACCESS='direct',&
+!           STATUS='old',&
+!           ACTION='READ',&
+!           CONVERT='big_endian',&
+!           RECL=prec*(nS+1)*(nP+1) )
+!     
+!     thisRec = 1
+!     DO iEl = 1, myDGSEM % mesh % nElems
+!        
+!        DO iEq = 1, nSWeq
+!           READ( fUnit, REC=thisRec )sol(:,:,iEq) 
+!           thisRec = thisRec+1
+!        ENDDO
+!        CALL myDGSEM % SetSolution( iEl, sol )
+!        
+!        DO iEq = 1, nSWeq
+!           READ( fUnit, REC=thisRec )sol(:,:,iEq) 
+!           thisRec = thisRec+1
+!        ENDDO
+!        CALL myDGSEM % SetRelaxationField( iEl, sol )
+!        
+!        READ( fUnit, REC=thisRec )plv 
+!        thisRec = thisRec+1
+!        CALL myDGSEM % SetRelaxationTimeScale( iEl, plv )
+!        
+!        READ( fUnit, REC=thisRec ) bathy(:,:,1)
+!        thisRec = thisRec+1
+!        CALL myDGSEM % SetBathymetry( iEl, bathy )
+!        
+!        READ( fUnit, REC=thisRec ) plv
+!        thisRec = thisRec+1
+!        CALL myDGSEM % SetPlanetaryVorticity( iEl, plv )
+!        
+!        CALL myDGSEM % CalculateBathymetryAtBoundaries( iEl )
+!        
+!     ENDDO
+!
+!     CLOSE(UNIT=fUnit)
+!
+!     OPEN( UNIT=NEWUNIT(fUnit), &
+!           FILE='ShallowWater-ExtState.'//iterChar//'.pickup', &
+!           FORM='unformatted',&
+!           ACCESS='direct',&
+!           STATUS='old',&
+!           ACTION='READ',&
+!           CONVERT='big_endian',&
+!           RECL=prec*(nS+1)*nSWeq )
+!
+!     thisRec = 1 
+!     DO iEl= 1, myDGSEM % nBoundaryEdges
+!        READ( fUnit, REC=thisRec ) myDGSEM % prescribedState(:,:,iEl)
+!        thisRec = thisRec+1
+!     ENDDO
+!     CLOSE(UNIT=fUnit)
+!
+!     
+! END SUBROUTINE ReadPickup_ShallowWater
 !
 !
 ! 
  END MODULE ConservativeShallowWaterClass
-
 
 
